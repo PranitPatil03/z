@@ -27,27 +27,68 @@ function requireContext(request: Request) {
   return { orgId: session.activeOrganizationId, userId: user.id };
 }
 
-function encryptToken(token: string): string {
-  const key = crypto.scryptSync(env.ENCRYPTION_KEY || "default-key-do-not-use", "salt", 32);
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-  let encrypted = cipher.update(token, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return iv.toString("hex") + ":" + encrypted;
+function getEncryptionKey(): Buffer {
+  if (!env.ENCRYPTION_KEY) {
+    throw new Error("ENCRYPTION_KEY environment variable is required for OAuth token encryption");
+  }
+  return Buffer.from(env.ENCRYPTION_KEY, "utf8");
 }
 
-function decryptToken(encryptedWithIv: string): string {
+function deriveKey(masterKey: Buffer, salt: Buffer): Buffer {
+  return crypto.scryptSync(masterKey, salt, 32);
+}
+
+function encryptToken(token: string): string {
+  const masterKey = getEncryptionKey();
+  const salt = crypto.randomBytes(16);
+  const key = deriveKey(masterKey, salt);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  let encrypted = cipher.update(token, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  const authTag = cipher.getAuthTag().toString("hex");
+  return [salt.toString("hex"), iv.toString("hex"), authTag, encrypted].join(":");
+}
+
+function decryptToken(encryptedData: string): string {
   try {
-    const [ivHex, encrypted] = encryptedWithIv.split(":");
-    const key = crypto.scryptSync(env.ENCRYPTION_KEY || "default-key-do-not-use", "salt", 32);
+    const [saltHex, ivHex, authTagHex, encrypted] = encryptedData.split(":");
+    if (!saltHex || !ivHex || !authTagHex || !encrypted) {
+      throw new Error("Invalid encrypted token format");
+    }
+    const masterKey = getEncryptionKey();
+    const salt = Buffer.from(saltHex, "hex");
+    const key = deriveKey(masterKey, salt);
     const iv = Buffer.from(ivHex, "hex");
-    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
     return decrypted;
   } catch {
-    throw new Error("Failed to decrypt token");
+    throw new Error("Failed to decrypt token — key may have changed or data is corrupted");
   }
+}
+
+function signState(payload: string): string {
+  const hmacKey = getEncryptionKey();
+  const signature = crypto.createHmac("sha256", hmacKey).update(payload).digest("hex");
+  return `${payload}.${signature}`;
+}
+
+function verifySignedState(signedState: string): string {
+  const lastDotIndex = signedState.lastIndexOf(".");
+  if (lastDotIndex === -1) {
+    throw unauthorized("Invalid state parameter format");
+  }
+  const payload = signedState.substring(0, lastDotIndex);
+  const receivedSig = signedState.substring(lastDotIndex + 1);
+  const hmacKey = getEncryptionKey();
+  const expectedSig = crypto.createHmac("sha256", hmacKey).update(payload).digest("hex");
+  if (!crypto.timingSafeEqual(Buffer.from(receivedSig, "hex"), Buffer.from(expectedSig, "hex"))) {
+    throw unauthorized("State parameter signature verification failed");
+  }
+  return payload;
 }
 
 function generateState(orgId: string, userId: string, provider: "gmail" | "outlook"): string {
@@ -59,7 +100,8 @@ function generateState(orgId: string, userId: string, provider: "gmail" | "outlo
     timestamp: Date.now(),
   };
 
-  return Buffer.from(JSON.stringify(stateObj)).toString("base64");
+  const payload = Buffer.from(JSON.stringify(stateObj)).toString("base64");
+  return signState(payload);
 }
 
 async function exchangeGoogleCode(code: string): Promise<{ accessToken: string; refreshToken?: string; email: string }> {
@@ -181,8 +223,12 @@ export const oauthService = {
 
     let stateObj: Record<string, unknown>;
     try {
-      stateObj = JSON.parse(Buffer.from(state, "base64").toString("utf8"));
-    } catch {
+      const verifiedPayload = verifySignedState(state);
+      stateObj = JSON.parse(Buffer.from(verifiedPayload, "base64").toString("utf8"));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("State parameter")) {
+        throw error;
+      }
       throw unauthorized("Invalid state parameter");
     }
 

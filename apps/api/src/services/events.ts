@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { users, notifications } from "@foreman/db";
 import { db } from "../database";
+import { logger } from "../lib/logger";
 import { enqueueNotificationDelivery } from "../lib/queues";
 import { notificationService } from "./notification";
 
@@ -96,10 +97,10 @@ export const eventService = {
       if (handler) {
         await handler(payload);
       } else {
-        console.warn(`No handler found for event: ${payload.event}`);
+        logger.warn({ event: payload.event }, "No handler found for event");
       }
     } catch (error) {
-      console.error(`Error handling event ${payload.event}:`, error);
+      logger.error({ event: payload.event, err: error }, "Error handling event");
     }
   },
 

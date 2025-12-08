@@ -1,14 +1,9 @@
-import { eq, desc, limit } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { auditLogs, projects, billingRecords, budgetCostCodes, changeOrders } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest } from "../lib/errors";
-import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-
-function readValidatedParams<T>(request: Request) {
-  return (request as ValidatedRequest).validated?.params as T;
-}
 
 function requireOrg(request: Request) {
   const { session } = getAuthContext(request);
@@ -16,6 +11,10 @@ function requireOrg(request: Request) {
     throw badRequest("An active organization is required");
   }
   return session.activeOrganizationId;
+}
+
+function toNumber(value: unknown): number {
+  return typeof value === "number" ? value : Number(value ?? 0);
 }
 
 function getRecommendations(
@@ -80,37 +79,53 @@ export const activityFeedService = {
     const orgId = requireOrg(request);
 
     // Collect health metrics
-    const [projectCount] = await db
-      .select({ count: projects.id })
+    const [projectCountResult] = await db
+      .select({ count: count() })
       .from(projects)
-      .where(eq(projects.organizationId, orgId));
+      .where(and(eq(projects.organizationId, orgId), isNull(projects.deletedAt)));
 
-    const [pendingChangeOrders] = await db
-      .select({ count: changeOrders.id })
+    const [pendingChangeOrdersResult] = await db
+      .select({ count: count() })
       .from(changeOrders)
-      .where(eq(changeOrders.status, "submitted") as any);
+      .where(
+        and(
+          eq(changeOrders.organizationId, orgId),
+          eq(changeOrders.status, "submitted"),
+        ),
+      );
 
-    const [overBudgetItems] = await db
-      .select({ count: budgetCostCodes.id })
+    const [overBudgetItemsResult] = await db
+      .select({ count: count() })
       .from(budgetCostCodes)
       .where(eq(budgetCostCodes.organizationId, orgId));
 
-    const [unpaidInvoices] = await db
-      .select({ count: billingRecords.id })
+    const [unpaidInvoicesResult] = await db
+      .select({ count: count() })
       .from(billingRecords)
-      .where(eq(billingRecords.status, "unpaid"));
+      .where(
+        and(
+          eq(billingRecords.organizationId, orgId),
+          eq(billingRecords.status, "issued"),
+          isNull(billingRecords.deletedAt),
+        ),
+      );
+
+    const projectCount = toNumber(projectCountResult?.count);
+    const pendingChangeOrders = toNumber(pendingChangeOrdersResult?.count);
+    const overBudgetItems = toNumber(overBudgetItemsResult?.count);
+    const unpaidInvoices = toNumber(unpaidInvoicesResult?.count);
 
     // Calculate health score (0-100)
     let score = 100;
 
     // Deduct for pending change orders (max 20 points)
-    score -= Math.min(20, (pendingChangeOrders?.count || 0) * 2);
+    score -= Math.min(20, pendingChangeOrders * 2);
 
     // Deduct for over-budget items (max 15 points)
-    score -= Math.min(15, (overBudgetItems?.count || 0) * 1.5);
+    score -= Math.min(15, overBudgetItems * 1.5);
 
     // Deduct for unpaid invoices (max 25 points)
-    score -= Math.min(25, (unpaidInvoices?.count || 0) * 5);
+    score -= Math.min(25, unpaidInvoices * 5);
 
     score = Math.max(0, Math.min(100, score));
 
@@ -118,15 +133,15 @@ export const activityFeedService = {
       score: Math.round(score),
       status: score >= 80 ? "healthy" : score >= 60 ? "warning" : "critical",
       metrics: {
-        projects: projectCount?.count || 0,
-        pendingChangeOrders: pendingChangeOrders?.count || 0,
-        overBudgetItems: overBudgetItems?.count || 0,
-        unpaidInvoices: unpaidInvoices?.count || 0,
+        projects: projectCount,
+        pendingChangeOrders,
+        overBudgetItems,
+        unpaidInvoices,
       },
       recommendations: getRecommendations(score, {
-        pendingChangeOrders: pendingChangeOrders?.count || 0,
-        overBudgetItems: overBudgetItems?.count || 0,
-        unpaidInvoices: unpaidInvoices?.count || 0,
+        pendingChangeOrders,
+        overBudgetItems,
+        unpaidInvoices,
       }),
     };
   },
@@ -140,7 +155,7 @@ export const activityFeedService = {
     const [project] = await db
       .select()
       .from(projects)
-      .where(eq(projects.id, projectId))
+      .where(and(eq(projects.id, projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt)))
       .limit(1);
 
     if (!project) {
@@ -148,20 +163,28 @@ export const activityFeedService = {
     }
 
     // Get project-specific metrics
-    const [costCodeStats] = await db
-      .select({ count: budgetCostCodes.id })
+    const [costCodeStatsResult] = await db
+      .select({ count: count() })
       .from(budgetCostCodes)
-      .where(eq(budgetCostCodes.projectId, projectId));
+      .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, projectId)));
 
-    const [changeOrderStats] = await db
-      .select({ count: changeOrders.id })
+    const [changeOrderStatsResult] = await db
+      .select({ count: count() })
       .from(changeOrders)
-      .where(eq(changeOrders.projectId, projectId));
+      .where(
+        and(
+          eq(changeOrders.organizationId, orgId),
+          eq(changeOrders.projectId, projectId),
+        ),
+      );
+
+    const totalCostCodes = toNumber(costCodeStatsResult?.count);
+    const totalChangeOrders = toNumber(changeOrderStatsResult?.count);
 
     let projectScore = 100;
 
     // Deduct for change orders
-    projectScore -= Math.min(20, (changeOrderStats?.count || 0) * 3);
+    projectScore -= Math.min(20, totalChangeOrders * 3);
 
     projectScore = Math.max(0, Math.min(100, projectScore));
 
@@ -171,8 +194,8 @@ export const activityFeedService = {
       score: Math.round(projectScore),
       status: projectScore >= 80 ? "healthy" : projectScore >= 60 ? "warning" : "critical",
       metrics: {
-        totalCostCodes: costCodeStats?.count || 0,
-        totalChangeOrders: changeOrderStats?.count || 0,
+        totalCostCodes,
+        totalChangeOrders,
       },
     };
   },

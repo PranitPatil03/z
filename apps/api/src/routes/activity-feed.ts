@@ -7,7 +7,7 @@ import {
 import { asyncHandler } from "../lib/async-handler";
 import { requireAuth } from "../middleware/require-auth";
 
-export const activityFeedRouter = Router();
+export const activityFeedRouter: import("express").Router = Router();
 
 activityFeedRouter.use(requireAuth);
 

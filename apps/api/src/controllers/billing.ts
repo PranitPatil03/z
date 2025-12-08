@@ -25,3 +25,8 @@ export async function archiveBillingRecordController(request: Request, response:
   const data = await billingService.archive(request);
   response.json({ data });
 }
+
+export async function getUsageSummaryController(request: Request, response: Response) {
+  const data = await billingService.usage(request);
+  response.json({ data });
+}

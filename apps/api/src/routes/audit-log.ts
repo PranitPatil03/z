@@ -5,7 +5,7 @@ import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { auditLogIdParamsSchema, createAuditLogSchema, listAuditLogsQuerySchema } from "../schemas/audit-log.schema";
 
-export const auditLogRouter = Router();
+export const auditLogRouter: import("express").Router = Router();
 
 auditLogRouter.use(requireAuth);
 

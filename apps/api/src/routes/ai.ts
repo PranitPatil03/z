@@ -5,7 +5,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { aiEstimateSchema, aiGenerateSchema, aiJobParamsSchema } from "../schemas/ai.schema";
 
-export const aiRouter = Router();
+export const aiRouter: import("express").Router = Router();
 
 aiRouter.use(requireAuth);
 

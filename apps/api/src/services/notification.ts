@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { notifications } from "@foreman/db";
+import { notifications, users } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
@@ -53,11 +53,21 @@ export const notificationService = {
       })
       .returning();
 
-    await enqueueNotificationDelivery({
-      to: input.userId,
-      subject: input.title,
-      body: input.message,
-    });
+    const [recipient] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, input.userId))
+      .limit(1);
+
+    if (recipient?.email) {
+      await enqueueNotificationDelivery({
+        toEmail: recipient.email,
+        toUserId: input.userId,
+        subject: input.title,
+        body: input.message,
+        notificationId: record.id,
+      });
+    }
 
     return record;
   },

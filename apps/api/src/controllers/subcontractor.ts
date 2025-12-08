@@ -25,3 +25,8 @@ export async function archiveSubcontractorController(request: Request, response:
   const data = await subcontractorService.archive(request);
   response.json({ data });
 }
+
+export async function inviteSubcontractorPortalController(request: Request, response: Response) {
+  const data = await subcontractorService.invitePortalAccess(request);
+  response.json({ data });
+}

@@ -3,9 +3,10 @@ import { invoices } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
+import { buildCursorPagination, paginatedResponse } from "../lib/pagination";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { createInvoiceSchema, invoiceIdParamsSchema, updateInvoiceSchema } from "../schemas/invoice.schema";
+import { createInvoiceSchema, invoiceIdParamsSchema, listInvoicesQuerySchema, updateInvoiceSchema } from "../schemas/invoice.schema";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -26,7 +27,23 @@ function requireOrg(request: Request) {
 export const invoiceService = {
   async list(request: Request) {
     const orgId = requireOrg(request);
-    return await db.select().from(invoices).where(and(eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)));
+    const query = listInvoicesQuerySchema.parse((request as ValidatedRequest).validated?.query || request.query);
+
+    const conditions = [eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)];
+    if (query.projectId) conditions.push(eq(invoices.projectId, query.projectId));
+    if (query.status) conditions.push(eq(invoices.status, query.status));
+
+    const { cursorCondition, orderBy, limit } = buildCursorPagination(invoices.id, query);
+    if (cursorCondition) conditions.push(cursorCondition);
+
+    const items = await db
+      .select()
+      .from(invoices)
+      .where(and(...conditions))
+      .orderBy(orderBy)
+      .limit(limit);
+
+    return paginatedResponse(items, limit);
   },
 
   async create(request: Request) {

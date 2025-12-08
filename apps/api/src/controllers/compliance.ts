@@ -25,3 +25,8 @@ export async function archiveComplianceItemController(request: Request, response
   const data = await complianceService.archive(request);
   response.json({ data });
 }
+
+export async function queueComplianceInsuranceExtractionController(request: Request, response: Response) {
+  const data = await complianceService.queueInsuranceExtraction(request);
+  response.json({ data });
+}

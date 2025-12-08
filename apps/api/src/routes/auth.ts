@@ -4,7 +4,7 @@ import { auth } from "../auth";
 
 const authHandler = toNodeHandler(auth);
 
-export const authRouter = Router();
+export const authRouter: import("express").Router = Router();
 
 authRouter.use(async (req, res) => {
   await authHandler(req, res);

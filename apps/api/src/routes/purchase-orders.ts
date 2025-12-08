@@ -15,7 +15,7 @@ import {
 	updatePurchaseOrderSchema,
 } from "../schemas/purchase-order.schema";
 
-export const purchaseOrdersRouter = Router();
+export const purchaseOrdersRouter: import("express").Router = Router();
 
 purchaseOrdersRouter.use(requireAuth);
 

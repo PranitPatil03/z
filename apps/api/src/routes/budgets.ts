@@ -1,58 +1,73 @@
 import { Router } from "express";
 import {
+  createBudgetCostCodeEntryController,
   createBudgetCostCodeController,
+  deduplicateBudgetAlertsController,
+  getBudgetCostCodeDrilldownController,
   getBudgetReconciliationController,
+  getBudgetSettingsController,
   getBudgetVarianceController,
+  listBudgetCostCodeEntriesController,
   listBudgetCostCodesController,
+  queueBudgetNarrativesController,
+  upsertBudgetSettingsController,
   updateBudgetCostCodeController,
 } from "../controllers/budget";
 import { asyncHandler } from "../lib/async-handler";
 import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import {
+  budgetCostCodeDrilldownQuerySchema,
+  budgetCostCodeEntryParamsSchema,
   budgetCostCodeIdParamsSchema,
+  budgetProjectSettingsQuerySchema,
+  createBudgetCostEntrySchema,
   createBudgetCostCodeSchema,
   deduplicateAlertsSchema,
+  listBudgetCostEntriesQuerySchema,
   listBudgetQuerySchema,
   queueNarrativesSchema,
+  upsertBudgetProjectSettingsSchema,
   updateBudgetCostCodeSchema,
 } from "../schemas/budget.schema";
 
-export const budgetsRouter = Router();
+export const budgetsRouter: import("express").Router = Router();
 
 budgetsRouter.use(requireAuth);
 
 budgetsRouter.get("/cost-codes", validateQuery(listBudgetQuerySchema), asyncHandler(listBudgetCostCodesController));
 budgetsRouter.post("/cost-codes", validateBody(createBudgetCostCodeSchema), asyncHandler(createBudgetCostCodeController));
+budgetsRouter.get("/settings", validateQuery(budgetProjectSettingsQuerySchema), asyncHandler(getBudgetSettingsController));
+budgetsRouter.put("/settings", validateBody(upsertBudgetProjectSettingsSchema), asyncHandler(upsertBudgetSettingsController));
 budgetsRouter.patch(
   "/cost-codes/:costCodeId",
   validateParams(budgetCostCodeIdParamsSchema),
   validateBody(updateBudgetCostCodeSchema),
   asyncHandler(updateBudgetCostCodeController),
 );
+budgetsRouter.get(
+  "/cost-codes/:costCodeId/entries",
+  validateParams(budgetCostCodeEntryParamsSchema),
+  validateQuery(listBudgetCostEntriesQuerySchema),
+  asyncHandler(listBudgetCostCodeEntriesController),
+);
+budgetsRouter.post(
+  "/cost-codes/:costCodeId/entries",
+  validateParams(budgetCostCodeEntryParamsSchema),
+  validateBody(createBudgetCostEntrySchema),
+  asyncHandler(createBudgetCostCodeEntryController),
+);
+budgetsRouter.get(
+  "/cost-codes/:costCodeId/drilldown",
+  validateParams(budgetCostCodeEntryParamsSchema),
+  validateQuery(budgetCostCodeDrilldownQuerySchema),
+  asyncHandler(getBudgetCostCodeDrilldownController),
+);
 budgetsRouter.get("/variance", validateQuery(listBudgetQuerySchema), asyncHandler(getBudgetVarianceController));
 budgetsRouter.get("/reconciliation", validateQuery(listBudgetQuerySchema), asyncHandler(getBudgetReconciliationController));
-budgetsRouter.post(
-  "/narratives/queue",
-  validateBody(queueNarrativesSchema),
-  asyncHandler(async (request, response) => {
-    const service = (await import("../services/budget-narrative")).budgetNarrativeService;
-      const body = ((request as unknown) as Record<string, Record<string, string>>).validated?.body || {};
-    const { session } = (await import("../middleware/require-auth")).getAuthContext(request);
-    const orgId = session.activeOrganizationId;
-      const result = await service.queueNarrativesForProject(orgId, body.projectId || "");
-    response.json(result);
-  }),
-);
+budgetsRouter.post("/narratives/queue", validateBody(queueNarrativesSchema), asyncHandler(queueBudgetNarrativesController));
 budgetsRouter.post(
   "/alerts/deduplicate",
   validateBody(deduplicateAlertsSchema),
-  asyncHandler(async (request, response) => {
-    const service = (await import("../services/budget-narrative")).budgetNarrativeService;
-      const body = ((request as unknown) as Record<string, Record<string, string | number>>).validated?.body || {};
-    const { session } = (await import("../middleware/require-auth")).getAuthContext(request);
-    const orgId = session.activeOrganizationId;
-      const result = await service.deduplicateAlerts(orgId, body.projectId ? String(body.projectId) : "", (body.maxAgeHours as number) ?? 24);
-    response.json(result);
-  }),
+  asyncHandler(deduplicateBudgetAlertsController),
 );

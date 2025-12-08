@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../lib/async-handler";
 import { requireAuth } from "../middleware/require-auth";
+import { requireOrgRole } from "../middleware/require-role";
 import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import {
 	acceptInvitationController,
@@ -57,7 +58,7 @@ import {
 	updateTeamSchema,
 } from "../schemas/organization.schema";
 
-export const organizationsRouter = Router();
+export const organizationsRouter: import("express").Router = Router();
 
 organizationsRouter.use(requireAuth);
 
@@ -86,11 +87,11 @@ organizationsRouter.delete("/teams/:teamId/members/:userId", validateParams(team
 
 organizationsRouter.get("/:organizationId", validateParams(organizationIdParamsSchema), asyncHandler(getOrganizationController));
 organizationsRouter.patch("/:organizationId", validateBody(updateOrganizationSchema), validateParams(organizationIdParamsSchema), asyncHandler(updateOrganizationController));
-organizationsRouter.delete("/:organizationId", validateParams(organizationIdParamsSchema), asyncHandler(deleteOrganizationController));
+organizationsRouter.delete("/:organizationId", requireOrgRole("owner"), validateParams(organizationIdParamsSchema), asyncHandler(deleteOrganizationController));
 organizationsRouter.get("/:organizationId/members", validateParams(organizationIdParamsSchema), asyncHandler(listMembersController));
 organizationsRouter.post("/:organizationId/members", validateParams(organizationIdParamsSchema), validateBody(addMemberSchema), asyncHandler(addMemberController));
-organizationsRouter.patch("/:organizationId/members/:memberId/role", validateParams(organizationMemberParamsSchema), validateBody(updateMemberRoleSchema), asyncHandler(updateMemberRoleController));
-organizationsRouter.delete("/:organizationId/members/:memberId", validateParams(organizationMemberParamsSchema), asyncHandler(removeMemberController));
-organizationsRouter.post("/:organizationId/invitations", validateBody(inviteMemberSchema), validateParams(organizationIdParamsSchema), asyncHandler(inviteMemberController));
+organizationsRouter.patch("/:organizationId/members/:memberId/role", requireOrgRole("owner", "admin"), validateParams(organizationMemberParamsSchema), validateBody(updateMemberRoleSchema), asyncHandler(updateMemberRoleController));
+organizationsRouter.delete("/:organizationId/members/:memberId", requireOrgRole("owner", "admin"), validateParams(organizationMemberParamsSchema), asyncHandler(removeMemberController));
+organizationsRouter.post("/:organizationId/invitations", requireOrgRole("owner", "admin"), validateBody(inviteMemberSchema), validateParams(organizationIdParamsSchema), asyncHandler(inviteMemberController));
 organizationsRouter.post("/:organizationId/teams", validateParams(organizationIdParamsSchema), validateBody(createTeamSchema), asyncHandler(createTeamController));
 organizationsRouter.get("/:organizationId/teams", validateParams(organizationIdParamsSchema), asyncHandler(listOrganizationTeamsController));

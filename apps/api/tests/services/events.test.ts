@@ -1,12 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createNotificationMock } = vi.hoisted(() => ({
+const { createNotificationMock, loggerErrorMock } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
 }));
 
 vi.mock("../../src/services/notification", () => ({
   notificationService: {
     create: createNotificationMock,
+  },
+}));
+
+vi.mock("../../src/lib/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: loggerErrorMock,
+    debug: vi.fn(),
   },
 }));
 
@@ -84,7 +94,7 @@ describe("eventService", () => {
 
   it("does not throw when notification creation fails", async () => {
     createNotificationMock.mockRejectedValue(new Error("Queue unavailable"));
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    loggerErrorMock.mockReset();
 
     await expect(
       eventService.emit({
@@ -96,8 +106,7 @@ describe("eventService", () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(loggerErrorMock).toHaveBeenCalled();
   });
 
   it("supports custom event handler registration", async () => {

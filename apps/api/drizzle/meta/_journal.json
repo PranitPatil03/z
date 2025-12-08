@@ -15,6 +15,34 @@
       "when": 1775419200946,
       "tag": "0001_lowly_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775428004894,
+      "tag": "0002_charming_cerebro",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775501424310,
+      "tag": "0003_strange_madripoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775509479379,
+      "tag": "0004_curly_romulus",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775513429134,
+      "tag": "0005_secret_odin",
+      "breakpoints": true
     }
   ]
 }

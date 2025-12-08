@@ -3,23 +3,26 @@ import {
 	archiveSubcontractorController,
 	createSubcontractorController,
 	getSubcontractorController,
+	inviteSubcontractorPortalController,
 	listSubcontractorsController,
 	updateSubcontractorController,
 } from "../controllers/subcontractor";
 import { asyncHandler } from "../lib/async-handler";
-import { validateBody, validateParams } from "../lib/validate";
+import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import {
 	createSubcontractorSchema,
+	inviteSubcontractorPortalSchema,
+	listSubcontractorsQuerySchema,
 	subcontractorIdParamsSchema,
 	updateSubcontractorSchema,
 } from "../schemas/subcontractor.schema";
 
-export const subcontractorsRouter = Router();
+export const subcontractorsRouter: import("express").Router = Router();
 
 subcontractorsRouter.use(requireAuth);
 
-subcontractorsRouter.get("/", asyncHandler(listSubcontractorsController));
+subcontractorsRouter.get("/", validateQuery(listSubcontractorsQuerySchema), asyncHandler(listSubcontractorsController));
 subcontractorsRouter.post("/", validateBody(createSubcontractorSchema), asyncHandler(createSubcontractorController));
 subcontractorsRouter.get(
 	"/:subcontractorId",
@@ -36,4 +39,10 @@ subcontractorsRouter.delete(
 	"/:subcontractorId",
 	validateParams(subcontractorIdParamsSchema),
 	asyncHandler(archiveSubcontractorController),
+);
+subcontractorsRouter.post(
+	"/:subcontractorId/portal-invite",
+	validateParams(subcontractorIdParamsSchema),
+	validateBody(inviteSubcontractorPortalSchema),
+	asyncHandler(inviteSubcontractorPortalController),
 );

@@ -1,14 +1,38 @@
 import Stripe from "stripe";
 import { and, eq, isNull } from "drizzle-orm";
-import { billingRecords, organizations } from "@foreman/db";
+import { billingRecords } from "@foreman/db";
 import { db } from "../database";
 import { env } from "../config/env";
+import { logger } from "../lib/logger";
 import { badRequest, unauthorized, notFound } from "../lib/errors";
 import { eventService } from "./events";
 
-const stripe = new Stripe(env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
-  apiVersion: "2025-01-27.acpi",
-});
+function getStripeClient(): Stripe {
+  if (!env.STRIPE_SECRET_KEY) {
+    throw new Error(
+      "STRIPE_SECRET_KEY environment variable is required for billing operations",
+    );
+  }
+  return new Stripe(env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-08-27.basil",
+  });
+}
+
+let _stripe: Stripe | null = null;
+function stripe(): Stripe {
+  if (!_stripe) {
+    _stripe = getStripeClient();
+  }
+  return _stripe;
+}
+
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const subscription = invoice.parent?.subscription_details?.subscription;
+  if (!subscription) {
+    return null;
+  }
+  return typeof subscription === "string" ? subscription : subscription.id;
+}
 
 // Helper functions
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
@@ -71,9 +95,8 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
-  if (!invoice.subscription_id) return;
-
-  const subscriptionId = invoice.subscription_id as string;
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) return;
 
   await db
     .update(billingRecords)
@@ -105,9 +128,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
-  if (!invoice.subscription_id) return;
-
-  const subscriptionId = invoice.subscription_id as string;
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) return;
 
   await db
     .update(billingRecords)
@@ -138,11 +160,11 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  console.log(`Subscription created: ${subscription.id}`);
+  logger.info({ subscriptionId: subscription.id }, "Stripe subscription created");
 }
 
 function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  console.log(`Subscription updated: ${subscription.id}`);
+  logger.info({ subscriptionId: subscription.id }, "Stripe subscription updated");
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -152,8 +174,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     await db
       .update(billingRecords)
       .set({
-        status: "cancelled",
+        status: "void",
         deletedAt: new Date(),
+        updatedAt: new Date(),
       })
       .where(eq(billingRecords.id, billingRecordId));
   }
@@ -165,7 +188,7 @@ export const stripeService = {
    */
   async createCustomer(orgId: string, email: string, name: string) {
     try {
-      const customer = await stripe.customers.create({
+      const customer = await stripe().customers.create({
         name,
         email,
         metadata: {
@@ -197,7 +220,7 @@ export const stripeService = {
         throw notFound("Billing record not found");
       }
 
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await stripe().paymentIntents.create({
         amount: record.amountCents,
         currency: record.currency.toLowerCase(),
         customer: stripeCustomerId,
@@ -233,7 +256,7 @@ export const stripeService = {
     billingRecordId: string,
   ) {
     try {
-      const subscription = await stripe.subscriptions.create({
+      const subscription = await stripe().subscriptions.create({
         customer: stripeCustomerId,
         items: [
           {
@@ -290,7 +313,7 @@ export const stripeService = {
         return await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        logger.warn({ eventType: event.type }, "Unhandled Stripe webhook event type");
         return { acknowledged: true };
     }
   },
@@ -303,6 +326,6 @@ export const stripeService = {
       throw unauthorized("Stripe webhook secret not configured");
     }
 
-    return stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
+    return stripe().webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
   },
 };

@@ -11,7 +11,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { createIntegrationSchema, integrationIdParamsSchema, updateIntegrationSchema } from "../schemas/integration.schema";
 
-export const integrationsRouter = Router();
+export const integrationsRouter: import("express").Router = Router();
 
 integrationsRouter.use(requireAuth);
 

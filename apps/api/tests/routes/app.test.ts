@@ -24,4 +24,22 @@ describe("app routes", () => {
     expect(typeof response.body.time).toBe("string");
     expect(Number.isNaN(Date.parse(response.body.time))).toBe(false);
   });
+
+  it("returns readiness payload", async () => {
+    const response = await request(app).get("/health/ready");
+
+    expect([200, 503]).toContain(response.status);
+    expect(response.body).toMatchObject({
+      service: "api",
+      ready: expect.any(Boolean),
+      checks: {
+        database: { status: expect.any(String) },
+        redis: { status: expect.any(String) },
+        storage: { status: expect.any(String) },
+        email: { status: expect.any(String) },
+      },
+    });
+    expect(typeof response.body.time).toBe("string");
+    expect(Number.isNaN(Date.parse(response.body.time))).toBe(false);
+  });
 });

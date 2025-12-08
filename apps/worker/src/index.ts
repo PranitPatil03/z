@@ -1,30 +1,54 @@
 import { generateAiCompletion, type LlmProviderName } from "@foreman/ai";
 import { QueueEvents, Worker } from "bullmq";
 import pino from "pino";
+import { persistBudgetNarrative } from "./budget-narrative-analysis";
+import { sendNotificationEmail, type NotificationEmailPayload } from "./email";
+import { persistInsuranceExtraction } from "./insurance-extraction-analysis";
 import { resolveWorkerMode } from "./runtime";
+import { startScheduler } from "./scheduler";
+import { persistSiteSnapAnalysis } from "./site-snap-analysis";
 
 const logger = pino({ name: "foreman-worker" });
 
 const redisUrl = process.env.REDIS_URL;
+const stopScheduler = startScheduler(logger);
 
 if (resolveWorkerMode(redisUrl) === "idle") {
 	logger.warn("REDIS_URL is not configured. Worker will stay idle.");
-	setInterval(() => {
+	const heartbeat = setInterval(() => {
 		logger.info({ mode: "idle" }, "worker-heartbeat");
 	}, 60_000);
+
+	const shutdownIdle = (signal: string) => {
+		logger.info({ signal }, "worker-shutdown");
+		clearInterval(heartbeat);
+		stopScheduler();
+		process.exit(0);
+	};
+
+	process.on("SIGINT", () => {
+		shutdownIdle("SIGINT");
+	});
+
+	process.on("SIGTERM", () => {
+		shutdownIdle("SIGTERM");
+	});
 } else {
 	const connection = { url: redisUrl };
 
 	const notificationWorker = new Worker(
 		"notification-delivery",
 		async (job) => {
-			const data = job.data as { to: string; subject: string; body: string };
+			const data = job.data as NotificationEmailPayload;
+			const result = await sendNotificationEmail(data);
 			logger.info({
 				jobId: job.id,
-				to: data.to,
+				toEmail: data.toEmail,
 				subject: data.subject,
+				provider: result.provider,
+				delivered: result.delivered,
 			}, "notification-job-processed");
-			return { delivered: true };
+			return result;
 		},
 		{ connection },
 	);
@@ -55,13 +79,45 @@ if (resolveWorkerMode(redisUrl) === "idle") {
 				},
 			);
 
+			const siteSnapPersistence = data.context
+				? await persistSiteSnapAnalysis({
+					output: result.output,
+					context: data.context,
+					logger,
+				})
+				: { handled: false as const, reason: "no_context" as const };
+
+			const budgetNarrativePersistence = data.context
+				? await persistBudgetNarrative({
+					output: result.output,
+					context: data.context,
+					logger,
+				})
+				: { handled: false as const, reason: "no_context" as const };
+
+			const insuranceExtractionPersistence = data.context
+				? await persistInsuranceExtraction({
+					output: result.output,
+					context: data.context,
+					logger,
+				})
+				: { handled: false as const, reason: "no_context" as const };
+
 			logger.info({
 				jobId: job.id,
 				provider: result.provider,
 				model: result.model,
+				siteSnapPersistence,
+				budgetNarrativePersistence,
+				insuranceExtractionPersistence,
 			}, "ai-task-processed");
 
-			return result;
+			return {
+				...result,
+				siteSnapPersistence,
+				budgetNarrativePersistence,
+				insuranceExtractionPersistence,
+			};
 		},
 		{ connection },
 	);
@@ -85,6 +141,7 @@ if (resolveWorkerMode(redisUrl) === "idle") {
 			aiEvents.close(),
 			notificationEvents.close(),
 		]);
+		stopScheduler();
 		process.exit(0);
 	};
 

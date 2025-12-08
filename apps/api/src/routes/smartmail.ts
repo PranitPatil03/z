@@ -21,7 +21,7 @@ import {
   updateSmartMailAccountSchema,
 } from "../schemas/smartmail.schema";
 
-export const smartMailRouter = Router();
+export const smartMailRouter: import("express").Router = Router();
 
 smartMailRouter.use(requireAuth);
 

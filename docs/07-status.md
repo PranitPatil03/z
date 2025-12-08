@@ -1,12 +1,23 @@
 # Foreman Backend Implementation Status
 
-**Last Updated:** April 6, 2026
+**Last Updated:** April 7, 2026
 
 ---
 
 ## 📋 Summary
 
 The Foreman backend is a comprehensive Express API built with TypeScript, featuring multiple domain modules for construction project management. The architecture includes database (Drizzle ORM/PostgreSQL), authentication (Better Auth), job processing (BullMQ), and AI capabilities.
+
+### Module Progress Snapshot (Current Session)
+
+| Module | Scope | Progress | Notes |
+|---|---|---:|---|
+| Module 1 | SiteSnap AI + storage/persistence + hazard automation | 100% | Completed earlier in this implementation cycle; AI queue path and persistence are in place. |
+| Module 2 | Change order workflow, staged approvals, SLA hooks, attachments/finalization | 100% | Completed earlier in this implementation cycle; staged approval and lifecycle hooks are implemented. |
+| Module 3 | Budget cost control (threshold policy, ledger entries, drilldown, narratives, dedupe) | 100% | Added project-level threshold settings, source-linked budget entries, drilldown/reconciliation enrichment, queue + worker narrative persistence, and deployable DB migration. |
+| Module 4 | SubConnect (invite lifecycle, templates/automation, prequalification, pay apps, daily logs, AI extraction) | 100% | Completed: tokenized invites + acceptance, project-code policy registration + reset, compliance templates + auto-apply, compliance lifecycle automation + reminders/escalations, prequalification scoring model, pay application submit/review timeline, daily logs submit/review timeline, and insurance AI extraction with reviewer confirmation gates. |
+
+Overall backend module progress: **Modules 1-4 complete**
 
 ---
 

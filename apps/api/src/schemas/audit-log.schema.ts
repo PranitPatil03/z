@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../lib/pagination";
 
 export const auditLogIdParamsSchema = z.object({
   auditLogId: z.string().min(1),
 });
 
-export const listAuditLogsQuerySchema = z.object({
+export const listAuditLogsQuerySchema = paginationQuerySchema.extend({
   entityType: z.string().min(1).optional(),
   action: z.enum(["create", "update", "delete", "approve", "reject", "invite", "archive", "login"]).optional(),
 });

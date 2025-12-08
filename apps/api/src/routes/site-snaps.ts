@@ -26,7 +26,7 @@ import {
   updateSiteSnapSchema,
 } from "../schemas/site-snap.schema";
 
-export const siteSnapsRouter = Router();
+export const siteSnapsRouter: import("express").Router = Router();
 
 siteSnapsRouter.use(requireAuth);
 

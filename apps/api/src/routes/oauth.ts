@@ -15,7 +15,7 @@ import {
   syncEmailsSchema,
 } from "../schemas/oauth.schema";
 
-export const oauthRouter = Router();
+export const oauthRouter: import("express").Router = Router();
 
 oauthRouter.get("/gmail/auth-url", asyncHandler(getGmailAuthUrlController));
 oauthRouter.get("/outlook/auth-url", asyncHandler(getOutlookAuthUrlController));

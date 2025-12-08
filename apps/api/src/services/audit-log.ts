@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { auditLogs } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
+import { buildCursorPagination, paginatedResponse } from "../lib/pagination";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
 import { auditLogIdParamsSchema, createAuditLogSchema, listAuditLogsQuerySchema } from "../schemas/audit-log.schema";
@@ -40,7 +41,17 @@ export const auditLogService = {
       filters.push(eq(auditLogs.action, query.action));
     }
 
-    return await db.select().from(auditLogs).where(and(...filters));
+    const { cursorCondition, orderBy, limit } = buildCursorPagination(auditLogs.id, query);
+    if (cursorCondition) filters.push(cursorCondition);
+
+    const items = await db
+      .select()
+      .from(auditLogs)
+      .where(and(...filters))
+      .orderBy(orderBy)
+      .limit(limit);
+
+    return paginatedResponse(items, limit);
   },
 
   async create(request: Request) {

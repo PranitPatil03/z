@@ -1,0 +1,39 @@
+
+
+> @foreman/ai@ lint /Users/nikhil/Downloads/pranit/2026/Products/anvil/packages/ai
+> biome check src
+
+[0m/Users/nikhil/Downloads/pranit/2026/Products/anvil/biome.json[0m[0m:[0m[0m14[0m[0m:[0m[0m3[0m[0m [0m[0mdeserialize[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[31m✖[0m[0m [0m[0m[31mFound an unknown key `[0m[0m[1m[31mtypescript[0m[0m[31m`.[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m12 │ [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m}[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m13 │ [0m[0m [0m[0m [0m[0m}[0m[0m,[0m[0m
+[0m[0m  [0m[0m[1m[31m>[0m[0m [0m[0m[1m14 │ [0m[0m [0m[0m [0m[0m"[0m[0mt[0m[0my[0m[0mp[0m[0me[0m[0ms[0m[0mc[0m[0mr[0m[0mi[0m[0mp[0m[0mt[0m[0m"[0m[0m:[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m [0m[0m [0m[0m[1m   │ [0m[0m [0m[0m [0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m[1m[31m^[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m15 │ [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m"[0m[0mf[0m[0mo[0m[0mr[0m[0mm[0m[0ma[0m[0mt[0m[0mt[0m[0me[0m[0mr[0m[0m"[0m[0m:[0m[0m [0m[0m{[0m[0m
+[0m[0m  [0m[0m  [0m[0m[1m16 │ [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m [0m[0m"[0m[0mq[0m[0mu[0m[0mo[0m[0mt[0m[0me[0m[0mS[0m[0mt[0m[0my[0m[0ml[0m[0me[0m[0m"[0m[0m:[0m[0m [0m[0m"[0m[0md[0m[0mo[0m[0mu[0m[0mb[0m[0ml[0m[0me[0m[0m"[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m[1m[34mℹ[0m[0m [0m[0m[34mKnown keys:[0m[0m
+[0m[0m  [0m[0m
+[0m[0m  [0m[0m- [0m[0m$schema[0m[0m
+[0m[0m  [0m[0m- [0m[0mextends[0m[0m
+[0m[0m  [0m[0m- [0m[0mvcs[0m[0m
+[0m[0m  [0m[0m- [0m[0mfiles[0m[0m
+[0m[0m  [0m[0m- [0m[0mformatter[0m[0m
+[0m[0m  [0m[0m- [0m[0morganizeImports[0m[0m
+[0m[0m  [0m[0m- [0m[0mlinter[0m[0m
+[0m[0m  [0m[0m- [0m[0mjavascript[0m[0m
+[0m[0m  [0m[0m- [0m[0mjson[0m[0m
+[0m[0m  [0m[0m- [0m[0mcss[0m[0m
+[0m[0m  [0m[0m- [0m[0mgraphql[0m[0m
+[0m[0m  [0m[0m- [0m[0moverrides[0m[0m
+[0m[0m  [0m[0m- [0m[0massists[0m[0m
+[0m[0m  [0m[0m
+[0m
+[0mconfiguration[0m[0m [0m[0m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[0m
+
+[0m[0m  [0m[0m[1m[31m✖[0m[0m [0m[0m[31mBiome exited because the configuration resulted in errors. Please fix them.[0m[0m
+[0m[0m  [0m[0m
+[0m
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 1.[39m
