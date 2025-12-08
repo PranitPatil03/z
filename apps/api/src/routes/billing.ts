@@ -3,22 +3,31 @@ import {
 	archiveBillingRecordController,
 	createBillingRecordController,
 	getBillingRecordController,
+	listSubscriptionPlansController,
 	listBillingRecordsController,
 	getUsageSummaryController,
+	updateSubscriptionPlanController,
 	updateBillingRecordController,
 } from "../controllers/billing";
 import {
 	stripeWebhookController,
 	stripeCreatePaymentIntentController,
 	stripeCreateSubscriptionController,
+	stripeListWebhookEventsController,
+	stripeRetryWebhookEventController,
 } from "../controllers/stripe";
 import { asyncHandler } from "../lib/async-handler";
-import { validateBody, validateParams } from "../lib/validate";
+import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { requireOrgRole } from "../middleware/require-role";
 import {
 	billingRecordIdParamsSchema,
+	createStripePaymentIntentSchema,
+	createStripeSubscriptionSchema,
+	listStripeWebhookEventsQuerySchema,
+	stripeWebhookEventParamsSchema,
 	createBillingRecordSchema,
+	updateSubscriptionPlanSchema,
 	updateBillingRecordSchema,
 } from "../schemas/billing.schema";
 
@@ -31,6 +40,13 @@ billingRouter.use(requireAuth);
 
 billingRouter.get("/", asyncHandler(listBillingRecordsController));
 billingRouter.get("/usage", asyncHandler(getUsageSummaryController));
+billingRouter.get("/plans", asyncHandler(listSubscriptionPlansController));
+billingRouter.patch(
+	"/subscription/plan",
+	requireOrgRole("owner", "admin"),
+	validateBody(updateSubscriptionPlanSchema),
+	asyncHandler(updateSubscriptionPlanController),
+);
 billingRouter.post("/", requireOrgRole("owner", "admin"), validateBody(createBillingRecordSchema), asyncHandler(createBillingRecordController));
 billingRouter.get("/:billingRecordId", validateParams(billingRecordIdParamsSchema), asyncHandler(getBillingRecordController));
 billingRouter.patch(
@@ -42,5 +58,29 @@ billingRouter.patch(
 billingRouter.delete("/:billingRecordId", requireOrgRole("owner", "admin"), validateParams(billingRecordIdParamsSchema), asyncHandler(archiveBillingRecordController));
 
 // Stripe payment routes — owner/admin only
-billingRouter.post("/stripe/payment-intent", requireOrgRole("owner", "admin"), validateBody(createBillingRecordSchema), asyncHandler(stripeCreatePaymentIntentController));
-billingRouter.post("/stripe/subscription", requireOrgRole("owner", "admin"), validateBody(createBillingRecordSchema), asyncHandler(stripeCreateSubscriptionController));
+billingRouter.post(
+	"/stripe/payment-intent",
+	requireOrgRole("owner", "admin"),
+	validateBody(createStripePaymentIntentSchema),
+	asyncHandler(stripeCreatePaymentIntentController),
+);
+billingRouter.post(
+	"/stripe/subscription",
+	requireOrgRole("owner", "admin"),
+	validateBody(createStripeSubscriptionSchema),
+	asyncHandler(stripeCreateSubscriptionController),
+);
+
+billingRouter.get(
+	"/stripe/webhook-events",
+	requireOrgRole("owner", "admin"),
+	validateQuery(listStripeWebhookEventsQuerySchema),
+	asyncHandler(stripeListWebhookEventsController),
+);
+
+billingRouter.post(
+	"/stripe/webhook-events/:eventId/retry",
+	requireOrgRole("owner", "admin"),
+	validateParams(stripeWebhookEventParamsSchema),
+	asyncHandler(stripeRetryWebhookEventController),
+);

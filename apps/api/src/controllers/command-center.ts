@@ -15,3 +15,8 @@ export async function getCommandCenterPortfolioController(request: Request, resp
   const data = await commandCenterService.portfolio(request);
   response.json({ data });
 }
+
+export async function getCommandCenterTrendsController(request: Request, response: Response) {
+  const data = await commandCenterService.trends(request);
+  response.json({ data });
+}

@@ -30,3 +30,13 @@ export async function getUsageSummaryController(request: Request, response: Resp
   const data = await billingService.usage(request);
   response.json({ data });
 }
+
+export async function listSubscriptionPlansController(_request: Request, response: Response) {
+  const data = await billingService.plans();
+  response.json({ data });
+}
+
+export async function updateSubscriptionPlanController(request: Request, response: Response) {
+  const data = await billingService.changePlan(request);
+  response.json({ data });
+}

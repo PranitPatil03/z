@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { ZodError, type ZodTypeAny } from "zod";
 
 export interface ValidatedRequest extends Request {
@@ -9,8 +9,33 @@ export interface ValidatedRequest extends Request {
   };
 }
 
+export type ValidationLocation = "body" | "params" | "query";
+
+export interface ValidationMetadata {
+  location: ValidationLocation;
+  schema: ZodTypeAny;
+}
+
+export type ValidationAwareMiddleware = RequestHandler & {
+  __validation?: ValidationMetadata;
+};
+
+function withValidationMetadata(
+  middleware: RequestHandler,
+  location: ValidationLocation,
+  schema: ZodTypeAny,
+): ValidationAwareMiddleware {
+  const typedMiddleware = middleware as ValidationAwareMiddleware;
+  typedMiddleware.__validation = {
+    location,
+    schema,
+  };
+
+  return typedMiddleware;
+}
+
 export function validateBody(schema: ZodTypeAny) {
-  return (request: Request, _response: Response, next: NextFunction) => {
+  return withValidationMetadata((request: Request, _response: Response, next: NextFunction) => {
     try {
       const parsed = schema.parse(request.body);
       const validatedRequest = request as ValidatedRequest;
@@ -22,11 +47,11 @@ export function validateBody(schema: ZodTypeAny) {
     } catch (error) {
       next(error);
     }
-  };
+  }, "body", schema);
 }
 
 export function validateQuery(schema: ZodTypeAny) {
-  return (request: Request, _response: Response, next: NextFunction) => {
+  return withValidationMetadata((request: Request, _response: Response, next: NextFunction) => {
     try {
       const parsed = schema.parse(request.query);
       const validatedRequest = request as ValidatedRequest;
@@ -38,11 +63,11 @@ export function validateQuery(schema: ZodTypeAny) {
     } catch (error) {
       next(error);
     }
-  };
+  }, "query", schema);
 }
 
 export function validateParams(schema: ZodTypeAny) {
-  return (request: Request, _response: Response, next: NextFunction) => {
+  return withValidationMetadata((request: Request, _response: Response, next: NextFunction) => {
     try {
       const parsed = schema.parse(request.params);
       const validatedRequest = request as ValidatedRequest;
@@ -54,7 +79,7 @@ export function validateParams(schema: ZodTypeAny) {
     } catch (error) {
       next(error);
     }
-  };
+  }, "params", schema);
 }
 
 export function parseZodError(error: unknown) {

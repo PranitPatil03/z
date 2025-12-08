@@ -10,6 +10,8 @@ This folder contains implementation-ready documentation for the Foreman construc
 - LLM agents that need complete context
 
 ## Document Map
+- [08-backend-frontend-build-handbook.md](08-backend-frontend-build-handbook.md): Complete execution handbook for backend implementation and frontend integration on the current backend.
+- [09-api-integration-reference.md](09-api-integration-reference.md): Current API route-group reference, auth modes, response/error patterns, and integration sequences.
 - [05-auth-and-ai-stack.md](05-auth-and-ai-stack.md): Better Auth setup, session model, and multi-LLM provider strategy.
 - [04-backend-setup.md](04-backend-setup.md): Backend stack, folder-by-folder responsibilities, API layers, jobs, and deployment path.
 - [00-repo-layout.md](00-repo-layout.md): Exact folder structure for the codebase and how the frontend, backend, workers, and docs are organized.
@@ -25,6 +27,7 @@ Recent additions:
 - Backend kickoff plan with Railway-first and AWS-later deployment approach.
 - Better Auth for complete authentication.
 - Provider-agnostic multi-LLM support.
+- Live backend contract docs: `/openapi.json` and `/docs`.
 
 ## Product Definition (One-Page)
 Foreman is a multi-tenant SaaS platform for construction general contractors. It combines field documentation, change-order workflows, cost controls, subcontractor operations, project communications, and executive analytics.
@@ -48,6 +51,8 @@ Core principle: AI assists and automation accelerates, but humans approve decisi
 - Every entity must be tenant-scoped and permission-checked server-side.
 
 ## Reading Order
-1. Read feature set to understand what to build.
-2. Read architecture design to understand how to build it safely.
-3. Read implementation blueprint to understand the exact tools and delivery path.
+1. Read [08-backend-frontend-build-handbook.md](08-backend-frontend-build-handbook.md) for the current execution flow across backend and frontend teams.
+2. Read [09-api-integration-reference.md](09-api-integration-reference.md) for the current route and contract integration map.
+3. Read feature set to understand what to build.
+4. Read architecture design to understand how to build it safely.
+5. Read implementation blueprint to understand the exact tools and delivery path.

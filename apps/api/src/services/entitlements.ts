@@ -4,8 +4,9 @@ import { db } from "../database";
 import { forbidden } from "../lib/errors";
 
 const DEFAULT_PLAN = "starter" as const;
+export type SubscriptionPlan = "starter" | "growth" | "enterprise";
 
-function getDefaultsForPlan(plan: string) {
+export function getDefaultsForPlan(plan: SubscriptionPlan | string) {
   switch (plan) {
     case "enterprise":
       return { aiCreditsIncluded: 100000, allowOverage: true, overagePriceCents: 0 };
@@ -144,6 +145,28 @@ export const entitlementsService = {
       cycleStartAt: subscription.cycleStartAt,
       cycleEndAt: subscription.cycleEndAt,
       graceEndsAt: subscription.graceEndsAt,
+    };
+  },
+
+  async changePlan(organizationId: string, plan: SubscriptionPlan) {
+    const current = await this.getOrCreateSubscription(organizationId);
+    const defaults = getDefaultsForPlan(plan);
+
+    const [updated] = await db
+      .update(organizationSubscriptions)
+      .set({
+        plan,
+        aiCreditsIncluded: defaults.aiCreditsIncluded,
+        allowOverage: defaults.allowOverage,
+        overagePriceCents: defaults.overagePriceCents,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizationSubscriptions.organizationId, organizationId))
+      .returning();
+
+    return {
+      previousPlan: current.plan,
+      subscription: updated ?? current,
     };
   },
 

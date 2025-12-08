@@ -15,6 +15,7 @@ import {
   portalPasswordResetRequestSchema,
 } from "../schemas/portal.schema";
 import type { ValidatedRequest } from "../lib/validate";
+import { getPortalSession } from "../middleware/require-portal-auth";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -65,14 +66,14 @@ export async function portalPasswordResetConfirmController(request: Request, res
 }
 
 export async function portalGetComplianceController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const items = await portalAuthService.getUserCompliance(session.subcontractorId, session.organizationId);
 
   response.json({ items });
 }
 
 export async function portalUpdateComplianceController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const body = portalComplianceUploadSchema.parse(readValidatedBody(request));
 
   const updated = await portalAuthService.updateComplianceEvidence(
@@ -87,19 +88,19 @@ export async function portalUpdateComplianceController(request: Request, respons
 }
 
 export async function portalGetProfileController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   response.json({ profile: session });
 }
 
 export async function portalGetOverviewController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const overview = await portalAuthService.getPortalOverview(session.subcontractorId, session.organizationId);
 
   response.json({ data: overview });
 }
 
 export async function portalListPayApplicationsController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const query = portalListPayApplicationsQuerySchema.parse((request as ValidatedRequest).validated?.query ?? {});
   const data = await portalAuthService.listPortalPayApplications(session.subcontractorId, session.organizationId, query);
 
@@ -107,7 +108,7 @@ export async function portalListPayApplicationsController(request: Request, resp
 }
 
 export async function portalCreatePayApplicationController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const body = portalCreatePayApplicationSchema.parse(readValidatedBody(request));
   const data = await portalAuthService.submitPortalPayApplication(session.subcontractorId, session.organizationId, body);
 
@@ -115,7 +116,7 @@ export async function portalCreatePayApplicationController(request: Request, res
 }
 
 export async function portalGetPayApplicationController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const params = payApplicationIdParamsSchema.parse((request as ValidatedRequest).validated?.params ?? {});
   const data = await portalAuthService.getPortalPayApplication(
     session.subcontractorId,
@@ -127,7 +128,7 @@ export async function portalGetPayApplicationController(request: Request, respon
 }
 
 export async function portalListDailyLogsController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const query = portalListDailyLogsQuerySchema.parse((request as ValidatedRequest).validated?.query ?? {});
   const data = await portalAuthService.listPortalDailyLogs(session.subcontractorId, session.organizationId, query);
 
@@ -135,7 +136,7 @@ export async function portalListDailyLogsController(request: Request, response: 
 }
 
 export async function portalCreateDailyLogController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const body = portalCreateDailyLogSchema.parse(readValidatedBody(request));
   const data = await portalAuthService.submitPortalDailyLog(session.subcontractorId, session.organizationId, body);
 
@@ -143,7 +144,7 @@ export async function portalCreateDailyLogController(request: Request, response:
 }
 
 export async function portalGetDailyLogController(request: Request, response: Response) {
-  const session = (request as any).portalSession;
+  const session = getPortalSession(request);
   const params = dailyLogIdParamsSchema.parse((request as ValidatedRequest).validated?.params ?? {});
   const data = await portalAuthService.getPortalDailyLog(session.subcontractorId, session.organizationId, params.dailyLogId);
 

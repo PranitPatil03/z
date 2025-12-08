@@ -207,6 +207,11 @@ export const fileAssetStatusEnum = pgEnum("file_asset_status", ["pending", "uplo
 export const subscriptionPlanEnum = pgEnum("subscription_plan", ["starter", "growth", "enterprise"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "grace", "suspended"]);
 export const usageEventTypeEnum = pgEnum("usage_event_type", ["ai_generation"]);
+export const stripeWebhookProcessingStatusEnum = pgEnum("stripe_webhook_processing_status", [
+  "processing",
+  "processed",
+  "failed",
+]);
 
 export const projects = pgTable(
   "projects",
@@ -719,6 +724,25 @@ export const billingRecords = pgTable(
   (table) => ({
     orgReferenceUnique: uniqueIndex("billing_records_org_reference_unique").on(table.organizationId, table.reference),
     orgProjectIndex: index("billing_records_org_project_idx").on(table.organizationId, table.projectId),
+  }),
+);
+
+export const stripeWebhookEvents = pgTable(
+  "stripe_webhook_events",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    stripeEventId: text("stripe_event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    processingStatus: stripeWebhookProcessingStatusEnum("processing_status").notNull().default("processing"),
+    payload: jsonb("payload").$type<Record<string, unknown> | null>(),
+    error: text("error"),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    stripeEventUnique: uniqueIndex("stripe_webhook_events_event_id_unique").on(table.stripeEventId),
+    statusCreatedIndex: index("stripe_webhook_events_status_created_idx").on(table.processingStatus, table.createdAt),
   }),
 );
 

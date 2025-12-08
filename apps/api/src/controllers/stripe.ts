@@ -1,7 +1,25 @@
 import type { Request, Response } from "express";
 import { stripeService } from "../services/stripe";
 import { badRequest } from "../lib/errors";
-import Stripe from "stripe";
+import type { ValidatedRequest } from "../lib/validate";
+import {
+  createStripePaymentIntentSchema,
+  createStripeSubscriptionSchema,
+  listStripeWebhookEventsQuerySchema,
+  stripeWebhookEventParamsSchema,
+} from "../schemas/billing.schema";
+
+function readValidatedBody<T>(request: Request) {
+  return (request as ValidatedRequest).validated?.body as T;
+}
+
+function readValidatedQuery<T>(request: Request) {
+  return (request as ValidatedRequest).validated?.query as T;
+}
+
+function readValidatedParams<T>(request: Request) {
+  return (request as ValidatedRequest).validated?.params as T;
+}
 
 export async function stripeWebhookController(request: Request, response: Response) {
   const signature = request.headers["stripe-signature"];
@@ -28,14 +46,9 @@ export async function stripeWebhookController(request: Request, response: Respon
 }
 
 export async function stripeCreatePaymentIntentController(request: Request, response: Response) {
-  const { billingRecordId, stripeCustomerId } = request.body as {
-    billingRecordId: string;
-    stripeCustomerId: string;
-  };
-
-  if (!billingRecordId || !stripeCustomerId) {
-    throw badRequest("Missing billingRecordId or stripeCustomerId");
-  }
+  const { billingRecordId, stripeCustomerId } = createStripePaymentIntentSchema.parse(
+    readValidatedBody(request),
+  );
 
   const paymentIntent = await stripeService.createPaymentIntent(billingRecordId, stripeCustomerId);
 
@@ -46,15 +59,9 @@ export async function stripeCreatePaymentIntentController(request: Request, resp
 }
 
 export async function stripeCreateSubscriptionController(request: Request, response: Response) {
-  const { stripeCustomerId, priceId, billingRecordId } = request.body as {
-    stripeCustomerId: string;
-    priceId: string;
-    billingRecordId: string;
-  };
-
-  if (!stripeCustomerId || !priceId || !billingRecordId) {
-    throw badRequest("Missing required fields");
-  }
+  const { stripeCustomerId, priceId, billingRecordId } = createStripeSubscriptionSchema.parse(
+    readValidatedBody(request),
+  );
 
   const subscription = await stripeService.createSubscription(stripeCustomerId, priceId, billingRecordId);
 
@@ -62,4 +69,18 @@ export async function stripeCreateSubscriptionController(request: Request, respo
     subscriptionId: subscription.id,
     status: subscription.status,
   });
+}
+
+export async function stripeListWebhookEventsController(request: Request, response: Response) {
+  const query = listStripeWebhookEventsQuerySchema.parse(readValidatedQuery(request));
+  const data = await stripeService.listWebhookEvents(query);
+
+  response.json({ data });
+}
+
+export async function stripeRetryWebhookEventController(request: Request, response: Response) {
+  const { eventId } = stripeWebhookEventParamsSchema.parse(readValidatedParams(request));
+  const data = await stripeService.retryWebhookEvent(eventId);
+
+  response.json({ data });
 }
