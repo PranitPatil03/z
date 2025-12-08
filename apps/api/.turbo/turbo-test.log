@@ -1,0 +1,96 @@
+
+
+> @foreman/api@ test /Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/api
+> vitest run
+
+[?25l
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/api[39m
+
+[?2026h
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m886ms
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m1.23s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22mtests/middleware/require-portal-auth.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/schemas/portal.schema.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/services/health.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m1.44s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22mtests/middleware/require-portal-auth.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/schemas/portal.schema.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/services/events.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/services/health.test.ts[2m 0/1[22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m1.54s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m tests/services/health.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/middleware/require-portal-auth.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m tests/services/events.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+
+
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22mtests/schemas/portal.schema.test.ts[2m 0/10[22m
+
+[2m Test Files [22m[1m[32m3 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m9 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m1.75s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m tests/schemas/portal.schema.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+
+
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m1.95s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m2.96s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m3.96s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+
+[1m[33m ❯ [39m[22mtests/routes/app.test.ts[2m 0/2[22m
+
+[2m Test Files [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m[1m[32m19 passed[39m[22m[90m (21)[39m
+[2m   Start at [22m02:36:36
+[2m   Duration [22m4.26s
+[?2026l[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K{"level":30,"time":1775423200400,"pid":1785,"hostname":"Nikhils-MacBook-Air.local","req":{"id":1,"method":"GET","url":"/","query":{},"params":{},"headers":{"host":"127.0.0.1:50340","accept-encoding":"gzip, deflate","connection":"close"},"remoteAddress":"::ffff:127.0.0.1","remotePort":50341},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","access-control-allow-origin":"http://localhost:5173","vary":"Origin","access-control-allow-credentials":"true","content-type":"application/json; charset=utf-8","content-length":"36","etag":"W/\"24-RICGegWESzIAZ3Nlu/N2LA9mO+M\""}},"responseTime":6,"msg":"request completed"}
+{"level":30,"time":1775423200410,"pid":1785,"hostname":"Nikhils-MacBook-Air.local","req":{"id":2,"method":"GET","url":"/health","query":{},"params":{},"headers":{"host":"127.0.0.1:50342","accept-encoding":"gzip, deflate","connection":"close"},"remoteAddress":"::ffff:127.0.0.1","remotePort":50343},"res":{"statusCode":200,"headers":{"content-security-policy":"default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests","cross-origin-opener-policy":"same-origin","cross-origin-resource-policy":"same-origin","origin-agent-cluster":"?1","referrer-policy":"no-referrer","strict-transport-security":"max-age=31536000; includeSubDomains","x-content-type-options":"nosniff","x-dns-prefetch-control":"off","x-download-options":"noopen","x-frame-options":"SAMEORIGIN","x-permitted-cross-domain-policies":"none","x-xss-protection":"0","access-control-allow-origin":"http://localhost:5173","vary":"Origin","access-control-allow-credentials":"true","content-type":"application/json; charset=utf-8","content-length":"65","etag":"W/\"41-YbxpqVHz0KVKTJGhKOF4vgtXYYM\""}},"responseTime":1,"msg":"request completed"}
+ [32m✓[39m tests/routes/app.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m21 passed[39m[22m[90m (21)[39m
+[2m   Start at [22m 02:36:36
+[2m   Duration [22m 4.40s[2m (transform 1.15s, setup 104ms, collect 3.97s, tests 142ms, environment 2ms, prepare 1.97s)[22m
+
+[?25h

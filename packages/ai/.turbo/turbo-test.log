@@ -1,0 +1,19 @@
+
+
+> @foreman/ai@ test /Users/nikhil/Downloads/pranit/2026/Products/anvil/packages/ai
+> vitest run
+
+[?25l
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/Users/nikhil/Downloads/pranit/2026/Products/anvil/packages/ai[39m
+
+[?2026h
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m02:32:42
+[2m   Duration [22m134ms
+[?2026l[?25h[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m02:32:42
+[2m   Duration [22m134ms
+[?2026l[?25h

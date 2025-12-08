@@ -1,0 +1,15 @@
+
+> @foreman/api@ build /Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/api
+> tsup src/index.ts --format esm --out-dir dist
+
+CLI Building entry: src/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Target: es2022
+ESM Build start
+ESM dist/chunk-JJCAQSFJ.js            947.00 B
+ESM dist/budget-narrative-Q7VHBTRX.js 5.18 KB
+ESM dist/chunk-SMFIAF2U.js            5.37 KB
+ESM dist/require-auth-FPNSUEFG.js     115.00 B
+ESM dist/index.js                     167.84 KB
+ESM ⚡️ Build success in 172ms

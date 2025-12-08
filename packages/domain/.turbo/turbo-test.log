@@ -1,0 +1,14 @@
+
+
+> @foreman/domain@ test /Users/nikhil/Downloads/pranit/2026/Products/anvil/packages/domain
+> vitest run
+
+[?25l
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/Users/nikhil/Downloads/pranit/2026/Products/anvil/packages/domain[39m
+
+[?2026h
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m02:32:41
+[2m   Duration [22m689ms
+[?2026l[?25h[41m[30m ELIFECYCLE [39m[49m [31mTest failed. See above for more details.[39m

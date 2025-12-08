@@ -1,0 +1,5 @@
+
+
+> @foreman/domain@ typecheck /Users/nikhil/Downloads/pranit/2026/Products/anvil/packages/domain
+> tsc -p tsconfig.json --noEmit
+
