@@ -16,8 +16,10 @@ The Foreman backend is a comprehensive Express API built with TypeScript, featur
 | Module 2 | Change order workflow, staged approvals, SLA hooks, attachments/finalization | 100% | Completed earlier in this implementation cycle; staged approval and lifecycle hooks are implemented. |
 | Module 3 | Budget cost control (threshold policy, ledger entries, drilldown, narratives, dedupe) | 100% | Added project-level threshold settings, source-linked budget entries, drilldown/reconciliation enrichment, queue + worker narrative persistence, and deployable DB migration. |
 | Module 4 | SubConnect (invite lifecycle, templates/automation, prequalification, pay apps, daily logs, AI extraction) | 100% | Completed: tokenized invites + acceptance, project-code policy registration + reset, compliance templates + auto-apply, compliance lifecycle automation + reminders/escalations, prequalification scoring model, pay application submit/review timeline, daily logs submit/review timeline, and insurance AI extraction with reviewer confirmation gates. |
+| Module 5 | SmartMail production workflows (OAuth lifecycle, sync/send, deterministic linking, templates, scheduler auto-sync) | 100% | Completed in this cycle with provider helpers, OAuth hardening, API/worker integration, DB migration, and focused SmartMail test coverage. |
+| Module 6 | Command Center analytics expansion (project health scoring + portfolio risk view) | 20% | Kickoff completed: new `/command-center/health` and `/command-center/portfolio` endpoints, scoring helpers, and unit/schema tests. |
 
-Overall backend module progress: **Modules 1-4 complete**
+Overall backend module progress: **Modules 1-5 complete, Module 6 in progress**
 
 ---
 

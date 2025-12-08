@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { eq, and } from "drizzle-orm";
 import { smartMailAccounts } from "@foreman/db";
 import type { Request } from "express";
@@ -7,13 +6,19 @@ import { badRequest, notFound, unauthorized } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
 import {
-  connectOAuthAccountSchema,
   disconnectOAuthAccountSchema,
   oauthCallbackSchema,
   oauthStateSchema,
   syncEmailsSchema,
 } from "../schemas/oauth.schema";
 import { env } from "../config/env";
+import {
+  encryptOpaqueToken,
+  signStatePayload,
+  verifySignedStatePayload,
+  type SmartMailProvider,
+} from "./smartmail-provider";
+import { smartMailService } from "./smartmail";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -27,71 +32,15 @@ function requireContext(request: Request) {
   return { orgId: session.activeOrganizationId, userId: user.id };
 }
 
-function getEncryptionKey(): Buffer {
+function requireEncryptionKey() {
   if (!env.ENCRYPTION_KEY) {
-    throw new Error("ENCRYPTION_KEY environment variable is required for OAuth token encryption");
+    throw badRequest("ENCRYPTION_KEY is required for OAuth token encryption");
   }
-  return Buffer.from(env.ENCRYPTION_KEY, "utf8");
+
+  return env.ENCRYPTION_KEY;
 }
 
-function deriveKey(masterKey: Buffer, salt: Buffer): Buffer {
-  return crypto.scryptSync(masterKey, salt, 32);
-}
-
-function encryptToken(token: string): string {
-  const masterKey = getEncryptionKey();
-  const salt = crypto.randomBytes(16);
-  const key = deriveKey(masterKey, salt);
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-  let encrypted = cipher.update(token, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  const authTag = cipher.getAuthTag().toString("hex");
-  return [salt.toString("hex"), iv.toString("hex"), authTag, encrypted].join(":");
-}
-
-function decryptToken(encryptedData: string): string {
-  try {
-    const [saltHex, ivHex, authTagHex, encrypted] = encryptedData.split(":");
-    if (!saltHex || !ivHex || !authTagHex || !encrypted) {
-      throw new Error("Invalid encrypted token format");
-    }
-    const masterKey = getEncryptionKey();
-    const salt = Buffer.from(saltHex, "hex");
-    const key = deriveKey(masterKey, salt);
-    const iv = Buffer.from(ivHex, "hex");
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-    decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
-  } catch {
-    throw new Error("Failed to decrypt token — key may have changed or data is corrupted");
-  }
-}
-
-function signState(payload: string): string {
-  const hmacKey = getEncryptionKey();
-  const signature = crypto.createHmac("sha256", hmacKey).update(payload).digest("hex");
-  return `${payload}.${signature}`;
-}
-
-function verifySignedState(signedState: string): string {
-  const lastDotIndex = signedState.lastIndexOf(".");
-  if (lastDotIndex === -1) {
-    throw unauthorized("Invalid state parameter format");
-  }
-  const payload = signedState.substring(0, lastDotIndex);
-  const receivedSig = signedState.substring(lastDotIndex + 1);
-  const hmacKey = getEncryptionKey();
-  const expectedSig = crypto.createHmac("sha256", hmacKey).update(payload).digest("hex");
-  if (!crypto.timingSafeEqual(Buffer.from(receivedSig, "hex"), Buffer.from(expectedSig, "hex"))) {
-    throw unauthorized("State parameter signature verification failed");
-  }
-  return payload;
-}
-
-function generateState(orgId: string, userId: string, provider: "gmail" | "outlook"): string {
+function generateState(orgId: string, userId: string, provider: SmartMailProvider): string {
   const stateObj = {
     organizationId: orgId,
     userId,
@@ -101,80 +50,7 @@ function generateState(orgId: string, userId: string, provider: "gmail" | "outlo
   };
 
   const payload = Buffer.from(JSON.stringify(stateObj)).toString("base64");
-  return signState(payload);
-}
-
-async function exchangeGoogleCode(code: string): Promise<{ accessToken: string; refreshToken?: string; email: string }> {
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.GOOGLE_CLIENT_ID || "",
-      client_secret: env.GOOGLE_CLIENT_SECRET || "",
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
-    }).toString(),
-  });
-
-  if (!response.ok) {
-    throw badRequest("Failed to exchange Google authorization code");
-  }
-
-  const data = (await response.json()) as Record<string, unknown>;
-
-  const userResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-    headers: { Authorization: `Bearer ${data.access_token}` },
-  });
-
-  if (!userResponse.ok) {
-    throw badRequest("Failed to get Google user info");
-  }
-
-  const userData = (await userResponse.json()) as Record<string, unknown>;
-
-  return {
-    accessToken: data.access_token as string,
-    refreshToken: (data.refresh_token as string | undefined) ?? undefined,
-    email: (userData.email as string) ?? "",
-  };
-}
-
-async function exchangeOutlookCode(code: string): Promise<{ accessToken: string; refreshToken?: string; email: string }> {
-  const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.OUTLOOK_CLIENT_ID || "",
-      client_secret: env.OUTLOOK_CLIENT_SECRET || "",
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
-      scope: "Mail.Read Mail.Send offline_access",
-    }).toString(),
-  });
-
-  if (!response.ok) {
-    throw badRequest("Failed to exchange Outlook authorization code");
-  }
-
-  const data = (await response.json()) as Record<string, unknown>;
-
-  const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
-    headers: { Authorization: `Bearer ${data.access_token}` },
-  });
-
-  if (!userResponse.ok) {
-    throw badRequest("Failed to get Outlook user info");
-  }
-
-  const userData = (await userResponse.json()) as Record<string, unknown>;
-
-  return {
-    accessToken: data.access_token as string,
-    refreshToken: (data.refresh_token as string | undefined) ?? undefined,
-    email: (userData.userPrincipalName as string) ?? (userData.mail as string) ?? "",
-  };
+  return signStatePayload(payload, requireEncryptionKey());
 }
 
 export const oauthService = {
@@ -223,12 +99,9 @@ export const oauthService = {
 
     let stateObj: Record<string, unknown>;
     try {
-      const verifiedPayload = verifySignedState(state);
+      const verifiedPayload = verifySignedStatePayload(state, requireEncryptionKey());
       stateObj = JSON.parse(Buffer.from(verifiedPayload, "base64").toString("utf8"));
     } catch (error) {
-      if (error instanceof Error && error.message.includes("State parameter")) {
-        throw error;
-      }
       throw unauthorized("Invalid state parameter");
     }
 
@@ -238,29 +111,59 @@ export const oauthService = {
       throw unauthorized("State parameter expired (10 minutes max)");
     }
 
-    let tokenData: { accessToken: string; refreshToken?: string; email: string };
+    const tokenData = await smartMailService.exchangeOAuthCode({
+      provider,
+      code,
+    });
 
-    if (provider === "gmail") {
-      tokenData = await exchangeGoogleCode(code);
-    } else {
-      tokenData = await exchangeOutlookCode(code);
+    if (!tokenData.email) {
+      throw badRequest("Unable to resolve email from OAuth provider response");
     }
 
-    const encryptedAccessToken = encryptToken(tokenData.accessToken);
-    const encryptedRefreshToken = tokenData.refreshToken ? encryptToken(tokenData.refreshToken) : undefined;
+    const key = requireEncryptionKey();
+    const encryptedAccessToken = encryptOpaqueToken(tokenData.accessToken, key);
+    const encryptedRefreshToken = tokenData.refreshToken ? encryptOpaqueToken(tokenData.refreshToken, key) : undefined;
 
-    const [account] = await db
-      .insert(smartMailAccounts)
-      .values({
-        organizationId: validatedState.organizationId,
-        userId: validatedState.userId,
-        provider,
-        email: tokenData.email,
-        accessToken: encryptedAccessToken,
-        refreshToken: encryptedRefreshToken,
-        status: "connected",
-      })
-      .returning();
+    const [existing] = await db
+      .select()
+      .from(smartMailAccounts)
+      .where(
+        and(
+          eq(smartMailAccounts.organizationId, validatedState.organizationId),
+          eq(smartMailAccounts.provider, provider),
+          eq(smartMailAccounts.email, tokenData.email),
+        ),
+      );
+
+    const [account] = existing
+      ? await db
+          .update(smartMailAccounts)
+          .set({
+            userId: validatedState.userId,
+            accessToken: encryptedAccessToken,
+            refreshToken: encryptedRefreshToken ?? existing.refreshToken,
+            tokenExpiresAt: tokenData.expiresAt,
+            status: "connected",
+            revokedAt: null,
+            lastSyncStatus: "idle",
+            lastSyncError: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(smartMailAccounts.id, existing.id))
+          .returning()
+      : await db
+          .insert(smartMailAccounts)
+          .values({
+            organizationId: validatedState.organizationId,
+            userId: validatedState.userId,
+            provider,
+            email: tokenData.email,
+            accessToken: encryptedAccessToken,
+            refreshToken: encryptedRefreshToken,
+            tokenExpiresAt: tokenData.expiresAt,
+            status: "connected",
+          })
+          .returning();
 
     return {
       success: true,
@@ -289,7 +192,14 @@ export const oauthService = {
 
     const [updated] = await db
       .update(smartMailAccounts)
-      .set({ status: "disconnected", updatedAt: new Date() })
+      .set({
+        status: "disconnected",
+        accessToken: null,
+        refreshToken: null,
+        tokenExpiresAt: null,
+        revokedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(smartMailAccounts.id, body.accountId))
       .returning();
 
@@ -307,80 +217,18 @@ export const oauthService = {
     const { orgId } = requireContext(request);
     const body = syncEmailsSchema.parse(readValidatedBody(request));
 
-    const [account] = await db
-      .select()
-      .from(smartMailAccounts)
-      .where(and(eq(smartMailAccounts.id, body.accountId), eq(smartMailAccounts.organizationId, orgId)));
+    const result = await smartMailService.syncAccountByInput({
+      orgId,
+      accountId: body.accountId,
+      projectId: body.projectId,
+      maxResults: body.maxResults,
+      forceRefresh: body.forceRefresh,
+    });
 
-    if (!account) {
-      throw notFound("OAuth account not found");
-    }
-
-    if (account.status !== "connected" || !account.accessToken) {
-      throw badRequest("Account is not connected or token is missing");
-    }
-
-    try {
-      const accessToken = decryptToken(account.accessToken);
-
-      if (account.provider === "gmail") {
-        const response = await fetch(
-          `https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=${body.maxResults}`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch Gmail messages");
-        }
-
-        const data = (await response.json()) as Record<string, unknown>;
-
-        await db
-          .update(smartMailAccounts)
-          .set({ lastSyncAt: new Date(), updatedAt: new Date() })
-          .where(eq(smartMailAccounts.id, account.id));
-
-        return {
-          success: true,
-          provider: "gmail",
-          messageCount: Array.isArray(data.messages) ? data.messages.length : 0,
-          lastSync: new Date(),
-        };
-      } else {
-        const response = await fetch(
-          `https://graph.microsoft.com/v1.0/me/mailfolders/inbox/messages?$top=${body.maxResults}`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch Outlook messages");
-        }
-
-        const data = (await response.json()) as Record<string, unknown>;
-
-        await db
-          .update(smartMailAccounts)
-          .set({ lastSyncAt: new Date(), updatedAt: new Date() })
-          .where(eq(smartMailAccounts.id, account.id));
-
-        return {
-          success: true,
-          provider: "outlook",
-          messageCount: Array.isArray(data.value) ? data.value.length : 0,
-          lastSync: new Date(),
-        };
-      }
-    } catch (error) {
-      await db
-        .update(smartMailAccounts)
-        .set({ status: "error", updatedAt: new Date() })
-        .where(eq(smartMailAccounts.id, account.id));
-
-      throw badRequest(`Email sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
+    return {
+      success: true,
+      organizationId: orgId,
+      ...result,
+    };
   },
 };

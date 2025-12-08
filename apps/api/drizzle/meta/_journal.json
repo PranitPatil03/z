@@ -43,6 +43,13 @@
       "when": 1775513429134,
       "tag": "0005_secret_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775548184914,
+      "tag": "0006_legal_goblin_queen",
+      "breakpoints": true
     }
   ]
 }

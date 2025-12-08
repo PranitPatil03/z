@@ -200,6 +200,9 @@ export const budgetEntrySourceTypeEnum = pgEnum("budget_entry_source_type", [
   "other",
 ]);
 export const smartMailAccountStatusEnum = pgEnum("smartmail_account_status", ["connected", "disconnected", "error"]);
+export const smartMailMessageDirectionEnum = pgEnum("smartmail_message_direction", ["inbound", "outbound"]);
+export const smartMailMessageStatusEnum = pgEnum("smartmail_message_status", ["draft", "queued", "sent", "received", "failed"]);
+export const smartMailTemplateTypeEnum = pgEnum("smartmail_template_type", ["template", "snippet"]);
 export const fileAssetStatusEnum = pgEnum("file_asset_status", ["pending", "uploaded", "failed", "deleted"]);
 export const subscriptionPlanEnum = pgEnum("subscription_plan", ["starter", "growth", "enterprise"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "grace", "suspended"]);
@@ -913,14 +916,23 @@ export const smartMailAccounts = pgTable(
     status: smartMailAccountStatusEnum("status").notNull().default("connected"),
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
     connectedAt: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    syncCursor: text("sync_cursor"),
+    lastSyncStatus: text("last_sync_status").notNull().default("idle"),
+    lastSyncError: text("last_sync_error"),
+    autoSyncEnabled: boolean("auto_sync_enabled").notNull().default(true),
+    defaultProjectId: text("default_project_id"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     uniqueAccount: uniqueIndex("smartmail_accounts_org_provider_email_unique").on(table.organizationId, table.provider, table.email),
+    orgStatusIndex: index("smartmail_accounts_org_status_idx").on(table.organizationId, table.status),
+    orgSyncIndex: index("smartmail_accounts_org_sync_idx").on(table.organizationId, table.autoSyncEnabled, table.lastSyncAt),
   }),
 );
 
@@ -930,13 +942,24 @@ export const smartMailThreads = pgTable(
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     organizationId: text("organization_id").notNull(),
     projectId: text("project_id").notNull(),
+    accountId: text("account_id").notNull().references(() => smartMailAccounts.id, { onDelete: "cascade" }),
     subject: text("subject").notNull(),
     externalThreadId: text("external_thread_id"),
+    participants: jsonb("participants").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    linkedEntityType: text("linked_entity_type"),
+    linkedEntityId: text("linked_entity_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     orgProjectIndex: index("smartmail_threads_org_project_idx").on(table.organizationId, table.projectId),
+    orgAccountIndex: index("smartmail_threads_org_account_idx").on(table.organizationId, table.accountId, table.updatedAt),
+    uniqueExternalThread: uniqueIndex("smartmail_threads_org_account_external_thread_unique").on(
+      table.organizationId,
+      table.accountId,
+      table.externalThreadId,
+    ),
   }),
 );
 
@@ -947,17 +970,98 @@ export const smartMailMessages = pgTable(
     threadId: text("thread_id").notNull().references(() => smartMailThreads.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").notNull(),
     projectId: text("project_id").notNull(),
+    externalMessageId: text("external_message_id"),
+    direction: smartMailMessageDirectionEnum("direction").notNull().default("inbound"),
+    status: smartMailMessageStatusEnum("status").notNull().default("received"),
     fromEmail: text("from_email").notNull(),
     toEmail: text("to_email").notNull(),
+    ccEmails: jsonb("cc_emails").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    bccEmails: jsonb("bcc_emails").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    subject: text("subject").notNull().default(""),
     body: text("body").notNull(),
     linkedEntityType: text("linked_entity_type"),
     linkedEntityId: text("linked_entity_id"),
+    linkConfidenceBps: integer("link_confidence_bps").notNull().default(0),
+    linkReason: text("link_reason"),
+    linkOverriddenByUserId: text("link_overridden_by_user_id"),
+    linkOverriddenAt: timestamp("link_overridden_at", { withTimezone: true }),
     aiDraft: integer("ai_draft").notNull().default(0),
+    isAiDraft: boolean("is_ai_draft").notNull().default(false),
+    aiModel: text("ai_model"),
+    aiPromptTemplateVersion: text("ai_prompt_template_version"),
+    sendError: text("send_error"),
+    providerMetadata: jsonb("provider_metadata").$type<Record<string, unknown> | null>(),
+    externalCreatedAt: timestamp("external_created_at", { withTimezone: true }),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     threadIndex: index("smartmail_messages_thread_idx").on(table.threadId),
+    threadSentIndex: index("smartmail_messages_thread_sent_idx").on(table.threadId, table.sentAt),
+    linkIndex: index("smartmail_messages_link_idx").on(table.linkedEntityType, table.linkedEntityId),
+    uniqueExternalMessage: uniqueIndex("smartmail_messages_org_external_message_unique").on(
+      table.organizationId,
+      table.externalMessageId,
+    ),
+  }),
+);
+
+export const smartMailTemplates = pgTable(
+  "smartmail_templates",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id"),
+    createdByUserId: text("created_by_user_id").notNull(),
+    name: text("name").notNull(),
+    type: smartMailTemplateTypeEnum("type").notNull().default("template"),
+    subjectTemplate: text("subject_template").notNull().default(""),
+    bodyTemplate: text("body_template").notNull(),
+    variables: jsonb("variables").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    isShared: boolean("is_shared").notNull().default(false),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => ({
+    orgProjectTypeIndex: index("smartmail_templates_org_project_type_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.type,
+      table.deletedAt,
+    ),
+    orgNameUnique: uniqueIndex("smartmail_templates_org_project_name_type_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.name,
+      table.type,
+    ),
+  }),
+);
+
+export const smartMailSyncRuns = pgTable(
+  "smartmail_sync_runs",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    accountId: text("account_id").notNull().references(() => smartMailAccounts.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    status: text("status").notNull(),
+    fetchedCount: integer("fetched_count").notNull().default(0),
+    upsertedCount: integer("upserted_count").notNull().default(0),
+    cursorBefore: text("cursor_before"),
+    cursorAfter: text("cursor_after"),
+    error: text("error"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    accountStartedIndex: index("smartmail_sync_runs_account_started_idx").on(table.accountId, table.startedAt),
+    orgProjectIndex: index("smartmail_sync_runs_org_project_idx").on(table.organizationId, table.projectId),
   }),
 );
 

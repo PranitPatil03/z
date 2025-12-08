@@ -26,7 +26,9 @@ export const disconnectOAuthAccountSchema = z.object({
 
 export const syncEmailsSchema = z.object({
   accountId: z.string().min(1),
+  projectId: z.string().min(1).optional(),
   maxResults: z.number().int().min(1).max(100).default(50),
+  forceRefresh: z.boolean().default(false),
 });
 
 export const oauthErrorSchema = z.object({

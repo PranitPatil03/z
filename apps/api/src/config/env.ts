@@ -46,6 +46,8 @@ const envSchema = z.object({
   OUTLOOK_CLIENT_ID: z.string().optional(),
   OUTLOOK_CLIENT_SECRET: z.string().optional(),
   OAUTH_REDIRECT_URI: z.string().optional(),
+  SMARTMAIL_SYNC_LOOKBACK_MINUTES: z.coerce.number().int().min(0).optional(),
+  SMARTMAIL_DEFAULT_SYNC_MAX_RESULTS: z.coerce.number().int().min(1).max(100).optional(),
   SITE_SNAP_AI_PROVIDER: z.enum(["openai", "anthropic", "gemini", "azure-openai"]).optional(),
   SITE_SNAP_AI_MODEL: z.string().optional(),
   SITE_SNAP_MIN_IMAGE_BYTES: z.coerce.number().int().positive().optional(),
