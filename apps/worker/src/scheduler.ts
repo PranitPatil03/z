@@ -1,6 +1,22 @@
-import { createDb, changeOrders, complianceItems, notifications, organizationSubscriptions, subcontractors } from "@foreman/db";
+import {
+  changeOrders,
+  complianceItems,
+  createDb,
+  notifications,
+  organizationSubscriptions,
+  smartMailAccounts,
+  smartMailMessages,
+  smartMailThreads,
+  subcontractors,
+} from "@foreman/db";
 import { and, eq, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import type pino from "pino";
+import {
+  decryptOpaqueToken,
+  encryptOpaqueToken,
+  fetchProviderMessages,
+  refreshProviderAccessToken,
+} from "../../api/src/services/smartmail-provider";
 import { sendNotificationEmail } from "./email";
 
 interface SchedulerTask {
@@ -17,6 +33,20 @@ function getIntervalMs(name: string, fallback: number) {
 
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getPositiveInt(name: string, fallback: number) {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function getEncryptionKey() {
+  return process.env.ENCRYPTION_KEY;
 }
 
 export function startScheduler(logger: pino.Logger) {
@@ -207,6 +237,214 @@ export function startScheduler(logger: pino.Logger) {
           .returning({ id: organizationSubscriptions.id });
 
         return { rolledOverSubscriptions: updated.length };
+      },
+    },
+    {
+      name: "smartmail-auto-sync",
+      intervalMs: getIntervalMs("SCHEDULER_SMARTMAIL_INTERVAL_MS", 15 * 60 * 1000),
+      run: async () => {
+        const key = getEncryptionKey();
+        if (!key) {
+          return {
+            checkedAccounts: 0,
+            syncedAccounts: 0,
+            failedAccounts: 0,
+            skippedAccounts: 0,
+            reason: "ENCRYPTION_KEY missing",
+          };
+        }
+
+        const now = new Date();
+        const maxResults = getPositiveInt("SMARTMAIL_DEFAULT_SYNC_MAX_RESULTS", 25);
+        const lookbackMinutes = getPositiveInt("SMARTMAIL_SYNC_LOOKBACK_MINUTES", 30);
+
+        const accounts = await db
+          .select()
+          .from(smartMailAccounts)
+          .where(
+            and(
+              eq(smartMailAccounts.status, "connected"),
+              eq(smartMailAccounts.autoSyncEnabled, true),
+              isNull(smartMailAccounts.revokedAt),
+            ),
+          );
+
+        let syncedAccounts = 0;
+        let failedAccounts = 0;
+        let skippedAccounts = 0;
+        let fetchedMessages = 0;
+        let upsertedMessages = 0;
+
+        for (const account of accounts) {
+          if (!account.defaultProjectId || !account.accessToken) {
+            skippedAccounts += 1;
+            continue;
+          }
+
+          if (account.provider !== "gmail" && account.provider !== "outlook") {
+            skippedAccounts += 1;
+            continue;
+          }
+
+          try {
+            let accessToken = decryptOpaqueToken(account.accessToken, key);
+
+            if (
+              account.tokenExpiresAt &&
+              account.tokenExpiresAt.getTime() <= now.getTime() + 90_000 &&
+              account.refreshToken
+            ) {
+              const refreshed = await refreshProviderAccessToken(
+                account.provider,
+                decryptOpaqueToken(account.refreshToken, key),
+                {
+                  googleClientId: process.env.GOOGLE_CLIENT_ID,
+                  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                  outlookClientId: process.env.OUTLOOK_CLIENT_ID,
+                  outlookClientSecret: process.env.OUTLOOK_CLIENT_SECRET,
+                  redirectUri: process.env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
+                },
+              );
+
+              accessToken = refreshed.accessToken;
+
+              await db
+                .update(smartMailAccounts)
+                .set({
+                  accessToken: encryptOpaqueToken(refreshed.accessToken, key),
+                  refreshToken: refreshed.refreshToken
+                    ? encryptOpaqueToken(refreshed.refreshToken, key)
+                    : account.refreshToken,
+                  tokenExpiresAt: refreshed.expiresAt,
+                  status: "connected",
+                  lastSyncError: null,
+                  updatedAt: new Date(),
+                })
+                .where(eq(smartMailAccounts.id, account.id));
+            }
+
+            const since = account.lastSyncAt
+              ? new Date(account.lastSyncAt.getTime() - lookbackMinutes * 60_000)
+              : undefined;
+
+            const rows = await fetchProviderMessages({
+              provider: account.provider,
+              accessToken,
+              accountEmail: account.email,
+              maxResults,
+              since,
+            });
+
+            let latestCursor: Date | null = null;
+
+            for (const row of rows) {
+              const [thread] = await db
+                .insert(smartMailThreads)
+                .values({
+                  organizationId: account.organizationId,
+                  projectId: account.defaultProjectId,
+                  accountId: account.id,
+                  subject: row.subject,
+                  externalThreadId: row.externalThreadId,
+                  participants: Array.from(
+                    new Set([row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(Boolean)),
+                  ),
+                  lastMessageAt: row.sentAt,
+                })
+                .onConflictDoUpdate({
+                  target: [smartMailThreads.organizationId, smartMailThreads.accountId, smartMailThreads.externalThreadId],
+                  set: {
+                    projectId: account.defaultProjectId,
+                    subject: row.subject,
+                    participants: Array.from(
+                      new Set([row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(Boolean)),
+                    ),
+                    lastMessageAt: row.sentAt,
+                    updatedAt: new Date(),
+                  },
+                })
+                .returning();
+
+              await db
+                .insert(smartMailMessages)
+                .values({
+                  threadId: thread.id,
+                  organizationId: account.organizationId,
+                  projectId: account.defaultProjectId,
+                  externalMessageId: row.externalMessageId,
+                  direction: row.direction,
+                  status: row.direction === "outbound" ? "sent" : "received",
+                  fromEmail: row.fromEmail,
+                  toEmail: row.toEmails[0] ?? account.email,
+                  ccEmails: row.ccEmails,
+                  subject: row.subject,
+                  body: row.body,
+                  providerMetadata: row.providerMetadata,
+                  externalCreatedAt: row.sentAt,
+                  sentAt: row.sentAt,
+                })
+                .onConflictDoUpdate({
+                  target: [smartMailMessages.organizationId, smartMailMessages.externalMessageId],
+                  set: {
+                    threadId: thread.id,
+                    projectId: account.defaultProjectId,
+                    direction: row.direction,
+                    status: row.direction === "outbound" ? "sent" : "received",
+                    fromEmail: row.fromEmail,
+                    toEmail: row.toEmails[0] ?? account.email,
+                    ccEmails: row.ccEmails,
+                    subject: row.subject,
+                    body: row.body,
+                    providerMetadata: row.providerMetadata,
+                    externalCreatedAt: row.sentAt,
+                    sentAt: row.sentAt,
+                    updatedAt: new Date(),
+                  },
+                });
+
+              upsertedMessages += 1;
+              if (!latestCursor || row.sentAt.getTime() > latestCursor.getTime()) {
+                latestCursor = row.sentAt;
+              }
+            }
+
+            fetchedMessages += rows.length;
+            syncedAccounts += 1;
+
+            await db
+              .update(smartMailAccounts)
+              .set({
+                status: "connected",
+                lastSyncAt: new Date(),
+                syncCursor: latestCursor ? latestCursor.toISOString() : account.syncCursor,
+                lastSyncStatus: "ok",
+                lastSyncError: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(smartMailAccounts.id, account.id));
+          } catch (error) {
+            failedAccounts += 1;
+
+            await db
+              .update(smartMailAccounts)
+              .set({
+                status: "error",
+                lastSyncStatus: "failed",
+                lastSyncError: error instanceof Error ? error.message : "Unknown sync error",
+                updatedAt: new Date(),
+              })
+              .where(eq(smartMailAccounts.id, account.id));
+          }
+        }
+
+        return {
+          checkedAccounts: accounts.length,
+          syncedAccounts,
+          failedAccounts,
+          skippedAccounts,
+          fetchedMessages,
+          upsertedMessages,
+        };
       },
     },
     {

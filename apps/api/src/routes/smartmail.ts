@@ -1,24 +1,39 @@
 import { Router } from "express";
 import {
+  createSmartMailDraftController,
   createSmartMailAccountController,
   createSmartMailMessageController,
+  createSmartMailTemplateController,
   createSmartMailThreadController,
+  deleteSmartMailTemplateController,
   listSmartMailAccountsController,
   listSmartMailMessagesController,
+  listSmartMailTemplatesController,
   listSmartMailThreadsController,
+  syncSmartMailAccountController,
+  updateSmartMailMessageLinkController,
   updateSmartMailAccountController,
+  updateSmartMailTemplateController,
 } from "../controllers/smartmail";
 import { asyncHandler } from "../lib/async-handler";
 import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import {
+  createSmartMailDraftSchema,
   createSmartMailAccountSchema,
   createSmartMailMessageSchema,
+  createSmartMailTemplateSchema,
   createSmartMailThreadSchema,
+  listSmartMailTemplatesQuerySchema,
   listSmartMailThreadsQuerySchema,
   smartMailAccountIdParamsSchema,
+  smartMailMessageIdParamsSchema,
+  smartMailTemplateIdParamsSchema,
   smartMailThreadIdParamsSchema,
+  syncSmartMailAccountSchema,
+  updateSmartMailMessageLinkSchema,
   updateSmartMailAccountSchema,
+  updateSmartMailTemplateSchema,
 } from "../schemas/smartmail.schema";
 
 export const smartMailRouter: import("express").Router = Router();
@@ -33,6 +48,12 @@ smartMailRouter.patch(
   validateBody(updateSmartMailAccountSchema),
   asyncHandler(updateSmartMailAccountController),
 );
+smartMailRouter.post(
+  "/accounts/:accountId/sync",
+  validateParams(smartMailAccountIdParamsSchema),
+  validateBody(syncSmartMailAccountSchema),
+  asyncHandler(syncSmartMailAccountController),
+);
 smartMailRouter.get("/threads", validateQuery(listSmartMailThreadsQuerySchema), asyncHandler(listSmartMailThreadsController));
 smartMailRouter.post("/threads", validateBody(createSmartMailThreadSchema), asyncHandler(createSmartMailThreadController));
 smartMailRouter.get(
@@ -45,4 +66,37 @@ smartMailRouter.post(
   validateParams(smartMailThreadIdParamsSchema),
   validateBody(createSmartMailMessageSchema),
   asyncHandler(createSmartMailMessageController),
+);
+smartMailRouter.post(
+  "/threads/:threadId/drafts",
+  validateParams(smartMailThreadIdParamsSchema),
+  validateBody(createSmartMailDraftSchema),
+  asyncHandler(createSmartMailDraftController),
+);
+smartMailRouter.patch(
+  "/messages/:messageId/link",
+  validateParams(smartMailMessageIdParamsSchema),
+  validateBody(updateSmartMailMessageLinkSchema),
+  asyncHandler(updateSmartMailMessageLinkController),
+);
+smartMailRouter.get(
+  "/templates",
+  validateQuery(listSmartMailTemplatesQuerySchema),
+  asyncHandler(listSmartMailTemplatesController),
+);
+smartMailRouter.post(
+  "/templates",
+  validateBody(createSmartMailTemplateSchema),
+  asyncHandler(createSmartMailTemplateController),
+);
+smartMailRouter.patch(
+  "/templates/:templateId",
+  validateParams(smartMailTemplateIdParamsSchema),
+  validateBody(updateSmartMailTemplateSchema),
+  asyncHandler(updateSmartMailTemplateController),
+);
+smartMailRouter.delete(
+  "/templates/:templateId",
+  validateParams(smartMailTemplateIdParamsSchema),
+  asyncHandler(deleteSmartMailTemplateController),
 );
