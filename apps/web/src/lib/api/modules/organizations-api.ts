@@ -53,8 +53,17 @@ export const organizationsApi = {
       body: { organizationId },
     }),
 
-  listMembers: (orgId: string) =>
-    requestData<OrgMember[]>(`/organizations/${orgId}/members`),
+  listMembers: async (orgId: string) => {
+    const payload = await requestData<
+      OrgMember[] | { members?: OrgMember[] }
+    >(`/organizations/${orgId}/members`);
+
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+
+    return payload.members ?? [];
+  },
 
   inviteMember: (orgId: string, body: InviteMemberInput) =>
     requestDataWithInit<void>(`/organizations/${orgId}/invitations`, {

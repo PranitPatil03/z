@@ -215,7 +215,7 @@ const openApiRouterMounts: ApiRouterMount[] = [
 ];
 
 const openApiDocument = buildOpenApiDocument({
-  title: "Foreman API",
+  title: "anvil API",
   version: "1.0.0",
   description:
     "Live API contract generated from mounted routes and Zod validators.",
@@ -321,7 +321,7 @@ app.get("/docs", (_request: Request, response: Response) => {
 });
 
 app.get("/", (_request: Request, response: Response) => {
-  response.json({ name: "Foreman API", status: "ok" });
+  response.json({ name: "anvil API", status: "ok" });
 });
 
 app.use(errorHandler);

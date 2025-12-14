@@ -4,8 +4,8 @@ import type { PropsWithChildren } from "react";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "Foreman",
-  description: "Construction operations intelligence workspace",
+  title: "anvil",
+  description: "AI-native construction operations workspace",
 };
 
 export default function RootLayout({ children }: PropsWithChildren) {

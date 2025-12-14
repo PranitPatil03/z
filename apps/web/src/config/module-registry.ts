@@ -43,16 +43,6 @@ export const moduleRegistry: ModuleDefinition[] = [
     group: "core",
   },
   {
-    key: "command-center",
-    title: "Command Center",
-    subtitle: "Operational overview across all projects.",
-    icon: Activity,
-    routePath: "/app/command-center",
-    priority: "P1",
-    progress: 100,
-    group: "ops",
-  },
-  {
     key: "activity-feed",
     title: "Activity Feed",
     subtitle: "Filtered activity stream with pagination.",

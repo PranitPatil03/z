@@ -1,11 +1,13 @@
 import { ProjectDetailPage } from "@/features/workspace/pages/project-detail-page";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     projectId: string;
-  };
+  }>;
 }
 
-export default function Page({ params }: PageProps) {
-  return <ProjectDetailPage projectId={params.projectId} />;
+export default async function Page({ params }: PageProps) {
+  const { projectId } = await params;
+
+  return <ProjectDetailPage projectId={projectId} />;
 }

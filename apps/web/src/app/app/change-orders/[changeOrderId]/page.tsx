@@ -1,11 +1,13 @@
 import { ChangeOrderDetailPage } from "@/features/change-orders/pages/change-order-detail-page";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     changeOrderId: string;
-  };
+  }>;
 }
 
-export default function Page({ params }: PageProps) {
-  return <ChangeOrderDetailPage changeOrderId={params.changeOrderId} />;
+export default async function Page({ params }: PageProps) {
+  const { changeOrderId } = await params;
+
+  return <ChangeOrderDetailPage changeOrderId={changeOrderId} />;
 }

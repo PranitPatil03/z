@@ -13,6 +13,7 @@ import {
   commandCenterApi,
 } from "@/lib/api/modules/notifications-api";
 import { queryKeys } from "@/lib/api/query-keys";
+import { useSessionStore } from "@/store/session-store";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -81,6 +82,11 @@ function ActivityRow({ item }: { item: ActivityFeedItem }) {
 }
 
 export function CommandCenterPage() {
+  const activeOrganizationId = useSessionStore(
+    (state) => state.activeOrganizationId,
+  );
+  const hasActiveOrganization = Boolean(activeOrganizationId);
+
   const [windowDays, setWindowDays] = useState(30);
   const [limit, setLimit] = useState(12);
   const [interval, setInterval] = useState<"day" | "week">("day");
@@ -89,6 +95,7 @@ export function CommandCenterPage() {
   const portfolioQuery = useQuery({
     queryKey: queryKeys.commandCenter.portfolio({ limit, windowDays }),
     queryFn: () => commandCenterApi.portfolio({ limit, windowDays }),
+    enabled: hasActiveOrganization,
     staleTime: 30_000,
     retry: 2,
   });
@@ -99,7 +106,7 @@ export function CommandCenterPage() {
   const overviewQuery = useQuery({
     queryKey: queryKeys.commandCenter.overview(projectId, windowDays),
     queryFn: () => commandCenterApi.overview(projectId, windowDays),
-    enabled: Boolean(projectId),
+    enabled: hasActiveOrganization && Boolean(projectId),
     staleTime: 30_000,
     retry: 2,
   });
@@ -107,7 +114,7 @@ export function CommandCenterPage() {
   const healthQuery = useQuery({
     queryKey: queryKeys.commandCenter.health(projectId, windowDays),
     queryFn: () => commandCenterApi.health(projectId, windowDays),
-    enabled: Boolean(projectId),
+    enabled: hasActiveOrganization && Boolean(projectId),
     staleTime: 30_000,
     retry: 2,
   });
@@ -124,7 +131,7 @@ export function CommandCenterPage() {
         windowDays,
         interval,
       }),
-    enabled: Boolean(projectId),
+    enabled: hasActiveOrganization && Boolean(projectId),
     staleTime: 30_000,
     retry: 2,
   });
@@ -137,6 +144,7 @@ export function CommandCenterPage() {
         pageSize: 10,
         projectId: projectId || undefined,
       }),
+    enabled: hasActiveOrganization,
     staleTime: 15_000,
     retry: 2,
   });
@@ -192,12 +200,40 @@ export function CommandCenterPage() {
     ]);
   };
 
+  if (!hasActiveOrganization) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Dashboard"
+          description="Real-time operational overview across all active projects."
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/app/organization-setup">Set up organization</Link>
+            </Button>
+          }
+        />
+
+        <EmptyState
+          icon={FolderOpen}
+          title="Organization required"
+          description="Create or select an organization to load dashboard metrics, activity, and portfolio health."
+          action={{
+            label: "Open organization setup",
+            onClick: () => {
+              window.location.assign("/app/organization-setup");
+            },
+          }}
+        />
+      </div>
+    );
+  }
+
   const summary = summarizePortfolioProjects(portfolio?.projects ?? []);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Command Center"
+        title="Dashboard"
         description="Real-time operational overview across all active projects."
         action={
           <div className="flex items-center gap-2">

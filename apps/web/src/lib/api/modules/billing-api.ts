@@ -132,6 +132,38 @@ export interface CreateStripeSubscriptionResult {
   status: string;
 }
 
+export type PaidPlanKey = Extract<SubscriptionPlanKey, "growth" | "enterprise">;
+
+export interface StripeCheckoutPlanPricing {
+  plan: PaidPlanKey;
+  priceId: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  interval: "day" | "week" | "month" | "year" | null;
+  intervalCount: number | null;
+  productName: string | null;
+  nickname: string | null;
+  available: boolean;
+  message?: string;
+}
+
+export interface StripeCheckoutPricingResult {
+  items: StripeCheckoutPlanPricing[];
+}
+
+export interface CreateStripeCheckoutSessionInput {
+  plan: PaidPlanKey;
+  successPath?: string;
+  cancelPath?: string;
+}
+
+export interface CreateStripeCheckoutSessionResult {
+  sessionId: string;
+  url: string;
+  plan: PaidPlanKey;
+  price: StripeCheckoutPlanPricing;
+}
+
 export interface StripeWebhookEvent {
   id: string;
   stripeEventId: string;
@@ -204,6 +236,20 @@ export const billingApi = {
   createSubscription: (body: CreateStripeSubscriptionInput) =>
     requestJson<CreateStripeSubscriptionResult>(
       "/billing/stripe/subscription",
+      {
+        method: "POST",
+        body,
+      },
+    ),
+
+  getCheckoutPricing: () =>
+    requestJson<StripeCheckoutPricingResult>("/billing/stripe/pricing", {
+      method: "GET",
+    }),
+
+  createCheckoutSession: (body: CreateStripeCheckoutSessionInput) =>
+    requestJson<CreateStripeCheckoutSessionResult>(
+      "/billing/stripe/checkout-session",
       {
         method: "POST",
         body,

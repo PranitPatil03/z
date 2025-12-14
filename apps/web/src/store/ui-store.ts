@@ -22,7 +22,7 @@ export const useUiStore = create<UiState>()(
       setDensity: (density) => set({ density }),
     }),
     {
-      name: "foreman-ui",
+      name: "anvil-ui",
       partialize: (state) => ({
         isSidebarCollapsed: state.isSidebarCollapsed,
         density: state.density,

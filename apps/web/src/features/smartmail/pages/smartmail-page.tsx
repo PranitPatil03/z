@@ -37,6 +37,43 @@ const LINKED_ENTITY_TYPES: SmartMailLinkedEntityType[] = [
 
 const TEMPLATE_TYPES: SmartMailTemplateType[] = ["template", "snippet"];
 
+type SmartMailWorkspaceMode = "inbox" | "templates";
+
+const SMARTMAIL_WORKSPACE_MODE_LABEL: Record<SmartMailWorkspaceMode, string> = {
+  inbox: "Inbox operations",
+  templates: "Template studio",
+};
+
+const SMARTMAIL_WORKSPACE_GUIDE: Record<
+  SmartMailWorkspaceMode,
+  {
+    title: string;
+    description: string;
+    steps: string[];
+  }
+> = {
+  inbox: {
+    title: "Inbox workspace",
+    description:
+      "Use this workspace to connect accounts, sync mail, and create project threads.",
+    steps: [
+      "Connect Gmail/Outlook and confirm account status.",
+      "Set project ID and sync account messages.",
+      "Create and open threads for project communication.",
+    ],
+  },
+  templates: {
+    title: "Template studio",
+    description:
+      "Use this workspace to create shared templates and snippets for faster drafting.",
+    steps: [
+      "Create reusable templates and snippets.",
+      "Update selected templates and variables.",
+      "Keep templates aligned with project communication style.",
+    ],
+  },
+};
+
 function toIsoOrUndefined(value: string) {
   if (value.trim().length === 0) {
     return undefined;
@@ -133,6 +170,8 @@ export function SmartMailPage() {
   const [projectId, setProjectId] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [workspaceMode, setWorkspaceMode] =
+    useState<SmartMailWorkspaceMode>("inbox");
 
   const [createAccountForm, setCreateAccountForm] = useState({
     provider: "gmail" as OAuthProvider,
@@ -614,6 +653,11 @@ export function SmartMailPage() {
   ];
 
   const hasAccounts = (accounts ?? []).length > 0;
+  const showInbox = workspaceMode === "inbox";
+  const showSetup = showInbox;
+  const showThreads = showInbox;
+  const showTemplates = workspaceMode === "templates";
+  const showAccountStrip = showInbox;
 
   return (
     <div className="space-y-6">
@@ -653,6 +697,58 @@ export function SmartMailPage() {
       />
 
       <section className="rounded-xl border border-border bg-card p-4">
+        <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Workflow focus
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Switch between inbox operations and template studio to keep
+              SmartMail workflows focused.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="smartmail-workflow-focus">Focus mode</Label>
+            <Select
+              id="smartmail-workflow-focus"
+              value={workspaceMode}
+              onChange={(event) =>
+                setWorkspaceMode(event.target.value as SmartMailWorkspaceMode)
+              }
+            >
+              {(
+                Object.keys(
+                  SMARTMAIL_WORKSPACE_MODE_LABEL,
+                ) as SmartMailWorkspaceMode[]
+              ).map((mode) => (
+                <option key={mode} value={mode}>
+                  {SMARTMAIL_WORKSPACE_MODE_LABEL[mode]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-sm font-medium text-foreground">
+            {SMARTMAIL_WORKSPACE_GUIDE[workspaceMode].title}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {SMARTMAIL_WORKSPACE_GUIDE[workspaceMode].description}
+          </p>
+          <div className="mt-2 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+            {SMARTMAIL_WORKSPACE_GUIDE[workspaceMode].steps.map((step) => (
+              <p
+                key={step}
+                className="rounded-md border border-border bg-background/80 px-3 py-2"
+              >
+                {step}
+              </p>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1.5 md:col-span-2">
             <Label htmlFor="smartmail-project-id">Project ID</Label>
@@ -675,144 +771,59 @@ export function SmartMailPage() {
         </div>
       </section>
 
-      {accountsLoading ? (
-        <Skeleton className="h-16 w-full rounded-xl" />
-      ) : (accounts ?? []).length > 0 ? (
-        <div className="space-y-2">
-          {(accounts ?? []).map((acct) => (
-            <AccountCard
-              key={acct.id}
-              account={acct}
-              onSelect={() => setSelectedAccountId(acct.id)}
-              onSync={() => syncMutation.mutate(acct.id)}
-            />
-          ))}
-        </div>
-      ) : null}
+      {showAccountStrip &&
+        (accountsLoading ? (
+          <Skeleton className="h-16 w-full rounded-xl" />
+        ) : (accounts ?? []).length > 0 ? (
+          <div className="space-y-2">
+            {(accounts ?? []).map((acct) => (
+              <AccountCard
+                key={acct.id}
+                account={acct}
+                onSelect={() => setSelectedAccountId(acct.id)}
+                onSync={() => syncMutation.mutate(acct.id)}
+              />
+            ))}
+          </div>
+        ) : null)}
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-foreground">
-            Create account
-          </h2>
-          <div className="mt-3 grid gap-3">
-            <Select
-              value={createAccountForm.provider}
-              onChange={(event) =>
-                setCreateAccountForm((current) => ({
-                  ...current,
-                  provider: event.target.value as OAuthProvider,
-                }))
-              }
-            >
-              <option value="gmail">gmail</option>
-              {isOutlookOAuthEnabled ? (
-                <option value="outlook">outlook</option>
-              ) : null}
-            </Select>
-            <Input
-              placeholder="Account email"
-              type="email"
-              value={createAccountForm.email}
-              onChange={(event) =>
-                setCreateAccountForm((current) => ({
-                  ...current,
-                  email: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Default project ID"
-              value={createAccountForm.defaultProjectId}
-              onChange={(event) =>
-                setCreateAccountForm((current) => ({
-                  ...current,
-                  defaultProjectId: event.target.value,
-                }))
-              }
-            />
-            <Input
-              type="datetime-local"
-              value={createAccountForm.tokenExpiresAt}
-              onChange={(event) =>
-                setCreateAccountForm((current) => ({
-                  ...current,
-                  tokenExpiresAt: event.target.value,
-                }))
-              }
-            />
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={createAccountForm.autoSyncEnabled}
+      {showSetup && (
+        <section className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-foreground">
+              Create account
+            </h2>
+            <div className="mt-3 grid gap-3">
+              <Select
+                value={createAccountForm.provider}
                 onChange={(event) =>
                   setCreateAccountForm((current) => ({
                     ...current,
-                    autoSyncEnabled: event.target.checked,
+                    provider: event.target.value as OAuthProvider,
+                  }))
+                }
+              >
+                <option value="gmail">gmail</option>
+                {isOutlookOAuthEnabled ? (
+                  <option value="outlook">outlook</option>
+                ) : null}
+              </Select>
+              <Input
+                placeholder="Account email"
+                type="email"
+                value={createAccountForm.email}
+                onChange={(event) =>
+                  setCreateAccountForm((current) => ({
+                    ...current,
+                    email: event.target.value,
                   }))
                 }
               />
-              Auto sync enabled
-            </label>
-            <textarea
-              className="flex min-h-[92px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-              placeholder="Metadata JSON (optional)"
-              value={createAccountForm.metadataText}
-              onChange={(event) =>
-                setCreateAccountForm((current) => ({
-                  ...current,
-                  metadataText: event.target.value,
-                }))
-              }
-            />
-            <div className="flex justify-end">
-              <Button
-                onClick={() => createAccountMutation.mutate()}
-                disabled={createAccountMutation.isPending}
-              >
-                <Plus className="mr-1.5 h-4 w-4" />
-                Create account
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-foreground">
-            Update selected account
-          </h2>
-          {!selectedAccount ? (
-            <EmptyState
-              title="No account selected"
-              description="Select an account from the list to edit status and sync settings."
-              className="border-none"
-            />
-          ) : (
-            <div className="mt-3 grid gap-3">
-              <p className="text-xs text-muted-foreground">
-                {selectedAccount.email} ({selectedAccount.provider})
-              </p>
-              <Select
-                value={updateAccountForm.status}
-                onChange={(event) =>
-                  setUpdateAccountForm((current) => ({
-                    ...current,
-                    status: event.target.value as
-                      | "connected"
-                      | "disconnected"
-                      | "error",
-                  }))
-                }
-              >
-                <option value="connected">connected</option>
-                <option value="disconnected">disconnected</option>
-                <option value="error">error</option>
-              </Select>
               <Input
                 placeholder="Default project ID"
-                value={updateAccountForm.defaultProjectId}
+                value={createAccountForm.defaultProjectId}
                 onChange={(event) =>
-                  setUpdateAccountForm((current) => ({
+                  setCreateAccountForm((current) => ({
                     ...current,
                     defaultProjectId: event.target.value,
                   }))
@@ -820,9 +831,9 @@ export function SmartMailPage() {
               />
               <Input
                 type="datetime-local"
-                value={updateAccountForm.tokenExpiresAt}
+                value={createAccountForm.tokenExpiresAt}
                 onChange={(event) =>
-                  setUpdateAccountForm((current) => ({
+                  setCreateAccountForm((current) => ({
                     ...current,
                     tokenExpiresAt: event.target.value,
                   }))
@@ -831,9 +842,9 @@ export function SmartMailPage() {
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
                   type="checkbox"
-                  checked={updateAccountForm.autoSyncEnabled}
+                  checked={createAccountForm.autoSyncEnabled}
                   onChange={(event) =>
-                    setUpdateAccountForm((current) => ({
+                    setCreateAccountForm((current) => ({
                       ...current,
                       autoSyncEnabled: event.target.checked,
                     }))
@@ -844,276 +855,374 @@ export function SmartMailPage() {
               <textarea
                 className="flex min-h-[92px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
                 placeholder="Metadata JSON (optional)"
-                value={updateAccountForm.metadataText}
+                value={createAccountForm.metadataText}
                 onChange={(event) =>
-                  setUpdateAccountForm((current) => ({
+                  setCreateAccountForm((current) => ({
                     ...current,
                     metadataText: event.target.value,
                   }))
                 }
               />
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end">
                 <Button
-                  variant="outline"
-                  onClick={() => syncMutation.mutate(selectedAccount.id)}
-                  disabled={syncMutation.isPending}
+                  onClick={() => createAccountMutation.mutate()}
+                  disabled={createAccountMutation.isPending}
                 >
-                  Sync now
-                </Button>
-                <Button
-                  onClick={() => updateAccountMutation.mutate()}
-                  disabled={updateAccountMutation.isPending}
-                >
-                  Save account
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Create account
                 </Button>
               </div>
             </div>
-          )}
-        </div>
-      </section>
+          </div>
 
-      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Accounts</h2>
-        <DataTable
-          columns={accountColumns}
-          data={accounts ?? []}
-          rowKey={(row) => row.id}
-          onRowClick={(row) => setSelectedAccountId(row.id)}
-          emptyState={
-            <EmptyState
-              icon={Mail}
-              title="No accounts"
-              description="Create an account manually or connect via OAuth to begin syncing messages."
-              className="border-none"
-            />
-          }
-        />
-      </section>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-foreground">
+              Update selected account
+            </h2>
+            {!selectedAccount ? (
+              <EmptyState
+                title="No account selected"
+                description="Select an account from the list to edit status and sync settings."
+                className="border-none"
+              />
+            ) : (
+              <div className="mt-3 grid gap-3">
+                <p className="text-xs text-muted-foreground">
+                  {selectedAccount.email} ({selectedAccount.provider})
+                </p>
+                <Select
+                  value={updateAccountForm.status}
+                  onChange={(event) =>
+                    setUpdateAccountForm((current) => ({
+                      ...current,
+                      status: event.target.value as
+                        | "connected"
+                        | "disconnected"
+                        | "error",
+                    }))
+                  }
+                >
+                  <option value="connected">connected</option>
+                  <option value="disconnected">disconnected</option>
+                  <option value="error">error</option>
+                </Select>
+                <Input
+                  placeholder="Default project ID"
+                  value={updateAccountForm.defaultProjectId}
+                  onChange={(event) =>
+                    setUpdateAccountForm((current) => ({
+                      ...current,
+                      defaultProjectId: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  type="datetime-local"
+                  value={updateAccountForm.tokenExpiresAt}
+                  onChange={(event) =>
+                    setUpdateAccountForm((current) => ({
+                      ...current,
+                      tokenExpiresAt: event.target.value,
+                    }))
+                  }
+                />
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={updateAccountForm.autoSyncEnabled}
+                    onChange={(event) =>
+                      setUpdateAccountForm((current) => ({
+                        ...current,
+                        autoSyncEnabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  Auto sync enabled
+                </label>
+                <textarea
+                  className="flex min-h-[92px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Metadata JSON (optional)"
+                  value={updateAccountForm.metadataText}
+                  onChange={(event) =>
+                    setUpdateAccountForm((current) => ({
+                      ...current,
+                      metadataText: event.target.value,
+                    }))
+                  }
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => syncMutation.mutate(selectedAccount.id)}
+                    disabled={syncMutation.isPending}
+                  >
+                    Sync now
+                  </Button>
+                  <Button
+                    onClick={() => updateAccountMutation.mutate()}
+                    disabled={updateAccountMutation.isPending}
+                  >
+                    Save account
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
-      <section className="rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Create thread</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <Select
-            value={createThreadForm.accountId}
-            onChange={(event) =>
-              setCreateThreadForm((current) => ({
-                ...current,
-                accountId: event.target.value,
-              }))
-            }
-          >
-            <option value="">Select account</option>
-            {(accounts ?? []).map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.email}
-              </option>
-            ))}
-          </Select>
-          <Input
-            placeholder="Thread subject"
-            value={createThreadForm.subject}
-            onChange={(event) =>
-              setCreateThreadForm((current) => ({
-                ...current,
-                subject: event.target.value,
-              }))
+      {showSetup && (
+        <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">Accounts</h2>
+          <DataTable
+            columns={accountColumns}
+            data={accounts ?? []}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => setSelectedAccountId(row.id)}
+            emptyState={
+              <EmptyState
+                icon={Mail}
+                title="No accounts"
+                description="Create an account manually or connect via OAuth to begin syncing messages."
+                className="border-none"
+              />
             }
           />
-          <Select
-            value={createThreadForm.linkedEntityType}
-            onChange={(event) =>
-              setCreateThreadForm((current) => ({
-                ...current,
-                linkedEntityType: event.target.value as
-                  | SmartMailLinkedEntityType
-                  | "",
-              }))
-            }
-          >
-            <option value="">No linked entity</option>
-            {LINKED_ENTITY_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </Select>
-          <Input
-            placeholder="Linked entity ID"
-            value={createThreadForm.linkedEntityId}
-            onChange={(event) =>
-              setCreateThreadForm((current) => ({
-                ...current,
-                linkedEntityId: event.target.value,
-              }))
-            }
-          />
-        </div>
-        <div className="mt-3 flex justify-end">
-          <Button
-            onClick={() => createThreadMutation.mutate()}
-            disabled={createThreadMutation.isPending || !normalizedProjectId}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
+        </section>
+      )}
+
+      {showThreads && (
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">
             Create thread
-          </Button>
-        </div>
-      </section>
-
-      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Templates</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Input
-            placeholder="Template name"
-            value={templateForm.name}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                name: event.target.value,
-              }))
-            }
-          />
-          <Select
-            value={templateForm.type}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                type: event.target.value as SmartMailTemplateType,
-              }))
-            }
-          >
-            {TEMPLATE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </Select>
-          <Input
-            placeholder="Subject template"
-            value={templateForm.subjectTemplate}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                subjectTemplate: event.target.value,
-              }))
-            }
-          />
-          <Input
-            placeholder="Variables (comma-separated)"
-            value={templateForm.variablesText}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                variablesText: event.target.value,
-              }))
-            }
-          />
-          <textarea
-            className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-            placeholder="Body template"
-            value={templateForm.bodyTemplate}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                bodyTemplate: event.target.value,
-              }))
-            }
-          />
-          <textarea
-            className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-            placeholder="Metadata JSON (optional)"
-            value={templateForm.metadataText}
-            onChange={(event) =>
-              setTemplateForm((current) => ({
-                ...current,
-                metadataText: event.target.value,
-              }))
-            }
-          />
-          <label className="md:col-span-2 flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
-              checked={templateForm.isShared}
+          </h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <Select
+              value={createThreadForm.accountId}
               onChange={(event) =>
-                setTemplateForm((current) => ({
+                setCreateThreadForm((current) => ({
                   ...current,
-                  isShared: event.target.checked,
+                  accountId: event.target.value,
+                }))
+              }
+            >
+              <option value="">Select account</option>
+              {(accounts ?? []).map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.email}
+                </option>
+              ))}
+            </Select>
+            <Input
+              placeholder="Thread subject"
+              value={createThreadForm.subject}
+              onChange={(event) =>
+                setCreateThreadForm((current) => ({
+                  ...current,
+                  subject: event.target.value,
                 }))
               }
             />
-            Shared template
-          </label>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={() => createTemplateMutation.mutate()}
-            disabled={createTemplateMutation.isPending}
-          >
-            Create template
-          </Button>
-          <Button
-            onClick={() => updateTemplateMutation.mutate()}
-            disabled={updateTemplateMutation.isPending || !selectedTemplateId}
-          >
-            Update selected
-          </Button>
-        </div>
+            <Select
+              value={createThreadForm.linkedEntityType}
+              onChange={(event) =>
+                setCreateThreadForm((current) => ({
+                  ...current,
+                  linkedEntityType: event.target.value as
+                    | SmartMailLinkedEntityType
+                    | "",
+                }))
+              }
+            >
+              <option value="">No linked entity</option>
+              {LINKED_ENTITY_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </Select>
+            <Input
+              placeholder="Linked entity ID"
+              value={createThreadForm.linkedEntityId}
+              onChange={(event) =>
+                setCreateThreadForm((current) => ({
+                  ...current,
+                  linkedEntityId: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button
+              onClick={() => createThreadMutation.mutate()}
+              disabled={createThreadMutation.isPending || !normalizedProjectId}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Create thread
+            </Button>
+          </div>
+        </section>
+      )}
 
-        {templatesLoading ? (
-          <Skeleton className="h-28 w-full rounded-xl" />
-        ) : (
-          <DataTable
-            columns={templateColumns}
-            data={templates ?? []}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => setSelectedTemplateId(row.id)}
-            emptyState={
-              <EmptyState
-                icon={Mail}
-                title="No templates"
-                description="Create a template or snippet for draft generation."
-                className="border-none"
+      {showTemplates && (
+        <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">Templates</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input
+              placeholder="Template name"
+              value={templateForm.name}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+            />
+            <Select
+              value={templateForm.type}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  type: event.target.value as SmartMailTemplateType,
+                }))
+              }
+            >
+              {TEMPLATE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </Select>
+            <Input
+              placeholder="Subject template"
+              value={templateForm.subjectTemplate}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  subjectTemplate: event.target.value,
+                }))
+              }
+            />
+            <Input
+              placeholder="Variables (comma-separated)"
+              value={templateForm.variablesText}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  variablesText: event.target.value,
+                }))
+              }
+            />
+            <textarea
+              className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+              placeholder="Body template"
+              value={templateForm.bodyTemplate}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  bodyTemplate: event.target.value,
+                }))
+              }
+            />
+            <textarea
+              className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+              placeholder="Metadata JSON (optional)"
+              value={templateForm.metadataText}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  metadataText: event.target.value,
+                }))
+              }
+            />
+            <label className="md:col-span-2 flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={templateForm.isShared}
+                onChange={(event) =>
+                  setTemplateForm((current) => ({
+                    ...current,
+                    isShared: event.target.checked,
+                  }))
+                }
               />
-            }
-          />
-        )}
-      </section>
+              Shared template
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => createTemplateMutation.mutate()}
+              disabled={createTemplateMutation.isPending}
+            >
+              Create template
+            </Button>
+            <Button
+              onClick={() => updateTemplateMutation.mutate()}
+              disabled={updateTemplateMutation.isPending || !selectedTemplateId}
+            >
+              Update selected
+            </Button>
+          </div>
 
-      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Threads</h2>
-        {normalizedProjectId.length === 0 ? (
-          <EmptyState
-            icon={Mail}
-            title="Project ID required"
-            description="Enter a project ID to load SmartMail threads."
-            className="border-none"
-          />
-        ) : threadsLoading ? (
-          <Skeleton className="h-28 w-full rounded-xl" />
-        ) : (
-          <DataTable
-            columns={threadColumns}
-            data={threads ?? []}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => {
-              const params = new URLSearchParams();
-              params.set("projectId", normalizedProjectId);
-              params.set("accountId", row.accountId);
-              router.push(`/app/smartmail/${row.id}?${params.toString()}`);
-            }}
-            emptyState={
-              <EmptyState
-                icon={Mail}
-                title="No threads"
-                description="Create or sync threads for this project."
-                className="border-none"
-              />
-            }
-          />
-        )}
-      </section>
+          {templatesLoading ? (
+            <Skeleton className="h-28 w-full rounded-xl" />
+          ) : (
+            <DataTable
+              columns={templateColumns}
+              data={templates ?? []}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => setSelectedTemplateId(row.id)}
+              emptyState={
+                <EmptyState
+                  icon={Mail}
+                  title="No templates"
+                  description="Create a template or snippet for draft generation."
+                  className="border-none"
+                />
+              }
+            />
+          )}
+        </section>
+      )}
 
-      {!hasAccounts && (
+      {showThreads && (
+        <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">Threads</h2>
+          {normalizedProjectId.length === 0 ? (
+            <EmptyState
+              icon={Mail}
+              title="Project ID required"
+              description="Enter a project ID to load SmartMail threads."
+              className="border-none"
+            />
+          ) : threadsLoading ? (
+            <Skeleton className="h-28 w-full rounded-xl" />
+          ) : (
+            <DataTable
+              columns={threadColumns}
+              data={threads ?? []}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => {
+                const params = new URLSearchParams();
+                params.set("projectId", normalizedProjectId);
+                params.set("accountId", row.accountId);
+                router.push(`/app/smartmail/${row.id}?${params.toString()}`);
+              }}
+              emptyState={
+                <EmptyState
+                  icon={Mail}
+                  title="No threads"
+                  description="Create or sync threads for this project."
+                  className="border-none"
+                />
+              }
+            />
+          )}
+        </section>
+      )}
+
+      {!hasAccounts && (showSetup || showThreads) && (
         <EmptyState
           icon={Mail}
           title="No accounts connected"

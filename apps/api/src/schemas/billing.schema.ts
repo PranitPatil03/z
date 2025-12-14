@@ -42,6 +42,12 @@ export const createStripeSubscriptionSchema = z.object({
   addOnPriceIds: z.array(z.string().min(1)).optional(),
 });
 
+export const createStripeCheckoutSessionSchema = z.object({
+  plan: z.enum(["growth", "enterprise"]),
+  successPath: z.string().min(1).optional(),
+  cancelPath: z.string().min(1).optional(),
+});
+
 export const listStripeWebhookEventsQuerySchema = z.object({
   status: z.enum(["processing", "processed", "failed"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),

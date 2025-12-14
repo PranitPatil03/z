@@ -18,7 +18,7 @@ interface ThemeContextValue {
   setTheme: (theme: Theme) => void;
 }
 
-const STORAGE_KEY = "foreman-theme";
+const STORAGE_KEY = "anvil-theme";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 

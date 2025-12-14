@@ -78,6 +78,44 @@ function formatPercentBps(value: number) {
   return `${(value / 100).toFixed(1)}%`;
 }
 
+type SubconnectWorkspaceMode = "onboarding" | "operations";
+
+const SUBCONNECT_WORKSPACE_MODE_LABEL: Record<SubconnectWorkspaceMode, string> =
+  {
+    onboarding: "Onboarding",
+    operations: "Compliance + financial",
+  };
+
+const SUBCONNECT_WORKSPACE_GUIDE: Record<
+  SubconnectWorkspaceMode,
+  {
+    title: string;
+    description: string;
+    steps: string[];
+  }
+> = {
+  onboarding: {
+    title: "Onboarding workspace",
+    description:
+      "Use this workspace to add subcontractors, update their profile, and manage invites.",
+    steps: [
+      "Create subcontractor records.",
+      "Update selected subcontractor details.",
+      "Send portal invites and monitor invitation history.",
+    ],
+  },
+  operations: {
+    title: "Operations workspace",
+    description:
+      "Use this workspace for compliance checks, pay application review, and daily log review.",
+    steps: [
+      "Manage compliance templates and complete compliance item reviews.",
+      "Review pay applications and approve or reject submissions.",
+      "Process daily logs and finalize field review decisions.",
+    ],
+  },
+};
+
 export function SubconnectPage() {
   const queryClient = useQueryClient();
 
@@ -90,6 +128,8 @@ export function SubconnectPage() {
   const [selectedComplianceItemId, setSelectedComplianceItemId] = useState("");
   const [selectedPayApplicationId, setSelectedPayApplicationId] = useState("");
   const [selectedDailyLogId, setSelectedDailyLogId] = useState("");
+  const [workspaceMode, setWorkspaceMode] =
+    useState<SubconnectWorkspaceMode>("onboarding");
 
   const [createSubcontractorForm, setCreateSubcontractorForm] = useState({
     projectId: "",
@@ -980,6 +1020,11 @@ export function SubconnectPage() {
   const payRows = payApplicationsQuery.data ?? [];
   const dailyRows = dailyLogsQuery.data ?? [];
 
+  const showOnboarding = workspaceMode === "onboarding";
+  const showOperations = workspaceMode === "operations";
+  const showCompliance = showOperations;
+  const showFinancial = showOperations;
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -1003,6 +1048,58 @@ export function SubconnectPage() {
           </div>
         }
       />
+
+      <section className="rounded-xl border border-border bg-card p-4">
+        <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Workflow sections
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              SubConnect operations are split into two focused sections so teams
+              can stay in onboarding or operations review.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="subconnect-workflow-focus">Focus mode</Label>
+            <Select
+              id="subconnect-workflow-focus"
+              value={workspaceMode}
+              onChange={(event) =>
+                setWorkspaceMode(event.target.value as SubconnectWorkspaceMode)
+              }
+            >
+              {(
+                Object.keys(
+                  SUBCONNECT_WORKSPACE_MODE_LABEL,
+                ) as SubconnectWorkspaceMode[]
+              ).map((mode) => (
+                <option key={mode} value={mode}>
+                  {SUBCONNECT_WORKSPACE_MODE_LABEL[mode]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-sm font-medium text-foreground">
+            {SUBCONNECT_WORKSPACE_GUIDE[workspaceMode].title}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {SUBCONNECT_WORKSPACE_GUIDE[workspaceMode].description}
+          </p>
+          <div className="mt-2 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+            {SUBCONNECT_WORKSPACE_GUIDE[workspaceMode].steps.map((step) => (
+              <p
+                key={step}
+                className="rounded-md border border-border bg-background/80 px-3 py-2"
+              >
+                {step}
+              </p>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-3 md:grid-cols-3">
         <Input
@@ -1069,125 +1166,38 @@ export function SubconnectPage() {
         />
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-3 lg:col-span-2">
-          <h2 className="text-base font-semibold text-foreground">
-            Subcontractors
-          </h2>
-          <DataTable
-            columns={subcontractorColumns}
-            data={subcontractorRows}
-            isLoading={subcontractorsQuery.isLoading}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => setSelectedSubcontractorId(row.id)}
-            emptyState={
-              <EmptyState
-                icon={Users}
-                title="No subcontractors"
-                description="Create a subcontractor to start SubConnect workflows."
-              />
-            }
-          />
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Create subcontractor
-          </h3>
-          <div className="space-y-2">
-            <Input
-              placeholder="Project ID"
-              value={createSubcontractorForm.projectId}
-              onChange={(event) =>
-                setCreateSubcontractorForm((current) => ({
-                  ...current,
-                  projectId: event.target.value,
-                }))
+      {showOnboarding && (
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-3 lg:col-span-2">
+            <h2 className="text-base font-semibold text-foreground">
+              Subcontractors
+            </h2>
+            <DataTable
+              columns={subcontractorColumns}
+              data={subcontractorRows}
+              isLoading={subcontractorsQuery.isLoading}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => setSelectedSubcontractorId(row.id)}
+              emptyState={
+                <EmptyState
+                  icon={Users}
+                  title="No subcontractors"
+                  description="Create a subcontractor to start SubConnect workflows."
+                />
               }
             />
-            <Input
-              placeholder="Name"
-              value={createSubcontractorForm.name}
-              onChange={(event) =>
-                setCreateSubcontractorForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Email"
-              value={createSubcontractorForm.email}
-              onChange={(event) =>
-                setCreateSubcontractorForm((current) => ({
-                  ...current,
-                  email: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Phone"
-              value={createSubcontractorForm.phone}
-              onChange={(event) =>
-                setCreateSubcontractorForm((current) => ({
-                  ...current,
-                  phone: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Trade"
-              value={createSubcontractorForm.trade}
-              onChange={(event) =>
-                setCreateSubcontractorForm((current) => ({
-                  ...current,
-                  trade: event.target.value,
-                }))
-              }
-            />
-            <textarea
-              className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-              placeholder='Metadata JSON (optional), e.g. {"crewSize": 8}'
-              value={createSubcontractorForm.metadataText}
-              onChange={(event) =>
-                setCreateSubcontractorForm((current) => ({
-                  ...current,
-                  metadataText: event.target.value,
-                }))
-              }
-            />
-            <Button
-              className="w-full"
-              onClick={() => createSubcontractorMutation.mutate()}
-              disabled={createSubcontractorMutation.isPending}
-            >
-              {createSubcontractorMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Create subcontractor
-            </Button>
           </div>
-        </div>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-base font-semibold text-foreground">
-            Selected subcontractor detail
-          </h2>
-          {!selectedSubcontractor ? (
-            <EmptyState
-              title="No subcontractor selected"
-              description="Pick a row from the subcontractors table."
-              className="rounded-lg"
-            />
-          ) : (
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              Create subcontractor
+            </h3>
             <div className="space-y-2">
               <Input
                 placeholder="Project ID"
-                value={editSubcontractorForm.projectId}
+                value={createSubcontractorForm.projectId}
                 onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
+                  setCreateSubcontractorForm((current) => ({
                     ...current,
                     projectId: event.target.value,
                   }))
@@ -1195,9 +1205,9 @@ export function SubconnectPage() {
               />
               <Input
                 placeholder="Name"
-                value={editSubcontractorForm.name}
+                value={createSubcontractorForm.name}
                 onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
+                  setCreateSubcontractorForm((current) => ({
                     ...current,
                     name: event.target.value,
                   }))
@@ -1205,9 +1215,9 @@ export function SubconnectPage() {
               />
               <Input
                 placeholder="Email"
-                value={editSubcontractorForm.email}
+                value={createSubcontractorForm.email}
                 onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
+                  setCreateSubcontractorForm((current) => ({
                     ...current,
                     email: event.target.value,
                   }))
@@ -1215,9 +1225,9 @@ export function SubconnectPage() {
               />
               <Input
                 placeholder="Phone"
-                value={editSubcontractorForm.phone}
+                value={createSubcontractorForm.phone}
                 onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
+                  setCreateSubcontractorForm((current) => ({
                     ...current,
                     phone: event.target.value,
                   }))
@@ -1225,914 +1235,1024 @@ export function SubconnectPage() {
               />
               <Input
                 placeholder="Trade"
-                value={editSubcontractorForm.trade}
+                value={createSubcontractorForm.trade}
                 onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
+                  setCreateSubcontractorForm((current) => ({
                     ...current,
                     trade: event.target.value,
                   }))
                 }
               />
-              <Select
-                value={editSubcontractorForm.status}
-                onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
-                    ...current,
-                    status: event.target.value as SubcontractorStatus,
-                  }))
-                }
-              >
-                <option value="active">active</option>
-                <option value="inactive">inactive</option>
-                <option value="blocked">blocked</option>
-              </Select>
               <textarea
                 className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder="Metadata JSON (optional)"
-                value={editSubcontractorForm.metadataText}
+                placeholder='Metadata JSON (optional), e.g. {"crewSize": 8}'
+                value={createSubcontractorForm.metadataText}
                 onChange={(event) =>
-                  setEditSubcontractorForm((current) => ({
+                  setCreateSubcontractorForm((current) => ({
                     ...current,
                     metadataText: event.target.value,
                   }))
                 }
               />
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => updateSubcontractorMutation.mutate()}
-                  disabled={updateSubcontractorMutation.isPending}
-                >
-                  {updateSubcontractorMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Save subcontractor
-                </Button>
-              </div>
+              <Button
+                className="w-full"
+                onClick={() => createSubcontractorMutation.mutate()}
+                disabled={createSubcontractorMutation.isPending}
+              >
+                {createSubcontractorMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Create subcontractor
+              </Button>
             </div>
-          )}
-        </div>
+          </div>
+        </section>
+      )}
 
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-base font-semibold text-foreground">
-            Invite lifecycle
-          </h2>
-          <div className="space-y-2">
-            <Input
-              placeholder="Invite email"
-              value={inviteForm.email}
-              onChange={(event) =>
-                setInviteForm((current) => ({
-                  ...current,
-                  email: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Project ID"
-              value={inviteForm.projectId}
-              onChange={(event) =>
-                setInviteForm((current) => ({
-                  ...current,
-                  projectId: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Temporary password (optional)"
-              value={inviteForm.temporaryPassword}
-              onChange={(event) =>
-                setInviteForm((current) => ({
-                  ...current,
-                  temporaryPassword: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Assigned scope"
-              value={inviteForm.assignedScope}
-              onChange={(event) =>
-                setInviteForm((current) => ({
-                  ...current,
-                  assignedScope: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Milestones (comma-separated)"
-              value={inviteForm.milestonesText}
-              onChange={(event) =>
-                setInviteForm((current) => ({
-                  ...current,
-                  milestonesText: event.target.value,
-                }))
-              }
-            />
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={inviteForm.sendInviteEmail}
+      {showOnboarding && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h2 className="text-base font-semibold text-foreground">
+              Selected subcontractor detail
+            </h2>
+            {!selectedSubcontractor ? (
+              <EmptyState
+                title="No subcontractor selected"
+                description="Pick a row from the subcontractors table."
+                className="rounded-lg"
+              />
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  placeholder="Project ID"
+                  value={editSubcontractorForm.projectId}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      projectId: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Name"
+                  value={editSubcontractorForm.name}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Email"
+                  value={editSubcontractorForm.email}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Phone"
+                  value={editSubcontractorForm.phone}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Trade"
+                  value={editSubcontractorForm.trade}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      trade: event.target.value,
+                    }))
+                  }
+                />
+                <Select
+                  value={editSubcontractorForm.status}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      status: event.target.value as SubcontractorStatus,
+                    }))
+                  }
+                >
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  <option value="blocked">blocked</option>
+                </Select>
+                <textarea
+                  className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Metadata JSON (optional)"
+                  value={editSubcontractorForm.metadataText}
+                  onChange={(event) =>
+                    setEditSubcontractorForm((current) => ({
+                      ...current,
+                      metadataText: event.target.value,
+                    }))
+                  }
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => updateSubcontractorMutation.mutate()}
+                    disabled={updateSubcontractorMutation.isPending}
+                  >
+                    {updateSubcontractorMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Save subcontractor
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h2 className="text-base font-semibold text-foreground">
+              Invite lifecycle
+            </h2>
+            <div className="space-y-2">
+              <Input
+                placeholder="Invite email"
+                value={inviteForm.email}
                 onChange={(event) =>
                   setInviteForm((current) => ({
                     ...current,
-                    sendInviteEmail: event.target.checked,
+                    email: event.target.value,
                   }))
                 }
               />
-              Send invite email
-            </label>
-            <Button
-              className="w-full"
-              onClick={() => inviteMutation.mutate()}
-              disabled={
-                inviteMutation.isPending || selectedSubcontractorId.length === 0
-              }
-            >
-              {inviteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Send portal invite
-            </Button>
-          </div>
-          {lastInviteResult && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-              <p>Invite URL: {lastInviteResult.inviteAcceptUrl}</p>
-              <p>Token: {lastInviteResult.inviteToken}</p>
-              <p>
-                Email queued:{" "}
-                {lastInviteResult.inviteEmailQueued ? "yes" : "no"}
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-foreground">
-          Invitation history
-        </h2>
-        <DataTable
-          columns={invitationColumns}
-          data={invitationRows}
-          isLoading={invitationsQuery.isLoading}
-          rowKey={(row) => row.id}
-          emptyState={
-            <EmptyState
-              icon={UserPlus}
-              title="No invitations"
-              description="Issue a portal invite to start the lifecycle."
-            />
-          }
-        />
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-base font-semibold text-foreground">
-            Compliance templates
-          </h2>
-          {!normalizedProjectId && (
-            <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              Enter a project ID to manage templates.
-            </p>
-          )}
-          <div className="space-y-2">
-            <Input
-              placeholder="Template name"
-              value={templateForm.name}
-              onChange={(event) =>
-                setTemplateForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-            />
-            <Input
-              placeholder="Compliance type"
-              value={templateForm.complianceType}
-              onChange={(event) =>
-                setTemplateForm((current) => ({
-                  ...current,
-                  complianceType: event.target.value,
-                }))
-              }
-            />
-            <Input
-              type="number"
-              min="1"
-              max="365"
-              placeholder="Default due days"
-              value={templateForm.defaultDueDays}
-              onChange={(event) =>
-                setTemplateForm((current) => ({
-                  ...current,
-                  defaultDueDays: event.target.value,
-                }))
-              }
-            />
-            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Project ID"
+                value={inviteForm.projectId}
+                onChange={(event) =>
+                  setInviteForm((current) => ({
+                    ...current,
+                    projectId: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                placeholder="Temporary password (optional)"
+                value={inviteForm.temporaryPassword}
+                onChange={(event) =>
+                  setInviteForm((current) => ({
+                    ...current,
+                    temporaryPassword: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                placeholder="Assigned scope"
+                value={inviteForm.assignedScope}
+                onChange={(event) =>
+                  setInviteForm((current) => ({
+                    ...current,
+                    assignedScope: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                placeholder="Milestones (comma-separated)"
+                value={inviteForm.milestonesText}
+                onChange={(event) =>
+                  setInviteForm((current) => ({
+                    ...current,
+                    milestonesText: event.target.value,
+                  }))
+                }
+              />
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
                   type="checkbox"
-                  checked={templateForm.required}
+                  checked={inviteForm.sendInviteEmail}
                   onChange={(event) =>
-                    setTemplateForm((current) => ({
+                    setInviteForm((current) => ({
                       ...current,
-                      required: event.target.checked,
+                      sendInviteEmail: event.target.checked,
                     }))
                   }
                 />
-                Required
+                Send invite email
               </label>
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={templateForm.highRisk}
-                  onChange={(event) =>
-                    setTemplateForm((current) => ({
-                      ...current,
-                      highRisk: event.target.checked,
-                    }))
-                  }
-                />
-                High risk
-              </label>
-            </div>
-            <textarea
-              className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-              placeholder="Metadata JSON (optional)"
-              value={templateForm.metadataText}
-              onChange={(event) =>
-                setTemplateForm((current) => ({
-                  ...current,
-                  metadataText: event.target.value,
-                }))
-              }
-            />
-            <div className="flex flex-wrap justify-end gap-2">
               <Button
-                variant="outline"
-                onClick={() => createTemplateMutation.mutate()}
+                className="w-full"
+                onClick={() => inviteMutation.mutate()}
                 disabled={
-                  createTemplateMutation.isPending ||
-                  normalizedProjectId.length === 0
-                }
-              >
-                Create template
-              </Button>
-              <Button
-                onClick={() => updateTemplateMutation.mutate()}
-                disabled={
-                  updateTemplateMutation.isPending ||
-                  selectedTemplateId.length === 0
-                }
-              >
-                Update selected
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-            <Label>Apply templates to selected subcontractor</Label>
-            <Input
-              type="datetime-local"
-              value={applyDueDateOverride}
-              onChange={(event) => setApplyDueDateOverride(event.target.value)}
-            />
-            <Button
-              variant="outline"
-              onClick={() => applyTemplatesMutation.mutate()}
-              disabled={
-                applyTemplatesMutation.isPending ||
-                selectedSubcontractorId.length === 0 ||
-                normalizedProjectId.length === 0
-              }
-            >
-              Apply templates
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <DataTable
-            columns={templateColumns}
-            data={templateRows}
-            isLoading={templatesQuery.isLoading}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => setSelectedTemplateId(row.id)}
-            emptyState={
-              <EmptyState
-                icon={ClipboardList}
-                title="No templates"
-                description="Create compliance templates for repeatable onboarding."
-              />
-            }
-          />
-
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="text-sm font-semibold text-foreground">
-              Prequalification score
-            </h3>
-            {prequalificationQuery.isLoading ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Loading score...
-              </p>
-            ) : prequalificationQuery.data ? (
-              <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                <p>
-                  Overall:{" "}
-                  {formatPercentBps(prequalificationQuery.data.overallScoreBps)}
-                </p>
-                <p>Risk: {prequalificationQuery.data.riskLevel}</p>
-                <p>
-                  Updated:{" "}
-                  {formatDateTime(prequalificationQuery.data.createdAt)}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">
-                No score yet.
-              </p>
-            )}
-
-            <div className="mt-3 grid gap-2 md:grid-cols-2">
-              <Input
-                type="number"
-                min="0"
-                max="10000"
-                placeholder="Overall bps"
-                value={scoreForm.overallScoreBps}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    overallScoreBps: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                type="number"
-                min="0"
-                max="10000"
-                placeholder="Safety bps"
-                value={scoreForm.safetyScoreBps}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    safetyScoreBps: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                type="number"
-                min="0"
-                max="10000"
-                placeholder="Financial bps"
-                value={scoreForm.financialScoreBps}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    financialScoreBps: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                type="number"
-                min="0"
-                max="10000"
-                placeholder="Compliance bps"
-                value={scoreForm.complianceScoreBps}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    complianceScoreBps: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                type="number"
-                min="0"
-                max="10000"
-                placeholder="Capacity bps"
-                value={scoreForm.capacityScoreBps}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    capacityScoreBps: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Model version"
-                value={scoreForm.modelVersion}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    modelVersion: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                className="md:col-span-2"
-                placeholder="Notes"
-                value={scoreForm.notes}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    notes: event.target.value,
-                  }))
-                }
-              />
-              <textarea
-                className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder="Metadata JSON (optional)"
-                value={scoreForm.metadataText}
-                onChange={(event) =>
-                  setScoreForm((current) => ({
-                    ...current,
-                    metadataText: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="mt-3 flex justify-end">
-              <Button
-                onClick={() => upsertScoreMutation.mutate()}
-                disabled={
-                  upsertScoreMutation.isPending ||
+                  inviteMutation.isPending ||
                   selectedSubcontractorId.length === 0
                 }
               >
-                Upsert score
+                {inviteMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Send portal invite
               </Button>
             </div>
+            {lastInviteResult && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <p>Invite URL: {lastInviteResult.inviteAcceptUrl}</p>
+                <p>Token: {lastInviteResult.inviteToken}</p>
+                <p>
+                  Email queued:{" "}
+                  {lastInviteResult.inviteEmailQueued ? "yes" : "no"}
+                </p>
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
+      {showOnboarding && (
+        <section className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">
-            Compliance item review and extraction
+            Invitation history
           </h2>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-2 text-sm font-semibold text-foreground">
-              Create compliance item
-            </h3>
-            <div className="grid gap-2 md:grid-cols-2">
+          <DataTable
+            columns={invitationColumns}
+            data={invitationRows}
+            isLoading={invitationsQuery.isLoading}
+            rowKey={(row) => row.id}
+            emptyState={
+              <EmptyState
+                icon={UserPlus}
+                title="No invitations"
+                description="Issue a portal invite to start the lifecycle."
+              />
+            }
+          />
+        </section>
+      )}
+
+      {showCompliance && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h2 className="text-base font-semibold text-foreground">
+              Compliance templates
+            </h2>
+            {!normalizedProjectId && (
+              <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Enter a project ID to manage templates.
+              </p>
+            )}
+            <div className="space-y-2">
+              <Input
+                placeholder="Template name"
+                value={templateForm.name}
+                onChange={(event) =>
+                  setTemplateForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+              />
               <Input
                 placeholder="Compliance type"
-                value={createComplianceForm.complianceType}
+                value={templateForm.complianceType}
                 onChange={(event) =>
-                  setCreateComplianceForm((current) => ({
+                  setTemplateForm((current) => ({
                     ...current,
                     complianceType: event.target.value,
                   }))
                 }
               />
               <Input
-                type="datetime-local"
-                value={createComplianceForm.dueDate}
+                type="number"
+                min="1"
+                max="365"
+                placeholder="Default due days"
+                value={templateForm.defaultDueDays}
                 onChange={(event) =>
-                  setCreateComplianceForm((current) => ({
+                  setTemplateForm((current) => ({
                     ...current,
-                    dueDate: event.target.value,
+                    defaultDueDays: event.target.value,
                   }))
                 }
               />
-              <Input
-                className="md:col-span-2"
-                placeholder="Notes"
-                value={createComplianceForm.notes}
-                onChange={(event) =>
-                  setCreateComplianceForm((current) => ({
-                    ...current,
-                    notes: event.target.value,
-                  }))
-                }
-              />
-              <label className="md:col-span-2 flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={createComplianceForm.highRisk}
-                  onChange={(event) =>
-                    setCreateComplianceForm((current) => ({
-                      ...current,
-                      highRisk: event.target.checked,
-                    }))
-                  }
-                />
-                High risk item
-              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={templateForm.required}
+                    onChange={(event) =>
+                      setTemplateForm((current) => ({
+                        ...current,
+                        required: event.target.checked,
+                      }))
+                    }
+                  />
+                  Required
+                </label>
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={templateForm.highRisk}
+                    onChange={(event) =>
+                      setTemplateForm((current) => ({
+                        ...current,
+                        highRisk: event.target.checked,
+                      }))
+                    }
+                  />
+                  High risk
+                </label>
+              </div>
               <textarea
-                className="md:col-span-2 flex min-h-[74px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder="Evidence JSON (optional)"
-                value={createComplianceForm.evidenceText}
+                className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                placeholder="Metadata JSON (optional)"
+                value={templateForm.metadataText}
                 onChange={(event) =>
-                  setCreateComplianceForm((current) => ({
+                  setTemplateForm((current) => ({
                     ...current,
-                    evidenceText: event.target.value,
+                    metadataText: event.target.value,
                   }))
                 }
               />
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => createTemplateMutation.mutate()}
+                  disabled={
+                    createTemplateMutation.isPending ||
+                    normalizedProjectId.length === 0
+                  }
+                >
+                  Create template
+                </Button>
+                <Button
+                  onClick={() => updateTemplateMutation.mutate()}
+                  disabled={
+                    updateTemplateMutation.isPending ||
+                    selectedTemplateId.length === 0
+                  }
+                >
+                  Update selected
+                </Button>
+              </div>
             </div>
-            <div className="mt-3 flex justify-end">
+
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+              <Label>Apply templates to selected subcontractor</Label>
+              <Input
+                type="datetime-local"
+                value={applyDueDateOverride}
+                onChange={(event) =>
+                  setApplyDueDateOverride(event.target.value)
+                }
+              />
               <Button
                 variant="outline"
-                onClick={() => createComplianceItemMutation.mutate()}
+                onClick={() => applyTemplatesMutation.mutate()}
                 disabled={
-                  createComplianceItemMutation.isPending ||
+                  applyTemplatesMutation.isPending ||
+                  selectedSubcontractorId.length === 0 ||
                   normalizedProjectId.length === 0
                 }
               >
-                Create compliance item
+                Apply templates
               </Button>
             </div>
           </div>
 
-          <DataTable
-            columns={complianceColumns}
-            data={complianceRows}
-            isLoading={complianceItemsQuery.isLoading}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => setSelectedComplianceItemId(row.id)}
-            emptyState={
-              <EmptyState
-                icon={Shield}
-                title="No compliance items"
-                description="Create or apply templates to populate compliance checks."
-              />
-            }
-          />
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Review selected compliance item
-          </h3>
-          {!selectedComplianceItem ? (
-            <EmptyState
-              title="No item selected"
-              description="Select a compliance row to review it."
-              className="rounded-lg"
+          <div className="space-y-3">
+            <DataTable
+              columns={templateColumns}
+              data={templateRows}
+              isLoading={templatesQuery.isLoading}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => setSelectedTemplateId(row.id)}
+              emptyState={
+                <EmptyState
+                  icon={ClipboardList}
+                  title="No templates"
+                  description="Create compliance templates for repeatable onboarding."
+                />
+              }
             />
-          ) : (
-            <>
-              <Select
-                value={reviewComplianceForm.status}
-                onChange={(event) =>
-                  setReviewComplianceForm((current) => ({
-                    ...current,
-                    status: event.target.value as ComplianceStatus,
-                  }))
-                }
-              >
-                <option value="pending">pending</option>
-                <option value="verified">verified</option>
-                <option value="expiring">expiring</option>
-                <option value="expired">expired</option>
-                <option value="non_compliant">non_compliant</option>
-                <option value="compliant">compliant</option>
-              </Select>
-              <Input
-                type="datetime-local"
-                value={reviewComplianceForm.dueDate}
-                onChange={(event) =>
-                  setReviewComplianceForm((current) => ({
-                    ...current,
-                    dueDate: event.target.value,
-                  }))
-                }
-              />
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={reviewComplianceForm.highRisk}
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="text-sm font-semibold text-foreground">
+                Prequalification score
+              </h3>
+              {prequalificationQuery.isLoading ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Loading score...
+                </p>
+              ) : prequalificationQuery.data ? (
+                <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <p>
+                    Overall:{" "}
+                    {formatPercentBps(
+                      prequalificationQuery.data.overallScoreBps,
+                    )}
+                  </p>
+                  <p>Risk: {prequalificationQuery.data.riskLevel}</p>
+                  <p>
+                    Updated:{" "}
+                    {formatDateTime(prequalificationQuery.data.createdAt)}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No score yet.
+                </p>
+              )}
+
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  placeholder="Overall bps"
+                  value={scoreForm.overallScoreBps}
                   onChange={(event) =>
-                    setReviewComplianceForm((current) => ({
+                    setScoreForm((current) => ({
                       ...current,
-                      highRisk: event.target.checked,
+                      overallScoreBps: event.target.value,
                     }))
                   }
                 />
-                High risk
-              </label>
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={reviewComplianceForm.reviewerConfirmed}
+                <Input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  placeholder="Safety bps"
+                  value={scoreForm.safetyScoreBps}
                   onChange={(event) =>
-                    setReviewComplianceForm((current) => ({
+                    setScoreForm((current) => ({
                       ...current,
-                      reviewerConfirmed: event.target.checked,
+                      safetyScoreBps: event.target.value,
                     }))
                   }
                 />
-                Reviewer confirmed
-              </label>
-              <Input
-                placeholder="Review notes"
-                value={reviewComplianceForm.notes}
-                onChange={(event) =>
-                  setReviewComplianceForm((current) => ({
-                    ...current,
-                    notes: event.target.value,
-                  }))
-                }
-              />
-              <textarea
-                className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder="Evidence JSON (optional)"
-                value={reviewComplianceForm.evidenceText}
-                onChange={(event) =>
-                  setReviewComplianceForm((current) => ({
-                    ...current,
-                    evidenceText: event.target.value,
-                  }))
-                }
-              />
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => updateComplianceItemMutation.mutate()}
-                  disabled={updateComplianceItemMutation.isPending}
-                >
-                  Update compliance item
-                </Button>
+                <Input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  placeholder="Financial bps"
+                  value={scoreForm.financialScoreBps}
+                  onChange={(event) =>
+                    setScoreForm((current) => ({
+                      ...current,
+                      financialScoreBps: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  placeholder="Compliance bps"
+                  value={scoreForm.complianceScoreBps}
+                  onChange={(event) =>
+                    setScoreForm((current) => ({
+                      ...current,
+                      complianceScoreBps: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  placeholder="Capacity bps"
+                  value={scoreForm.capacityScoreBps}
+                  onChange={(event) =>
+                    setScoreForm((current) => ({
+                      ...current,
+                      capacityScoreBps: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Model version"
+                  value={scoreForm.modelVersion}
+                  onChange={(event) =>
+                    setScoreForm((current) => ({
+                      ...current,
+                      modelVersion: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  className="md:col-span-2"
+                  placeholder="Notes"
+                  value={scoreForm.notes}
+                  onChange={(event) =>
+                    setScoreForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Metadata JSON (optional)"
+                  value={scoreForm.metadataText}
+                  onChange={(event) =>
+                    setScoreForm((current) => ({
+                      ...current,
+                      metadataText: event.target.value,
+                    }))
+                  }
+                />
               </div>
 
-              <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="mb-2 text-xs font-medium text-foreground">
-                  Queue insurance extraction
-                </p>
-                <textarea
-                  className="mb-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                  placeholder="Paste insurance text to extract"
-                  value={extractionForm.prompt}
+              <div className="mt-3 flex justify-end">
+                <Button
+                  onClick={() => upsertScoreMutation.mutate()}
+                  disabled={
+                    upsertScoreMutation.isPending ||
+                    selectedSubcontractorId.length === 0
+                  }
+                >
+                  Upsert score
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {showCompliance && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Compliance item review and extraction
+            </h2>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-foreground">
+                Create compliance item
+              </h3>
+              <div className="grid gap-2 md:grid-cols-2">
+                <Input
+                  placeholder="Compliance type"
+                  value={createComplianceForm.complianceType}
                   onChange={(event) =>
-                    setExtractionForm((current) => ({
+                    setCreateComplianceForm((current) => ({
                       ...current,
-                      prompt: event.target.value,
+                      complianceType: event.target.value,
                     }))
                   }
                 />
                 <Input
-                  className="mb-2"
-                  placeholder="Source file name"
-                  value={extractionForm.sourceFileName}
+                  type="datetime-local"
+                  value={createComplianceForm.dueDate}
                   onChange={(event) =>
-                    setExtractionForm((current) => ({
+                    setCreateComplianceForm((current) => ({
                       ...current,
-                      sourceFileName: event.target.value,
+                      dueDate: event.target.value,
                     }))
                   }
                 />
                 <Input
-                  className="mb-2"
-                  placeholder="Source URL"
-                  value={extractionForm.sourceUrl}
+                  className="md:col-span-2"
+                  placeholder="Notes"
+                  value={createComplianceForm.notes}
                   onChange={(event) =>
-                    setExtractionForm((current) => ({
+                    setCreateComplianceForm((current) => ({
                       ...current,
-                      sourceUrl: event.target.value,
+                      notes: event.target.value,
                     }))
                   }
                 />
-                <div className="mb-2 grid grid-cols-2 gap-2">
-                  <Select
-                    value={extractionForm.provider}
+                <label className="md:col-span-2 flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={createComplianceForm.highRisk}
                     onChange={(event) =>
-                      setExtractionForm((current) => ({
+                      setCreateComplianceForm((current) => ({
                         ...current,
-                        provider: event.target.value as
-                          | "openai"
-                          | "anthropic"
-                          | "gemini"
-                          | "azure-openai",
-                      }))
-                    }
-                  >
-                    <option value="openai">openai</option>
-                    <option value="anthropic">anthropic</option>
-                    <option value="gemini">gemini</option>
-                    <option value="azure-openai">azure-openai</option>
-                  </Select>
-                  <Input
-                    placeholder="Model"
-                    value={extractionForm.model}
-                    onChange={(event) =>
-                      setExtractionForm((current) => ({
-                        ...current,
-                        model: event.target.value,
+                        highRisk: event.target.checked,
                       }))
                     }
                   />
-                </div>
+                  High risk item
+                </label>
+                <textarea
+                  className="md:col-span-2 flex min-h-[74px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Evidence JSON (optional)"
+                  value={createComplianceForm.evidenceText}
+                  onChange={(event) =>
+                    setCreateComplianceForm((current) => ({
+                      ...current,
+                      evidenceText: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="mt-3 flex justify-end">
                 <Button
                   variant="outline"
-                  onClick={() => queueExtractionMutation.mutate()}
-                  disabled={queueExtractionMutation.isPending}
+                  onClick={() => createComplianceItemMutation.mutate()}
+                  disabled={
+                    createComplianceItemMutation.isPending ||
+                    normalizedProjectId.length === 0
+                  }
                 >
-                  Queue extraction
+                  Create compliance item
                 </Button>
               </div>
-            </>
-          )}
-        </div>
-      </section>
+            </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-foreground">
-            Pay application review
-          </h2>
-          <DataTable
-            columns={payColumns}
-            data={payRows}
-            isLoading={payApplicationsQuery.isLoading}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => setSelectedPayApplicationId(row.id)}
-            emptyState={
-              <EmptyState
-                icon={ClipboardCheck}
-                title="No pay applications"
-                description="Waiting for subcontractor submissions."
-              />
-            }
-          />
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Selected pay application
-          </h3>
-          {!selectedPayApplication ? (
-            <EmptyState
-              title="No pay app selected"
-              description="Select a pay application row to review details."
-              className="rounded-lg"
+            <DataTable
+              columns={complianceColumns}
+              data={complianceRows}
+              isLoading={complianceItemsQuery.isLoading}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => setSelectedComplianceItemId(row.id)}
+              emptyState={
+                <EmptyState
+                  icon={Shield}
+                  title="No compliance items"
+                  description="Create or apply templates to populate compliance checks."
+                />
+              }
             />
-          ) : (
-            <>
-              <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                <p>Status: {selectedPayApplication.status}</p>
-                <p>
-                  Amount:{" "}
-                  {formatCents(
-                    selectedPayApplication.totalAmountCents,
-                    selectedPayApplication.currency,
-                  )}
-                </p>
-                <p>Line items: {selectedPayApplication.lineItems.length}</p>
-                <p>Timeline events: {selectedPayApplication.timeline.length}</p>
-              </div>
-              <Select
-                value={payReviewForm.status}
-                onChange={(event) =>
-                  setPayReviewForm((current) => ({
-                    ...current,
-                    status: event.target.value as
-                      | "under_review"
-                      | "approved"
-                      | "rejected"
-                      | "paid",
-                  }))
-                }
-              >
-                <option value="under_review">under_review</option>
-                <option value="approved">approved</option>
-                <option value="rejected">rejected</option>
-                <option value="paid">paid</option>
-              </Select>
-              <Input
-                placeholder="Reason"
-                value={payReviewForm.reason}
-                onChange={(event) =>
-                  setPayReviewForm((current) => ({
-                    ...current,
-                    reason: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Reviewer notes"
-                value={payReviewForm.reviewerNotes}
-                onChange={(event) =>
-                  setPayReviewForm((current) => ({
-                    ...current,
-                    reviewerNotes: event.target.value,
-                  }))
-                }
-              />
-              <textarea
-                className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder="Metadata JSON (optional)"
-                value={payReviewForm.metadataText}
-                onChange={(event) =>
-                  setPayReviewForm((current) => ({
-                    ...current,
-                    metadataText: event.target.value,
-                  }))
-                }
-              />
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => reviewPayApplicationMutation.mutate()}
-                  disabled={reviewPayApplicationMutation.isPending}
-                >
-                  Review pay app
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+          </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-foreground">
-            Daily log review
-          </h2>
-          <DataTable
-            columns={dailyColumns}
-            data={dailyRows}
-            isLoading={dailyLogsQuery.isLoading}
-            rowKey={(row) => row.id}
-            onRowClick={(row) => setSelectedDailyLogId(row.id)}
-            emptyState={
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              Review selected compliance item
+            </h3>
+            {!selectedComplianceItem ? (
               <EmptyState
-                icon={ClipboardList}
-                title="No daily logs"
-                description="Waiting for field submissions."
+                title="No item selected"
+                description="Select a compliance row to review it."
+                className="rounded-lg"
               />
-            }
-          />
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Selected daily log
-          </h3>
-          {!selectedDailyLog ? (
-            <EmptyState
-              title="No daily log selected"
-              description="Select a daily log row to review details."
-              className="rounded-lg"
-            />
-          ) : (
-            <>
-              <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                <p>
-                  Date:{" "}
-                  {new Date(selectedDailyLog.logDate).toLocaleDateString()}
-                </p>
-                <p>Labor count: {selectedDailyLog.laborCount}</p>
-                <p>Status: {selectedDailyLog.reviewStatus}</p>
-                <p>Timeline events: {selectedDailyLog.timeline.length}</p>
-              </div>
-              <Select
-                value={dailyReviewForm.reviewStatus}
-                onChange={(event) =>
-                  setDailyReviewForm((current) => ({
-                    ...current,
-                    reviewStatus: event.target.value as "reviewed" | "rejected",
-                  }))
-                }
-              >
-                <option value="reviewed">reviewed</option>
-                <option value="rejected">rejected</option>
-              </Select>
-              <Input
-                placeholder="Review notes"
-                value={dailyReviewForm.reviewNotes}
-                onChange={(event) =>
-                  setDailyReviewForm((current) => ({
-                    ...current,
-                    reviewNotes: event.target.value,
-                  }))
-                }
-              />
-              <textarea
-                className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder="Metadata JSON (optional)"
-                value={dailyReviewForm.metadataText}
-                onChange={(event) =>
-                  setDailyReviewForm((current) => ({
-                    ...current,
-                    metadataText: event.target.value,
-                  }))
-                }
-              />
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => reviewDailyLogMutation.mutate()}
-                  disabled={reviewDailyLogMutation.isPending}
+            ) : (
+              <>
+                <Select
+                  value={reviewComplianceForm.status}
+                  onChange={(event) =>
+                    setReviewComplianceForm((current) => ({
+                      ...current,
+                      status: event.target.value as ComplianceStatus,
+                    }))
+                  }
                 >
-                  Review daily log
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+                  <option value="pending">pending</option>
+                  <option value="verified">verified</option>
+                  <option value="expiring">expiring</option>
+                  <option value="expired">expired</option>
+                  <option value="non_compliant">non_compliant</option>
+                  <option value="compliant">compliant</option>
+                </Select>
+                <Input
+                  type="datetime-local"
+                  value={reviewComplianceForm.dueDate}
+                  onChange={(event) =>
+                    setReviewComplianceForm((current) => ({
+                      ...current,
+                      dueDate: event.target.value,
+                    }))
+                  }
+                />
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={reviewComplianceForm.highRisk}
+                    onChange={(event) =>
+                      setReviewComplianceForm((current) => ({
+                        ...current,
+                        highRisk: event.target.checked,
+                      }))
+                    }
+                  />
+                  High risk
+                </label>
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={reviewComplianceForm.reviewerConfirmed}
+                    onChange={(event) =>
+                      setReviewComplianceForm((current) => ({
+                        ...current,
+                        reviewerConfirmed: event.target.checked,
+                      }))
+                    }
+                  />
+                  Reviewer confirmed
+                </label>
+                <Input
+                  placeholder="Review notes"
+                  value={reviewComplianceForm.notes}
+                  onChange={(event) =>
+                    setReviewComplianceForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Evidence JSON (optional)"
+                  value={reviewComplianceForm.evidenceText}
+                  onChange={(event) =>
+                    setReviewComplianceForm((current) => ({
+                      ...current,
+                      evidenceText: event.target.value,
+                    }))
+                  }
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => updateComplianceItemMutation.mutate()}
+                    disabled={updateComplianceItemMutation.isPending}
+                  >
+                    Update compliance item
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-medium text-foreground">
+                    Queue insurance extraction
+                  </p>
+                  <textarea
+                    className="mb-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                    placeholder="Paste insurance text to extract"
+                    value={extractionForm.prompt}
+                    onChange={(event) =>
+                      setExtractionForm((current) => ({
+                        ...current,
+                        prompt: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    className="mb-2"
+                    placeholder="Source file name"
+                    value={extractionForm.sourceFileName}
+                    onChange={(event) =>
+                      setExtractionForm((current) => ({
+                        ...current,
+                        sourceFileName: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    className="mb-2"
+                    placeholder="Source URL"
+                    value={extractionForm.sourceUrl}
+                    onChange={(event) =>
+                      setExtractionForm((current) => ({
+                        ...current,
+                        sourceUrl: event.target.value,
+                      }))
+                    }
+                  />
+                  <div className="mb-2 grid grid-cols-2 gap-2">
+                    <Select
+                      value={extractionForm.provider}
+                      onChange={(event) =>
+                        setExtractionForm((current) => ({
+                          ...current,
+                          provider: event.target.value as
+                            | "openai"
+                            | "anthropic"
+                            | "gemini"
+                            | "azure-openai",
+                        }))
+                      }
+                    >
+                      <option value="openai">openai</option>
+                      <option value="anthropic">anthropic</option>
+                      <option value="gemini">gemini</option>
+                      <option value="azure-openai">azure-openai</option>
+                    </Select>
+                    <Input
+                      placeholder="Model"
+                      value={extractionForm.model}
+                      onChange={(event) =>
+                        setExtractionForm((current) => ({
+                          ...current,
+                          model: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => queueExtractionMutation.mutate()}
+                    disabled={queueExtractionMutation.isPending}
+                  >
+                    Queue extraction
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {showFinancial && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Pay application review
+            </h2>
+            <DataTable
+              columns={payColumns}
+              data={payRows}
+              isLoading={payApplicationsQuery.isLoading}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => setSelectedPayApplicationId(row.id)}
+              emptyState={
+                <EmptyState
+                  icon={ClipboardCheck}
+                  title="No pay applications"
+                  description="Waiting for subcontractor submissions."
+                />
+              }
+            />
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              Selected pay application
+            </h3>
+            {!selectedPayApplication ? (
+              <EmptyState
+                title="No pay app selected"
+                description="Select a pay application row to review details."
+                className="rounded-lg"
+              />
+            ) : (
+              <>
+                <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <p>Status: {selectedPayApplication.status}</p>
+                  <p>
+                    Amount:{" "}
+                    {formatCents(
+                      selectedPayApplication.totalAmountCents,
+                      selectedPayApplication.currency,
+                    )}
+                  </p>
+                  <p>Line items: {selectedPayApplication.lineItems.length}</p>
+                  <p>
+                    Timeline events: {selectedPayApplication.timeline.length}
+                  </p>
+                </div>
+                <Select
+                  value={payReviewForm.status}
+                  onChange={(event) =>
+                    setPayReviewForm((current) => ({
+                      ...current,
+                      status: event.target.value as
+                        | "under_review"
+                        | "approved"
+                        | "rejected"
+                        | "paid",
+                    }))
+                  }
+                >
+                  <option value="under_review">under_review</option>
+                  <option value="approved">approved</option>
+                  <option value="rejected">rejected</option>
+                  <option value="paid">paid</option>
+                </Select>
+                <Input
+                  placeholder="Reason"
+                  value={payReviewForm.reason}
+                  onChange={(event) =>
+                    setPayReviewForm((current) => ({
+                      ...current,
+                      reason: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Reviewer notes"
+                  value={payReviewForm.reviewerNotes}
+                  onChange={(event) =>
+                    setPayReviewForm((current) => ({
+                      ...current,
+                      reviewerNotes: event.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Metadata JSON (optional)"
+                  value={payReviewForm.metadataText}
+                  onChange={(event) =>
+                    setPayReviewForm((current) => ({
+                      ...current,
+                      metadataText: event.target.value,
+                    }))
+                  }
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => reviewPayApplicationMutation.mutate()}
+                    disabled={reviewPayApplicationMutation.isPending}
+                  >
+                    Review pay app
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {showFinancial && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Daily log review
+            </h2>
+            <DataTable
+              columns={dailyColumns}
+              data={dailyRows}
+              isLoading={dailyLogsQuery.isLoading}
+              rowKey={(row) => row.id}
+              onRowClick={(row) => setSelectedDailyLogId(row.id)}
+              emptyState={
+                <EmptyState
+                  icon={ClipboardList}
+                  title="No daily logs"
+                  description="Waiting for field submissions."
+                />
+              }
+            />
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              Selected daily log
+            </h3>
+            {!selectedDailyLog ? (
+              <EmptyState
+                title="No daily log selected"
+                description="Select a daily log row to review details."
+                className="rounded-lg"
+              />
+            ) : (
+              <>
+                <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <p>
+                    Date:{" "}
+                    {new Date(selectedDailyLog.logDate).toLocaleDateString()}
+                  </p>
+                  <p>Labor count: {selectedDailyLog.laborCount}</p>
+                  <p>Status: {selectedDailyLog.reviewStatus}</p>
+                  <p>Timeline events: {selectedDailyLog.timeline.length}</p>
+                </div>
+                <Select
+                  value={dailyReviewForm.reviewStatus}
+                  onChange={(event) =>
+                    setDailyReviewForm((current) => ({
+                      ...current,
+                      reviewStatus: event.target.value as
+                        | "reviewed"
+                        | "rejected",
+                    }))
+                  }
+                >
+                  <option value="reviewed">reviewed</option>
+                  <option value="rejected">rejected</option>
+                </Select>
+                <Input
+                  placeholder="Review notes"
+                  value={dailyReviewForm.reviewNotes}
+                  onChange={(event) =>
+                    setDailyReviewForm((current) => ({
+                      ...current,
+                      reviewNotes: event.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                  placeholder="Metadata JSON (optional)"
+                  value={dailyReviewForm.metadataText}
+                  onChange={(event) =>
+                    setDailyReviewForm((current) => ({
+                      ...current,
+                      metadataText: event.target.value,
+                    }))
+                  }
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => reviewDailyLogMutation.mutate()}
+                    disabled={reviewDailyLogMutation.isPending}
+                  >
+                    Review daily log
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       <p className="text-xs text-muted-foreground">
         M8 contract coverage: subcontractors, invitations, compliance

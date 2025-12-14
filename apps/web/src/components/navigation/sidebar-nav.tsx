@@ -1,9 +1,10 @@
 "use client";
 
+import { AnvilLogo } from "@/components/branding/anvil-logo";
+import { SidebarAccountMenu } from "@/components/navigation/sidebar-account-menu";
 import { NAV_GROUPS, moduleRegistry } from "@/config/module-registry";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
-import { LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -19,13 +20,13 @@ export function SidebarNav() {
       )}
     >
       {/* Logo */}
-      <div className="mb-4 flex items-center gap-2 px-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <LayoutDashboard className="h-3.5 w-3.5" />
-        </div>
-        {!isSidebarCollapsed && (
-          <span className="text-sm font-semibold text-foreground">Foreman</span>
-        )}
+      <div className="mb-4 px-2">
+        <AnvilLogo
+          className={cn(isSidebarCollapsed ? "justify-center" : "")}
+          iconClassName="h-7 w-7 rounded-lg"
+          wordmarkClassName="text-sm font-semibold text-foreground"
+          showWordmark={!isSidebarCollapsed}
+        />
       </div>
 
       {/* Nav groups */}
@@ -43,9 +44,10 @@ export function SidebarNav() {
               )}
               <div className="space-y-0.5">
                 {items.map((module) => {
+                  const isDashboardModule = module.routePath === "/app";
                   const isActive =
-                    module.routePath === "/app"
-                      ? pathname === "/app"
+                    isDashboardModule
+                      ? pathname === "/app" || pathname.startsWith("/app/dashboard")
                       : pathname.startsWith(module.routePath);
                   const Icon = module.icon;
 
@@ -73,6 +75,10 @@ export function SidebarNav() {
           );
         })}
       </nav>
+
+      <div className="mt-3 border-t border-border/60 pt-3">
+        <SidebarAccountMenu isSidebarCollapsed={isSidebarCollapsed} />
+      </div>
     </aside>
   );
 }

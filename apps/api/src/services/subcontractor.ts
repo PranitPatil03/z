@@ -458,9 +458,9 @@ export const subcontractorService = {
     if (body.sendInviteEmail !== false) {
       inviteEmailJobId = await enqueueNotificationDelivery({
         toEmail: inviteEmail,
-        subject: "Foreman SubConnect Portal Access",
+        subject: "anvil SubConnect Portal Access",
         body:
-          `You have been invited to Foreman SubConnect for project ${project.name} (${project.code}). ` +
+          `You have been invited to anvil SubConnect for project ${project.name} (${project.code}). ` +
           `Use this secure invitation link to activate your portal account: ${inviteAcceptUrl}. ` +
           `If prompted for token, use: ${inviteToken}. This invite expires on ${expiresAt.toISOString()}.`,
       });

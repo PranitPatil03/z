@@ -50,23 +50,19 @@ export function TopHeader() {
             {health.isError ? "API Offline" : "Live"}
           </Badge>
 
-          <OrganizationSwitcher />
+          <OrganizationSwitcher
+            alwaysShow
+            className="min-w-[150px] lg:hidden"
+            selectClassName="h-8 bg-background text-xs"
+          />
 
           <ThemeToggle />
 
           {user && (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 lg:hidden">
               <Avatar className="h-7 w-7">
                 <AvatarFallback className="text-xs">{initials}</AvatarFallback>
               </Avatar>
-              <div className="hidden leading-tight md:block">
-                <p className="text-xs font-medium text-foreground">
-                  {user.name}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {user.email}
-                </p>
-              </div>
               <Button
                 variant="ghost"
                 size="icon"

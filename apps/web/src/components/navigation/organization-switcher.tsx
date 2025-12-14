@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
 import { organizationsApi } from "@/lib/api/modules/organizations-api";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -9,7 +10,17 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
-export function OrganizationSwitcher() {
+interface OrganizationSwitcherProps {
+  className?: string;
+  selectClassName?: string;
+  alwaysShow?: boolean;
+}
+
+export function OrganizationSwitcher({
+  className,
+  selectClassName,
+  alwaysShow = false,
+}: OrganizationSwitcherProps) {
   const router = useRouter();
   const qc = useQueryClient();
   const activeOrganizationId = useSessionStore(
@@ -35,6 +46,8 @@ export function OrganizationSwitcher() {
     return organizations[0]?.id ?? "";
   }, [activeOrganizationId, organizations]);
 
+  const singleOrganization = organizations.length <= 1;
+
   const setActiveMutation = useMutation({
     mutationFn: (organizationId: string) =>
       organizationsApi.setActive(organizationId),
@@ -56,12 +69,25 @@ export function OrganizationSwitcher() {
     },
   });
 
-  if (organizations.length <= 1) {
+  if (!alwaysShow && singleOrganization) {
     return null;
   }
 
+  if (organizations.length === 0) {
+    return (
+      <div
+        className={cn(
+          "rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs text-muted-foreground",
+          className,
+        )}
+      >
+        No organizations
+      </div>
+    );
+  }
+
   return (
-    <div className="hidden min-w-[180px] md:block">
+    <div className={cn(className ?? "hidden min-w-[180px] md:block")}>
       <Select
         value={selectedOrganizationId}
         onChange={(event) => {
@@ -75,8 +101,12 @@ export function OrganizationSwitcher() {
 
           setActiveMutation.mutate(nextOrganizationId);
         }}
-        disabled={setActiveMutation.isPending || organizationsQuery.isLoading}
-        className="h-8 bg-background text-xs"
+        disabled={
+          setActiveMutation.isPending ||
+          organizationsQuery.isLoading ||
+          singleOrganization
+        }
+        className={cn("h-8 bg-background text-xs", selectClassName)}
       >
         {organizations.map((organization) => (
           <option key={organization.id} value={organization.id}>

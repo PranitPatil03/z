@@ -17,6 +17,7 @@ export function useActiveOrgRole() {
     queryKey: queryKeys.authz.activeRole(activeOrganizationId ?? undefined),
     queryFn: () =>
       authorizationApi.getActiveMemberRole(activeOrganizationId ?? undefined),
+    enabled: Boolean(activeOrganizationId),
     staleTime: 60_000,
   });
 }

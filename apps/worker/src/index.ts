@@ -8,7 +8,7 @@ import { resolveWorkerMode } from "./runtime";
 import { startScheduler } from "./scheduler";
 import { persistSiteSnapAnalysis } from "./site-snap-analysis";
 
-const logger = pino({ name: "foreman-worker" });
+const logger = pino({ name: "anvil-worker" });
 
 const redisUrl = process.env.REDIS_URL;
 const stopScheduler = startScheduler(logger);
@@ -161,5 +161,5 @@ if (resolveWorkerMode(redisUrl) === "idle") {
     void shutdown("SIGTERM");
   });
 
-  logger.info("Foreman worker started");
+  logger.info("anvil worker started");
 }

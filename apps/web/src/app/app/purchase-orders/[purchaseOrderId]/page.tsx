@@ -1,11 +1,13 @@
 import { PurchaseOrderDetailPage } from "@/features/procurement/pages/purchase-order-detail-page";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     purchaseOrderId: string;
-  };
+  }>;
 }
 
-export default function Page({ params }: PageProps) {
-  return <PurchaseOrderDetailPage purchaseOrderId={params.purchaseOrderId} />;
+export default async function Page({ params }: PageProps) {
+  const { purchaseOrderId } = await params;
+
+  return <PurchaseOrderDetailPage purchaseOrderId={purchaseOrderId} />;
 }

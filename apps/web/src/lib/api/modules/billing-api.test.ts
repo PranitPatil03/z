@@ -137,6 +137,70 @@ describe("billing api", () => {
     expect(body.stripeCustomerId).toBe("cus_1");
   });
 
+  it("loads stripe checkout pricing and creates checkout session", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              plan: "growth",
+              priceId: "price_growth",
+              amountCents: 9900,
+              currency: "USD",
+              interval: "month",
+              intervalCount: 1,
+              productName: "Growth",
+              nickname: "Growth Monthly",
+              available: true,
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessionId: "cs_test",
+          url: "https://checkout.stripe.com/c/pay/cs_test",
+          plan: "growth",
+          price: {
+            plan: "growth",
+            priceId: "price_growth",
+            amountCents: 9900,
+            currency: "USD",
+            interval: "month",
+            intervalCount: 1,
+            productName: "Growth",
+            nickname: "Growth Monthly",
+            available: true,
+          },
+        }),
+      );
+
+    await billingApi.getCheckoutPricing();
+    await billingApi.createCheckoutSession({
+      plan: "growth",
+      successPath: "/app/billing?checkout=success",
+      cancelPath: "/app/billing?checkout=cancel",
+    });
+
+    const [pricingUrl, pricingInit] = fetchMock.mock.calls[0] ?? [];
+    expect(String(pricingUrl)).toContain("/billing/stripe/pricing");
+    expect(pricingInit?.method).toBe("GET");
+
+    const [checkoutUrl, checkoutInit] = fetchMock.mock.calls[1] ?? [];
+    expect(String(checkoutUrl)).toContain("/billing/stripe/checkout-session");
+    expect(checkoutInit?.method).toBe("POST");
+
+    const body = JSON.parse(String(checkoutInit?.body)) as {
+      plan: string;
+      successPath: string;
+      cancelPath: string;
+    };
+
+    expect(body.plan).toBe("growth");
+    expect(body.successPath).toBe("/app/billing?checkout=success");
+    expect(body.cancelPath).toBe("/app/billing?checkout=cancel");
+  });
+
   it("lists and retries webhook events", async () => {
     fetchMock
       .mockResolvedValueOnce(

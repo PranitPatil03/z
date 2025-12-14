@@ -12,7 +12,7 @@ export interface FrontendDiagnosticEvent {
 
 declare global {
   interface Window {
-    __FOREMAN_DIAGNOSTICS_INSTALLED__?: boolean;
+    __ANVIL_DIAGNOSTICS_INSTALLED__?: boolean;
   }
 }
 
@@ -22,7 +22,7 @@ function emitDiagnosticEvent(event: FrontendDiagnosticEvent) {
   }
 
   window.dispatchEvent(
-    new CustomEvent("foreman:frontend-diagnostic", {
+    new CustomEvent("anvil:frontend-diagnostic", {
       detail: event,
     }),
   );
@@ -32,11 +32,11 @@ export function reportFrontendDiagnostic(event: FrontendDiagnosticEvent) {
   emitDiagnosticEvent(event);
 
   if (event.type === "api-request-error") {
-    console.warn("[Foreman][Diagnostic]", event);
+    console.warn("[anvil][Diagnostic]", event);
     return;
   }
 
-  console.error("[Foreman][Diagnostic]", event);
+  console.error("[anvil][Diagnostic]", event);
 }
 
 export function installGlobalFrontendDiagnostics() {
@@ -44,11 +44,11 @@ export function installGlobalFrontendDiagnostics() {
     return () => {};
   }
 
-  if (window.__FOREMAN_DIAGNOSTICS_INSTALLED__) {
+  if (window.__ANVIL_DIAGNOSTICS_INSTALLED__) {
     return () => {};
   }
 
-  window.__FOREMAN_DIAGNOSTICS_INSTALLED__ = true;
+  window.__ANVIL_DIAGNOSTICS_INSTALLED__ = true;
 
   const onError = (event: ErrorEvent) => {
     reportFrontendDiagnostic({
@@ -83,6 +83,6 @@ export function installGlobalFrontendDiagnostics() {
   return () => {
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onUnhandledRejection);
-    window.__FOREMAN_DIAGNOSTICS_INSTALLED__ = false;
+    window.__ANVIL_DIAGNOSTICS_INSTALLED__ = false;
   };
 }

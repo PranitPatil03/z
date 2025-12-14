@@ -14,6 +14,20 @@ import { eventService } from "./events";
 const STRIPE_GRACE_PERIOD_DAYS = 7;
 
 type InternalSubscriptionStatus = "active" | "grace" | "suspended";
+type CheckoutPlan = "growth" | "enterprise";
+
+type StripeCheckoutPriceSummary = {
+  plan: CheckoutPlan;
+  priceId: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  interval: Stripe.Price.Recurring.Interval | null;
+  intervalCount: number | null;
+  productName: string | null;
+  nickname: string | null;
+  available: boolean;
+  message?: string;
+};
 
 function getStripeClient(): Stripe {
   if (!env.STRIPE_SECRET_KEY) {
@@ -40,6 +54,119 @@ function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
     return null;
   }
   return typeof subscription === "string" ? subscription : subscription.id;
+}
+
+function isAppErrorLike(error: unknown): error is { statusCode: number } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "statusCode" in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === "number"
+  );
+}
+
+function getConfiguredPriceIdForPlan(plan: CheckoutPlan) {
+  if (plan === "growth") {
+    return env.STRIPE_PRICE_ID_GROWTH;
+  }
+
+  return env.STRIPE_PRICE_ID_ENTERPRISE;
+}
+
+function getStripeProductName(product: Stripe.Price["product"]) {
+  if (!product || typeof product === "string") {
+    return null;
+  }
+
+  if ("deleted" in product && product.deleted) {
+    return null;
+  }
+
+  return product.name ?? null;
+}
+
+function getStripePriceSearchText(price: Stripe.Price) {
+  const productName = getStripeProductName(price.product) ?? "";
+
+  return [price.id, price.lookup_key, price.nickname, productName]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function doesPriceMatchPlan(price: Stripe.Price, plan: CheckoutPlan) {
+  const searchText = getStripePriceSearchText(price);
+  return searchText.includes(plan);
+}
+
+function summarizeCheckoutPrice(
+  plan: CheckoutPlan,
+  price: Stripe.Price,
+): StripeCheckoutPriceSummary {
+  return {
+    plan,
+    priceId: price.id,
+    amountCents: price.unit_amount ?? null,
+    currency: price.currency?.toUpperCase() ?? null,
+    interval: price.recurring?.interval ?? null,
+    intervalCount: price.recurring?.interval_count ?? null,
+    productName: getStripeProductName(price.product),
+    nickname: price.nickname ?? null,
+    available: true,
+  };
+}
+
+function unavailableCheckoutPrice(
+  plan: CheckoutPlan,
+  message: string,
+): StripeCheckoutPriceSummary {
+  return {
+    plan,
+    priceId: null,
+    amountCents: null,
+    currency: null,
+    interval: null,
+    intervalCount: null,
+    productName: null,
+    nickname: null,
+    available: false,
+    message,
+  };
+}
+
+async function listActiveRecurringPrices() {
+  const prices = await stripe().prices.list({
+    active: true,
+    type: "recurring",
+    limit: 100,
+    expand: ["data.product"],
+  });
+
+  return prices.data;
+}
+
+async function resolveCheckoutPrice(
+  plan: CheckoutPlan,
+  cachedCatalog?: Stripe.Price[],
+) {
+  const configuredPriceId = getConfiguredPriceIdForPlan(plan);
+
+  if (configuredPriceId) {
+    return await stripe().prices.retrieve(configuredPriceId, {
+      expand: ["product"],
+    });
+  }
+
+  const catalog = cachedCatalog ?? (await listActiveRecurringPrices());
+  const matchedPrice = catalog.find((price) => doesPriceMatchPlan(price, plan));
+
+  if (!matchedPrice) {
+    throw badRequest(
+      `No recurring Stripe price found for '${plan}'. Configure STRIPE_PRICE_ID_${plan.toUpperCase()} or add a recurring Stripe price with '${plan}' in lookup key, nickname, or product name.`,
+    );
+  }
+
+  return matchedPrice;
 }
 
 function buildEventPayload(event: Stripe.Event) {
@@ -526,6 +653,99 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 export const stripeService = {
+  async listCheckoutPricing() {
+    const plans: CheckoutPlan[] = ["growth", "enterprise"];
+
+    let recurringCatalog: Stripe.Price[] = [];
+    try {
+      recurringCatalog = await listActiveRecurringPrices();
+    } catch (error) {
+      logger.warn(
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        "Unable to preload Stripe recurring price catalog",
+      );
+    }
+
+    const items = await Promise.all(
+      plans.map(async (plan) => {
+        try {
+          const price = await resolveCheckoutPrice(
+            plan,
+            recurringCatalog.length > 0 ? recurringCatalog : undefined,
+          );
+          return summarizeCheckoutPrice(plan, price);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Stripe price is unavailable";
+          logger.warn(
+            {
+              plan,
+              error: message,
+            },
+            "Unable to resolve Stripe checkout price",
+          );
+          return unavailableCheckoutPrice(plan, message);
+        }
+      }),
+    );
+
+    return items;
+  },
+
+  async createCheckoutSession(params: {
+    organizationId: string;
+    customerEmail: string;
+    customerName?: string;
+    plan: CheckoutPlan;
+    successUrl: string;
+    cancelUrl: string;
+  }) {
+    const checkoutPrice = await resolveCheckoutPrice(params.plan);
+
+    try {
+      const session = await stripe().checkout.sessions.create({
+        mode: "subscription",
+        line_items: [{ price: checkoutPrice.id, quantity: 1 }],
+        customer_email: params.customerEmail,
+        success_url: params.successUrl,
+        cancel_url: params.cancelUrl,
+        allow_promotion_codes: true,
+        client_reference_id: params.organizationId,
+        metadata: {
+          organizationId: params.organizationId,
+          plan: params.plan,
+        },
+        subscription_data: {
+          metadata: {
+            organizationId: params.organizationId,
+            plan: params.plan,
+          },
+        },
+      });
+
+      if (!session.url) {
+        throw badRequest("Stripe checkout did not return a redirect URL.");
+      }
+
+      return {
+        sessionId: session.id,
+        url: session.url,
+        plan: params.plan,
+        price: summarizeCheckoutPrice(params.plan, checkoutPrice),
+      };
+    } catch (error) {
+      if (isAppErrorLike(error)) {
+        throw error;
+      }
+
+      throw badRequest(
+        `Failed to create checkout session: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  },
+
   /**
    * Create a Stripe customer for organization
    */

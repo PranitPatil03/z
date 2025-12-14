@@ -1,11 +1,13 @@
 import { MatchRunDetailPage } from "@/features/procurement/pages/match-run-detail-page";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     matchRunId: string;
-  };
+  }>;
 }
 
-export default function Page({ params }: PageProps) {
-  return <MatchRunDetailPage matchRunId={params.matchRunId} />;
+export default async function Page({ params }: PageProps) {
+  const { matchRunId } = await params;
+
+  return <MatchRunDetailPage matchRunId={matchRunId} />;
 }

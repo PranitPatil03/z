@@ -504,7 +504,7 @@ export const portalAuthService = {
     const resetUrl = `${env.BETTER_AUTH_URL}/portal/reset-password?token=${rawToken}`;
     await enqueueNotificationDelivery({
       toEmail: subcontractor.email,
-      subject: "Foreman SubConnect Password Reset",
+      subject: "anvil SubConnect Password Reset",
       body: `A password reset was requested for your SubConnect account. Use this secure link to reset your password: ${resetUrl}. If prompted for token, use: ${rawToken}. This token expires on ${expiresAt.toISOString()}.`,
     });
 

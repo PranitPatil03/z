@@ -1,4 +1,4 @@
-import { requestJson } from "@/lib/api/http-client";
+import { ApiRequestError, requestJson } from "@/lib/api/http-client";
 
 export type ActiveOrgRole = "owner" | "admin" | "member" | string;
 
@@ -30,25 +30,51 @@ export const authorizationApi = {
     }
 
     const suffix = search.size > 0 ? `?${search.toString()}` : "";
-    const payload = await requestJson<unknown>(
-      `/organizations/active-member-role${suffix}`,
-    );
-    return extractRole(payload);
+    try {
+      const payload = await requestJson<unknown>(
+        `/organizations/active-member-role${suffix}`,
+      );
+      return extractRole(payload);
+    } catch (error) {
+      if (
+        error instanceof ApiRequestError &&
+        (error.code === "NO_ACTIVE_ORGANIZATION" ||
+          (error.status === 400 &&
+            error.message.toLowerCase().includes("active organization")))
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
   },
 
   async checkPermission(permissionKey: string, projectId?: string) {
-    const payload = await requestJson<{
-      data: {
-        allowed: boolean;
-      };
-    }>("/permissions/check", {
-      method: "POST",
-      body: {
-        permissionKey,
-        projectId,
-      },
-    });
+    try {
+      const payload = await requestJson<{
+        data: {
+          allowed: boolean;
+        };
+      }>("/permissions/check", {
+        method: "POST",
+        body: {
+          permissionKey,
+          projectId,
+        },
+      });
 
-    return payload.data.allowed;
+      return payload.data.allowed;
+    } catch (error) {
+      if (
+        error instanceof ApiRequestError &&
+        (error.code === "NO_ACTIVE_ORGANIZATION" ||
+          (error.status === 400 &&
+            error.message.toLowerCase().includes("active organization")))
+      ) {
+        return false;
+      }
+
+      throw error;
+    }
   },
 };

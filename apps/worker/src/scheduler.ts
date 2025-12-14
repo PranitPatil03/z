@@ -186,7 +186,7 @@ export function startScheduler(logger: pino.Logger) {
               if (subcontractor?.email) {
                 await sendNotificationEmail({
                   toEmail: subcontractor.email,
-                  subject: "Foreman Compliance Escalation",
+                  subject: "anvil Compliance Escalation",
                   body: `Compliance requirement ${item.complianceType} is overdue for your project scope. Please upload evidence immediately to avoid payment delays.`,
                 });
                 escalationsSent += 1;
@@ -220,7 +220,7 @@ export function startScheduler(logger: pino.Logger) {
             if (subcontractor?.email) {
               await sendNotificationEmail({
                 toEmail: subcontractor.email,
-                subject: "Foreman Compliance Reminder",
+                subject: "anvil Compliance Reminder",
                 body: `Compliance requirement ${item.complianceType} is approaching its due date. Upload your documentation in the SubConnect portal to stay compliant.`,
               });
               remindersSent += 1;

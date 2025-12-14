@@ -38,7 +38,7 @@ export const useSessionStore = create<SessionState>()(
       clearSession: () => set(initialState),
     }),
     {
-      name: "foreman-session",
+      name: "anvil-session",
       partialize: (state) => ({
         authMode: state.authMode,
         portalToken: state.portalToken,

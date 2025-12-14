@@ -16,6 +16,7 @@ const envSchema = z.object({
         .optional(),
   BETTER_AUTH_URL: z.string().min(1).default("http://localhost:3001"),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
+  WEB_APP_URL: z.string().url().optional(),
   JWT_SECRET: isProduction
     ? z.string().min(32, "JWT_SECRET is required in production (min 32 chars)")
     : z
@@ -24,6 +25,8 @@ const envSchema = z.object({
         .optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_ID_GROWTH: z.string().optional(),
+  STRIPE_PRICE_ID_ENTERPRISE: z.string().optional(),
   ENCRYPTION_KEY: isProduction
     ? z
         .string()
@@ -110,4 +113,9 @@ const envSchema = z.object({
     .optional(),
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+export const env = {
+  ...parsedEnv,
+  WEB_APP_URL: parsedEnv.WEB_APP_URL ?? parsedEnv.CORS_ORIGIN,
+};

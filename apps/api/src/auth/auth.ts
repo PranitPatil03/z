@@ -17,8 +17,13 @@ import { db } from "../database";
 import { sendMail } from "../lib/email";
 import { logger } from "../lib/logger";
 
+const trustedOrigins = [env.CORS_ORIGIN, env.WEB_APP_URL]
+  .flatMap((origin) => origin.split(","))
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
-  appName: "Foreman",
+  appName: "anvil",
   baseURL: env.BETTER_AUTH_URL,
   basePath: "/auth",
   secret: env.BETTER_AUTH_SECRET,
@@ -41,7 +46,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendMail({
         to: user.email,
-        subject: "Reset your Foreman password",
+        subject: "Reset your anvil password",
         text: `Reset your password using this link: ${url}`,
       });
     },
@@ -49,6 +54,15 @@ export const auth = betterAuth({
       logger.info({ userId: user.id }, "Password reset completed");
     },
   },
+  socialProviders:
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : undefined,
   plugins: [
     organization({
       teams: {
@@ -67,12 +81,12 @@ export const auth = betterAuth({
       },
     }),
   ],
-  trustedOrigins: [env.CORS_ORIGIN],
+  trustedOrigins,
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       await sendMail({
         to: user.email,
-        subject: "Verify your Foreman email address",
+        subject: "Verify your anvil email address",
         text: `Verify your email using this link: ${url}`,
       });
     },

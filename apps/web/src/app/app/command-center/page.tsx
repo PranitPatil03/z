@@ -1,5 +1,5 @@
-import { CommandCenterPage } from "@/features/ops-intelligence/pages/command-center-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <CommandCenterPage />;
+  redirect("/app/dashboard");
 }

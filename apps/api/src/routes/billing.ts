@@ -10,7 +10,9 @@ import {
   updateSubscriptionPlanController,
 } from "../controllers/billing";
 import {
+  stripeCreateCheckoutSessionController,
   stripeCreatePaymentIntentController,
+  stripeListCheckoutPricingController,
   stripeCreateSubscriptionController,
   stripeListWebhookEventsController,
   stripeRetryWebhookEventController,
@@ -23,6 +25,7 @@ import { requireOrgRole } from "../middleware/require-role";
 import {
   billingRecordIdParamsSchema,
   createBillingRecordSchema,
+  createStripeCheckoutSessionSchema,
   createStripePaymentIntentSchema,
   createStripeSubscriptionSchema,
   listStripeWebhookEventsQuerySchema,
@@ -72,6 +75,18 @@ billingRouter.delete(
 );
 
 // Stripe payment routes — owner/admin only
+billingRouter.get(
+  "/stripe/pricing",
+  asyncHandler(stripeListCheckoutPricingController),
+);
+
+billingRouter.post(
+  "/stripe/checkout-session",
+  requireOrgRole("owner", "admin"),
+  validateBody(createStripeCheckoutSessionSchema),
+  asyncHandler(stripeCreateCheckoutSessionController),
+);
+
 billingRouter.post(
   "/stripe/payment-intent",
   requireOrgRole("owner", "admin"),

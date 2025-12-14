@@ -1,11 +1,13 @@
 import { InvoiceDetailPage } from "@/features/procurement/pages/invoice-detail-page";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     invoiceId: string;
-  };
+  }>;
 }
 
-export default function Page({ params }: PageProps) {
-  return <InvoiceDetailPage invoiceId={params.invoiceId} />;
+export default async function Page({ params }: PageProps) {
+  const { invoiceId } = await params;
+
+  return <InvoiceDetailPage invoiceId={invoiceId} />;
 }
