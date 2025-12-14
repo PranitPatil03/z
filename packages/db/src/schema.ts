@@ -8,7 +8,7 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     email: text("email").notNull(),
-    emailVerified: timestamp("email_verified", { withTimezone: true }),
+    emailVerified: boolean("email_verified").notNull().default(false),
     name: text("name").notNull(),
     image: text("image"),
   },
@@ -149,6 +149,87 @@ export const teamMembers = pgTable(
   (table) => ({
     teamUserUnique: uniqueIndex("team_member_team_user_unique").on(table.teamId, table.userId),
     teamIndex: index("team_member_team_idx").on(table.teamId),
+  }),
+);
+
+export const accessRoleScopeEnum = pgEnum("access_role_scope", ["organization", "project"]);
+
+export const permissionCatalog = pgTable(
+  "permission_catalog",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    key: text("key").notNull(),
+    module: text("module").notNull(),
+    action: text("action").notNull(),
+    description: text("description").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    keyUnique: uniqueIndex("permission_catalog_key_unique").on(table.key),
+    moduleActionUnique: uniqueIndex("permission_catalog_module_action_unique").on(table.module, table.action),
+    moduleIndex: index("permission_catalog_module_idx").on(table.module),
+  }),
+);
+
+export const accessRoles = pgTable(
+  "access_roles",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    scope: accessRoleScopeEnum("scope").notNull().default("organization"),
+    isSystem: boolean("is_system").notNull().default(false),
+    createdByUserId: text("created_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgScopeCodeUnique: uniqueIndex("access_roles_org_scope_code_unique").on(table.organizationId, table.scope, table.code),
+    orgScopeIndex: index("access_roles_org_scope_idx").on(table.organizationId, table.scope),
+  }),
+);
+
+export const accessRolePermissions = pgTable(
+  "access_role_permissions",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    roleId: text("role_id").notNull().references(() => accessRoles.id, { onDelete: "cascade" }),
+    permissionKey: text("permission_key").notNull().references(() => permissionCatalog.key),
+    granted: boolean("granted").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    rolePermissionUnique: uniqueIndex("access_role_permissions_role_permission_unique").on(table.roleId, table.permissionKey),
+    orgPermissionIndex: index("access_role_permissions_org_permission_idx").on(table.organizationId, table.permissionKey),
+  }),
+);
+
+export const accessRoleAssignments = pgTable(
+  "access_role_assignments",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id"),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    roleId: text("role_id").notNull().references(() => accessRoles.id, { onDelete: "cascade" }),
+    assignedByUserId: text("assigned_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    source: text("source").notNull().default("manual"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    assignmentUnique: uniqueIndex("access_role_assignments_org_project_user_role_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.userId,
+      table.roleId,
+    ),
+    orgUserIndex: index("access_role_assignments_org_user_idx").on(table.organizationId, table.userId),
+    orgProjectUserIndex: index("access_role_assignments_org_project_user_idx").on(table.organizationId, table.projectId, table.userId),
+    roleIndex: index("access_role_assignments_role_idx").on(table.roleId),
   }),
 );
 
@@ -1253,6 +1334,57 @@ export const teamMemberRelations = relations(teamMembers, ({ one }) => ({
   }),
   user: one(users, {
     fields: [teamMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const permissionCatalogRelations = relations(permissionCatalog, ({ many }) => ({
+  rolePermissions: many(accessRolePermissions),
+}));
+
+export const accessRolesRelations = relations(accessRoles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [accessRoles.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [accessRoles.createdByUserId],
+    references: [users.id],
+  }),
+  permissions: many(accessRolePermissions),
+  assignments: many(accessRoleAssignments),
+}));
+
+export const accessRolePermissionsRelations = relations(accessRolePermissions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [accessRolePermissions.organizationId],
+    references: [organizations.id],
+  }),
+  role: one(accessRoles, {
+    fields: [accessRolePermissions.roleId],
+    references: [accessRoles.id],
+  }),
+  permission: one(permissionCatalog, {
+    fields: [accessRolePermissions.permissionKey],
+    references: [permissionCatalog.key],
+  }),
+}));
+
+export const accessRoleAssignmentsRelations = relations(accessRoleAssignments, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [accessRoleAssignments.organizationId],
+    references: [organizations.id],
+  }),
+  role: one(accessRoles, {
+    fields: [accessRoleAssignments.roleId],
+    references: [accessRoles.id],
+  }),
+  user: one(users, {
+    fields: [accessRoleAssignments.userId],
+    references: [users.id],
+  }),
+  assignedBy: one(users, {
+    fields: [accessRoleAssignments.assignedByUserId],
     references: [users.id],
   }),
 }));

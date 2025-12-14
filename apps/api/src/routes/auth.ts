@@ -6,7 +6,9 @@ const authHandler = toNodeHandler(auth);
 
 export const authRouter: import("express").Router = Router();
 
-authRouter.use(async (req, res) => {
-  await authHandler(req, res);
+authRouter.use((req, res) => {
+  // better-call (underlying Better Auth) already reconstructs the full path
+  // using req.baseUrl + req.url, which Express sets correctly when using
+  // app.use("/auth", router). No manual URL manipulation needed.
+  authHandler(req, res);
 });
-

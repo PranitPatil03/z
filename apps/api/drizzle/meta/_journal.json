@@ -57,6 +57,20 @@
       "when": 1775553845629,
       "tag": "0007_smiling_morbius",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775736761783,
+      "tag": "0008_charming_captain_flint",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775739761783,
+      "tag": "0009_sudden_loki",
+      "breakpoints": true
     }
   ]
 }

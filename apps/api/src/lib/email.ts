@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { env } from "../config/env";
+import { logger } from "./logger";
 
 export interface MailMessage {
   to: string;
@@ -28,8 +29,5 @@ export async function sendMail(message: MailMessage) {
     return;
   }
 
-  console.info("[mail] queued", {
-    to: message.to,
-    subject: message.subject,
-  });
+  logger.info({ to: message.to, subject: message.subject }, "Mail queued (SMTP not configured)");
 }

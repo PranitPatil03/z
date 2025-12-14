@@ -1,8 +1,20 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
+import {
+  users,
+  sessions,
+  accounts,
+  verifications,
+  organizations,
+  members,
+  invitations,
+  teams,
+  teamMembers,
+} from "@foreman/db";
 import { db } from "../database";
 import { env } from "../config/env";
+import { logger } from "../lib/logger";
 import { sendMail } from "../lib/email";
 
 export const auth = betterAuth({
@@ -12,6 +24,17 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
+    schema: {
+      user: users,
+      session: sessions,
+      account: accounts,
+      verification: verifications,
+      organization: organizations,
+      member: members,
+      invitation: invitations,
+      team: teams,
+      teamMember: teamMembers,
+    },
   }),
   emailAndPassword: {
     enabled: true,
@@ -23,7 +46,7 @@ export const auth = betterAuth({
       });
     },
     onPasswordReset: async ({ user }) => {
-      console.info("[auth] password reset complete", { userId: user.id });
+      logger.info({ userId: user.id }, "Password reset completed");
     },
   },
   plugins: [

@@ -1,6 +1,6 @@
 # Frontend Readiness Review
 
-**Last Updated:** April 7, 2026
+**Last Updated:** April 10, 2026
 
 This review answers a single question: are we ready to start frontend development against the current backend?
 
@@ -16,7 +16,7 @@ What is ready now:
 - Worker-backed async flows are available for AI and notifications.
 
 What is not ready yet on the frontend side:
-- No `apps/web` application exists yet.
+- `apps/web` foundation exists (M0 complete) and module delivery is in progress.
 - `packages/sdk` is minimal and not generated from OpenAPI.
 - `packages/ui` is minimal and not yet a production design system.
 - `packages/types` is minimal and needs expansion from API contracts.
@@ -37,7 +37,7 @@ Conclusion:
 | Validation and error handling | Ready | Zod-based request validation + standardized error envelope. |
 | Async workflows | Ready | AI jobs and notifications are queue-backed. |
 | API/worker tests | Ready | Backend and worker test suites are passing in current cycle. |
-| Frontend app (`apps/web`) | Not started | App scaffold does not exist yet. |
+| Frontend app (`apps/web`) | In progress | Foundation scaffold, providers, shell, and module routes exist. |
 | SDK package (`packages/sdk`) | Partial | Placeholder implementation only. |
 | UI package (`packages/ui`) | Partial | Placeholder implementation only. |
 | Shared frontend types (`packages/types`) | Partial | Placeholder implementation only. |
@@ -58,8 +58,8 @@ Current repo structure status:
 
 ## 4. Known Gaps That Must Be Addressed Early
 
-1. Frontend scaffold gap
-- We need to create `apps/web` with baseline routing, providers, and environment handling.
+1. Frontend module completion gap
+- We need to complete module-level contracts and workflows on top of the existing `apps/web` foundation.
 
 2. Contract-consumption gap
 - We need generated or strongly typed API access from `/openapi.json`.

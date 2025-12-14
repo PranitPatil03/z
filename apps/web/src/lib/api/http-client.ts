@@ -10,6 +10,7 @@ export interface RequestOptions {
   body?: unknown;
   authMode?: ApiAuthMode;
   signal?: AbortSignal;
+  onAuthFailure?: "redirect" | "none";
 }
 
 export class ApiRequestError extends Error {
@@ -71,20 +72,54 @@ async function parseErrorPayload(
   return null;
 }
 
+function handleAuthFailure(authMode: ApiAuthMode) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+  const nextValue = encodeURIComponent(currentPath);
+
+  if (authMode === "portal") {
+    useSessionStore.getState().setPortalToken(null);
+    useSessionStore.getState().setAuthMode("internal");
+    authNavigation.redirect(`/portal/login?next=${nextValue}&reason=expired`);
+    return;
+  }
+
+  authNavigation.redirect(`/login?next=${nextValue}`);
+}
+
+export const authNavigation = {
+  redirect(path: string) {
+    window.location.assign(path);
+  },
+};
+
 export async function requestJson<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  const authMode = options.authMode ?? "internal";
+
   const response = await fetch(`${env.API_BASE_URL}${path}`, {
     method: options.method ?? "GET",
     headers: buildHeaders(options),
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
-    credentials: options.authMode === "portal" ? "omit" : "include",
+    credentials: authMode === "portal" ? "omit" : "include",
   });
 
   if (!response.ok) {
     const errorPayload = await parseErrorPayload(response);
+
+    if (
+      response.status === 401 &&
+      (options.onAuthFailure ?? "redirect") === "redirect"
+    ) {
+      handleAuthFailure(authMode);
+    }
+
     throw new ApiRequestError(
       response.status,
       errorPayload?.error.code ?? "HTTP_ERROR",

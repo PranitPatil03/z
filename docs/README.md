@@ -10,6 +10,7 @@ This folder contains implementation-ready documentation for the Foreman construc
 - LLM agents that need complete context
 
 ## Document Map
+- [14-multitenant-seed-login-checklist.md](14-multitenant-seed-login-checklist.md): Seeded login credentials, multi-tenant data map, and UI/API verification checklist.
 - [10-frontend-readiness-review.md](10-frontend-readiness-review.md): Current frontend readiness decision, evidence snapshot, and start gate.
 - [11-frontend-execution-plan.md](11-frontend-execution-plan.md): Detailed phase-by-phase frontend implementation plan (what and how).
 - [12-frontend-reference-intake-checklist.md](12-frontend-reference-intake-checklist.md): Required reference inputs to lock scope and avoid rework before coding.
@@ -55,12 +56,13 @@ Core principle: AI assists and automation accelerates, but humans approve decisi
 - Every entity must be tenant-scoped and permission-checked server-side.
 
 ## Reading Order
-1. Read [10-frontend-readiness-review.md](10-frontend-readiness-review.md) for the go/no-go frontend status and start gate.
-2. Read [11-frontend-execution-plan.md](11-frontend-execution-plan.md) for the detailed implementation plan.
-3. Read [12-frontend-reference-intake-checklist.md](12-frontend-reference-intake-checklist.md) and provide references.
-4. Read [13-frontend-module-wise-plan-and-progress.md](13-frontend-module-wise-plan-and-progress.md) for module-by-module execution and progress tracking.
-5. Read [08-backend-frontend-build-handbook.md](08-backend-frontend-build-handbook.md) for cross-team implementation workflow.
-6. Read [09-api-integration-reference.md](09-api-integration-reference.md) for route and contract integration details.
-7. Read feature set to understand what to build.
-8. Read architecture design to understand how to build it safely.
-9. Read implementation blueprint to understand the exact tools and delivery path.
+1. Read [14-multitenant-seed-login-checklist.md](14-multitenant-seed-login-checklist.md) to log in with seeded users and verify tenant-scoped data quickly.
+2. Read [10-frontend-readiness-review.md](10-frontend-readiness-review.md) for the go/no-go frontend status and start gate.
+3. Read [11-frontend-execution-plan.md](11-frontend-execution-plan.md) for the detailed implementation plan.
+4. Read [12-frontend-reference-intake-checklist.md](12-frontend-reference-intake-checklist.md) and provide references.
+5. Read [13-frontend-module-wise-plan-and-progress.md](13-frontend-module-wise-plan-and-progress.md) for module-by-module execution and progress tracking.
+6. Read [08-backend-frontend-build-handbook.md](08-backend-frontend-build-handbook.md) for cross-team implementation workflow.
+7. Read [09-api-integration-reference.md](09-api-integration-reference.md) for route and contract integration details.
+8. Read feature set to understand what to build.
+9. Read architecture design to understand how to build it safely.
+10. Read implementation blueprint to understand the exact tools and delivery path.

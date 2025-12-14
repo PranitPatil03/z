@@ -1,6 +1,7 @@
 export { authRouter } from "./auth";
 export { aiRouter } from "./ai";
 export { organizationsRouter } from "./organizations";
+export { permissionsRouter } from "./permissions";
 export { projectsRouter } from "./projects";
 export { rfqsRouter } from "./rfqs";
 export { purchaseOrdersRouter } from "./purchase-orders";
