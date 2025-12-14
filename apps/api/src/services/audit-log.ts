@@ -1,12 +1,16 @@
-import { and, eq, gte, lte } from "drizzle-orm";
 import { auditLogs } from "@foreman/db";
+import { and, eq, gte, lte } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
 import { buildCursorPagination, paginatedResponse } from "../lib/pagination";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { auditLogIdParamsSchema, createAuditLogSchema, listAuditLogsQuerySchema } from "../schemas/audit-log.schema";
+import {
+  auditLogIdParamsSchema,
+  createAuditLogSchema,
+  listAuditLogsQuerySchema,
+} from "../schemas/audit-log.schema";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -31,7 +35,9 @@ function requireContext(request: Request) {
 export const auditLogService = {
   async list(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listAuditLogsQuerySchema.parse(readValidatedQuery(request) ?? request.query);
+    const query = listAuditLogsQuerySchema.parse(
+      readValidatedQuery(request) ?? request.query,
+    );
 
     const filters = [eq(auditLogs.organizationId, orgId)];
     if (query.entityType) {
@@ -53,7 +59,10 @@ export const auditLogService = {
       filters.push(lte(auditLogs.createdAt, new Date(query.to)));
     }
 
-    const { cursorCondition, orderBy, limit } = buildCursorPagination(auditLogs.id, query);
+    const { cursorCondition, orderBy, limit } = buildCursorPagination(
+      auditLogs.id,
+      query,
+    );
     if (cursorCondition) filters.push(cursorCondition);
 
     const items = await db
@@ -94,7 +103,12 @@ export const auditLogService = {
     const [record] = await db
       .select()
       .from(auditLogs)
-      .where(and(eq(auditLogs.id, params.auditLogId), eq(auditLogs.organizationId, orgId)));
+      .where(
+        and(
+          eq(auditLogs.id, params.auditLogId),
+          eq(auditLogs.organizationId, orgId),
+        ),
+      );
 
     if (!record) {
       throw notFound("Audit log not found");

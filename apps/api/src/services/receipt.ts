@@ -1,11 +1,15 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { receipts } from "@foreman/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { createReceiptSchema, receiptIdParamsSchema, updateReceiptSchema } from "../schemas/receipt.schema";
+import {
+  createReceiptSchema,
+  receiptIdParamsSchema,
+  updateReceiptSchema,
+} from "../schemas/receipt.schema";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -26,7 +30,12 @@ function requireOrg(request: Request) {
 export const receiptService = {
   async list(request: Request) {
     const orgId = requireOrg(request);
-    return await db.select().from(receipts).where(and(eq(receipts.organizationId, orgId), isNull(receipts.deletedAt)));
+    return await db
+      .select()
+      .from(receipts)
+      .where(
+        and(eq(receipts.organizationId, orgId), isNull(receipts.deletedAt)),
+      );
   },
 
   async create(request: Request) {
@@ -57,7 +66,13 @@ export const receiptService = {
     const [record] = await db
       .select()
       .from(receipts)
-      .where(and(eq(receipts.id, params.receiptId), eq(receipts.organizationId, orgId), isNull(receipts.deletedAt)));
+      .where(
+        and(
+          eq(receipts.id, params.receiptId),
+          eq(receipts.organizationId, orgId),
+          isNull(receipts.deletedAt),
+        ),
+      );
 
     if (!record) {
       throw notFound("Receipt not found");
@@ -75,10 +90,19 @@ export const receiptService = {
       .update(receipts)
       .set({
         ...body,
-        receivedAt: body.receivedAt === undefined || body.receivedAt === null ? undefined : new Date(body.receivedAt),
+        receivedAt:
+          body.receivedAt === undefined || body.receivedAt === null
+            ? undefined
+            : new Date(body.receivedAt),
         updatedAt: new Date(),
       })
-      .where(and(eq(receipts.id, params.receiptId), eq(receipts.organizationId, orgId), isNull(receipts.deletedAt)))
+      .where(
+        and(
+          eq(receipts.id, params.receiptId),
+          eq(receipts.organizationId, orgId),
+          isNull(receipts.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -95,7 +119,13 @@ export const receiptService = {
     const [record] = await db
       .update(receipts)
       .set({ deletedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(receipts.id, params.receiptId), eq(receipts.organizationId, orgId), isNull(receipts.deletedAt)))
+      .where(
+        and(
+          eq(receipts.id, params.receiptId),
+          eq(receipts.organizationId, orgId),
+          isNull(receipts.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {

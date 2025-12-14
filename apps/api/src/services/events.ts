@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
 import { members, projectMembers } from "@foreman/db";
+import { and, eq } from "drizzle-orm";
 import { db } from "../database";
 import { logger } from "../lib/logger";
 import { notificationService } from "./notification";
@@ -46,10 +46,15 @@ function metadataProjectId(payload: EventPayload) {
   }
 
   const projectId = (metadata as Record<string, unknown>).projectId;
-  return typeof projectId === "string" && projectId.length > 0 ? projectId : null;
+  return typeof projectId === "string" && projectId.length > 0
+    ? projectId
+    : null;
 }
 
-async function resolveRecipientsByRole(payload: EventPayload, roleHint: string) {
+async function resolveRecipientsByRole(
+  payload: EventPayload,
+  roleHint: string,
+) {
   const recipients = new Set(payload.recipients ?? []);
   if (recipients.size > 0) {
     return [...recipients];
@@ -65,7 +70,12 @@ async function resolveRecipientsByRole(payload: EventPayload, roleHint: string) 
     const rows = await db
       .select({ userId: members.userId })
       .from(members)
-      .where(and(eq(members.organizationId, payload.organizationId), eq(members.role, parsedRole.role)));
+      .where(
+        and(
+          eq(members.organizationId, payload.organizationId),
+          eq(members.role, parsedRole.role),
+        ),
+      );
 
     for (const row of rows) {
       recipients.add(row.userId);
@@ -99,7 +109,12 @@ async function resolveRecipientsByRole(payload: EventPayload, roleHint: string) 
   const fallbackRows = await db
     .select({ userId: members.userId })
     .from(members)
-    .where(and(eq(members.organizationId, payload.organizationId), eq(members.role, "admin")));
+    .where(
+      and(
+        eq(members.organizationId, payload.organizationId),
+        eq(members.role, "admin"),
+      ),
+    );
 
   for (const row of fallbackRows) {
     recipients.add(row.userId);
@@ -109,15 +124,26 @@ async function resolveRecipientsByRole(payload: EventPayload, roleHint: string) 
 }
 
 // Event handler registry
-const eventHandlers: Record<NotificationEvent, (payload: EventPayload) => Promise<void>> = {
+const eventHandlers: Record<
+  NotificationEvent,
+  (payload: EventPayload) => Promise<void>
+> = {
   async "payment.received"(payload) {
     await notifyUsers(payload, "Payment Received");
   },
   async "payment.failed"(payload) {
-    await notifyUsersWithRole(payload, "org:admin", "Payment Failed - Action Required");
+    await notifyUsersWithRole(
+      payload,
+      "org:admin",
+      "Payment Failed - Action Required",
+    );
   },
   async "change_order.submitted"(payload) {
-    await notifyUsersWithRole(payload, "org:approver", "New Change Order Pending Approval");
+    await notifyUsersWithRole(
+      payload,
+      "org:approver",
+      "New Change Order Pending Approval",
+    );
   },
   async "change_order.approved"(payload) {
     await notifyUsers(payload, "Change Order Approved");
@@ -129,13 +155,25 @@ const eventHandlers: Record<NotificationEvent, (payload: EventPayload) => Promis
     await notifyUsersWithRole(payload, "org:billing", "New Invoice Created");
   },
   async "invoice.overdue"(payload) {
-    await notifyUsersWithRole(payload, "org:billing", "Invoice Overdue - Payment Required");
+    await notifyUsersWithRole(
+      payload,
+      "org:billing",
+      "Invoice Overdue - Payment Required",
+    );
   },
   async "budget.threshold_exceeded"(payload) {
-    await notifyUsersWithRole(payload, "org:finance", "Budget Threshold Exceeded");
+    await notifyUsersWithRole(
+      payload,
+      "org:finance",
+      "Budget Threshold Exceeded",
+    );
   },
   async "compliance.due"(payload) {
-    await notifyUsersWithRole(payload, "org:compliance", "Compliance Item Due Soon");
+    await notifyUsersWithRole(
+      payload,
+      "org:compliance",
+      "Compliance Item Due Soon",
+    );
   },
   async "subscription.created"(payload) {
     await notifyUsersWithRole(payload, "org:admin", "New Subscription Created");
@@ -161,12 +199,19 @@ async function notifyUsers(payload: EventPayload, defaultTitle: string) {
   }
 }
 
-async function notifyUsersWithRole(payload: EventPayload, role: string, defaultTitle: string) {
+async function notifyUsersWithRole(
+  payload: EventPayload,
+  role: string,
+  defaultTitle: string,
+) {
   const resolvedRecipients = await resolveRecipientsByRole(payload, role);
-  await notifyUsers({
-    ...payload,
-    recipients: resolvedRecipients,
-  }, defaultTitle);
+  await notifyUsers(
+    {
+      ...payload,
+      recipients: resolvedRecipients,
+    },
+    defaultTitle,
+  );
 }
 
 export const eventService = {
@@ -182,7 +227,10 @@ export const eventService = {
         logger.warn({ event: payload.event }, "No handler found for event");
       }
     } catch (error) {
-      logger.error({ event: payload.event, err: error }, "Error handling event");
+      logger.error(
+        { event: payload.event, err: error },
+        "Error handling event",
+      );
     }
   },
 
@@ -196,7 +244,10 @@ export const eventService = {
   /**
    * Register a custom event handler
    */
-  registerHandler(event: NotificationEvent, handler: (payload: EventPayload) => Promise<void>): void {
+  registerHandler(
+    event: NotificationEvent,
+    handler: (payload: EventPayload) => Promise<void>,
+  ): void {
     eventHandlers[event] = handler;
   },
 };

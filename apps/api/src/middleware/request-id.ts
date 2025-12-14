@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 /**
@@ -8,7 +8,11 @@ import type { NextFunction, Request, Response } from "express";
  *
  * The ID is set on both the request and response headers for tracing.
  */
-export function requestId(request: Request, response: Response, next: NextFunction) {
+export function requestId(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+) {
   const id = (request.headers["x-request-id"] as string) || crypto.randomUUID();
   request.headers["x-request-id"] = id;
   response.setHeader("x-request-id", id);

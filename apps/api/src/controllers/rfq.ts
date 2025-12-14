@@ -6,7 +6,10 @@ export async function listRfqsController(request: Request, response: Response) {
   response.json({ data });
 }
 
-export async function createRfqController(request: Request, response: Response) {
+export async function createRfqController(
+  request: Request,
+  response: Response,
+) {
   const data = await rfqService.create(request);
   response.status(201).json({ data });
 }
@@ -16,12 +19,18 @@ export async function getRfqController(request: Request, response: Response) {
   response.json({ data });
 }
 
-export async function updateRfqController(request: Request, response: Response) {
+export async function updateRfqController(
+  request: Request,
+  response: Response,
+) {
   const data = await rfqService.update(request);
   response.json({ data });
 }
 
-export async function archiveRfqController(request: Request, response: Response) {
+export async function archiveRfqController(
+  request: Request,
+  response: Response,
+) {
   const data = await rfqService.archive(request);
   response.json({ data });
 }

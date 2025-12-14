@@ -1,4 +1,10 @@
-import { createDb, notifications, siteSnapObservations, siteSnaps, users } from "@foreman/db";
+import {
+  createDb,
+  notifications,
+  siteSnapObservations,
+  siteSnaps,
+  users,
+} from "@foreman/db";
 import { and, eq } from "drizzle-orm";
 import type pino from "pino";
 import { sendNotificationEmail } from "./email";
@@ -70,7 +76,9 @@ function normalizeConfidence(raw: unknown) {
   return 6000;
 }
 
-function fallbackCategoryFromDetail(detail: string): SiteSnapObservationCategory {
+function fallbackCategoryFromDetail(
+  detail: string,
+): SiteSnapObservationCategory {
   const lowered = detail.toLowerCase();
 
   if (
@@ -97,9 +105,15 @@ function fallbackCategoryFromDetail(detail: string): SiteSnapObservationCategory
   return "work_progress";
 }
 
-function normalizeCategory(raw: unknown, detail: string): SiteSnapObservationCategory {
+function normalizeCategory(
+  raw: unknown,
+  detail: string,
+): SiteSnapObservationCategory {
   if (typeof raw === "string") {
-    const normalized = raw.trim().toLowerCase().replace(/\s+/g, "_") as SiteSnapObservationCategory;
+    const normalized = raw
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_") as SiteSnapObservationCategory;
     if (CATEGORY_SET.has(normalized)) {
       return normalized;
     }
@@ -144,7 +158,9 @@ function extractJsonFromText(text: string) {
   return null;
 }
 
-function normalizeObservationRecords(records: unknown[]): ParsedSiteSnapObservation[] {
+function normalizeObservationRecords(
+  records: unknown[],
+): ParsedSiteSnapObservation[] {
   const observations: ParsedSiteSnapObservation[] = [];
 
   for (const record of records) {
@@ -153,15 +169,21 @@ function normalizeObservationRecords(records: unknown[]): ParsedSiteSnapObservat
     }
 
     const row = record as Record<string, unknown>;
-    const detailRaw = row.detail ?? row.observation ?? row.description ?? row.summary;
+    const detailRaw =
+      row.detail ?? row.observation ?? row.description ?? row.summary;
     const detail = typeof detailRaw === "string" ? detailRaw.trim() : "";
     if (!detail) {
       continue;
     }
 
     observations.push({
-      category: normalizeCategory(row.category ?? row.type ?? row.label, detail),
-      confidenceBps: normalizeConfidence(row.confidenceBps ?? row.confidence ?? row.score),
+      category: normalizeCategory(
+        row.category ?? row.type ?? row.label,
+        detail,
+      ),
+      confidenceBps: normalizeConfidence(
+        row.confidenceBps ?? row.confidence ?? row.score,
+      ),
       detail: detail.slice(0, 500),
     });
   }
@@ -169,7 +191,9 @@ function normalizeObservationRecords(records: unknown[]): ParsedSiteSnapObservat
   return observations;
 }
 
-function fallbackObservationsFromText(output: string): ParsedSiteSnapObservation[] {
+function fallbackObservationsFromText(
+  output: string,
+): ParsedSiteSnapObservation[] {
   const lines = output
     .split(/\n+/)
     .map((line) => line.replace(/^[-*\d.\s]+/, "").trim())
@@ -187,7 +211,9 @@ function fallbackObservationsFromText(output: string): ParsedSiteSnapObservation
   }));
 }
 
-export function parseSiteSnapObservations(output: string): ParsedSiteSnapObservation[] {
+export function parseSiteSnapObservations(
+  output: string,
+): ParsedSiteSnapObservation[] {
   const parsed = extractJsonFromText(output);
 
   if (Array.isArray(parsed)) {
@@ -232,12 +258,17 @@ export async function persistSiteSnapAnalysis(params: {
   logger: pino.Logger;
 }) {
   if (!isSiteSnapAnalysisContext(params.context)) {
-    return { handled: false as const, reason: "not_site_snap_context" as const };
+    return {
+      handled: false as const,
+      reason: "not_site_snap_context" as const,
+    };
   }
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    params.logger.warn("SiteSnap AI persistence skipped: DATABASE_URL not configured");
+    params.logger.warn(
+      "SiteSnap AI persistence skipped: DATABASE_URL not configured",
+    );
     return { handled: false as const, reason: "database_unavailable" as const };
   }
 
@@ -270,7 +301,12 @@ export async function persistSiteSnapAnalysis(params: {
 
   await db
     .delete(siteSnapObservations)
-    .where(and(eq(siteSnapObservations.snapId, snap.id), eq(siteSnapObservations.source, "ai")));
+    .where(
+      and(
+        eq(siteSnapObservations.snapId, snap.id),
+        eq(siteSnapObservations.source, "ai"),
+      ),
+    );
 
   if (observations.length > 0) {
     await db.insert(siteSnapObservations).values(
@@ -293,10 +329,13 @@ export async function persistSiteSnapAnalysis(params: {
     })
     .where(eq(siteSnaps.id, snap.id));
 
-  const safetyThreshold = parseSafetyThreshold(params.context.safetyAlertMinConfidenceBps);
+  const safetyThreshold = parseSafetyThreshold(
+    params.context.safetyAlertMinConfidenceBps,
+  );
   const highConfidenceHazards = observations.filter(
     (observation) =>
-      observation.category === "safety_issue" && observation.confidenceBps >= safetyThreshold,
+      observation.category === "safety_issue" &&
+      observation.confidenceBps >= safetyThreshold,
   );
 
   let hazardNotificationCreated = false;
@@ -314,7 +353,9 @@ export async function persistSiteSnapAnalysis(params: {
         metadata: {
           siteSnapId: snap.id,
           hazardCount: highConfidenceHazards.length,
-          maxConfidenceBps: Math.max(...highConfidenceHazards.map((row) => row.confidenceBps)),
+          maxConfidenceBps: Math.max(
+            ...highConfidenceHazards.map((row) => row.confidenceBps),
+          ),
           thresholdBps: safetyThreshold,
         },
       })

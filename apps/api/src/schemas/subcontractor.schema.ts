@@ -18,10 +18,16 @@ export const listSubcontractorsQuerySchema = z.object({
   status: z.enum(["active", "inactive", "blocked"]).optional(),
   trade: z.string().min(1).optional(),
   portalEnabled: z
-    .union([z.boolean(), z.string().transform((value) => value.toLowerCase() === "true")])
+    .union([
+      z.boolean(),
+      z.string().transform((value) => value.toLowerCase() === "true"),
+    ])
     .optional(),
   includeComplianceSummary: z
-    .union([z.boolean(), z.string().transform((value) => value.toLowerCase() === "true")])
+    .union([
+      z.boolean(),
+      z.string().transform((value) => value.toLowerCase() === "true"),
+    ])
     .optional(),
 });
 
@@ -42,6 +48,9 @@ export const inviteSubcontractorPortalSchema = z.object({
   assignedScope: z.string().max(4000).optional(),
   milestones: z.array(z.string().min(1)).max(50).optional(),
   sendInviteEmail: z
-    .union([z.boolean(), z.string().transform((value) => value.toLowerCase() === "true")])
+    .union([
+      z.boolean(),
+      z.string().transform((value) => value.toLowerCase() === "true"),
+    ])
     .optional(),
 });

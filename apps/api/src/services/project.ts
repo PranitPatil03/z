@@ -1,8 +1,10 @@
+import { members, projectMembers, projects, users } from "@foreman/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Request } from "express";
-import { members, projectMembers, projects, users } from "@foreman/db";
 import { db } from "../database";
 import { badRequest, notFound, unauthorized } from "../lib/errors";
+import type { ValidatedRequest } from "../lib/validate";
+import { getAuthContext } from "../middleware/require-auth";
 import {
   createProjectMemberSchema,
   createProjectSchema,
@@ -12,8 +14,6 @@ import {
   updateProjectMemberSchema,
   updateProjectSchema,
 } from "../schemas/project.schema";
-import { getAuthContext } from "../middleware/require-auth";
-import type { ValidatedRequest } from "../lib/validate";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -57,7 +57,13 @@ async function ensureProject(orgId: string, projectId: string) {
   const [record] = await db
     .select()
     .from(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt)))
+    .where(
+      and(
+        eq(projects.id, projectId),
+        eq(projects.organizationId, orgId),
+        isNull(projects.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (!record) {
@@ -67,7 +73,11 @@ async function ensureProject(orgId: string, projectId: string) {
   return record;
 }
 
-async function assertProjectAccess(input: { orgId: string; userId: string; projectId: string }) {
+async function assertProjectAccess(input: {
+  orgId: string;
+  userId: string;
+  projectId: string;
+}) {
   const membership = await loadOrgMembership(input.orgId, input.userId);
   const project = await ensureProject(input.orgId, input.projectId);
 
@@ -103,7 +113,9 @@ export const projectService = {
       return await db
         .select()
         .from(projects)
-        .where(and(eq(projects.organizationId, orgId), isNull(projects.deletedAt)));
+        .where(
+          and(eq(projects.organizationId, orgId), isNull(projects.deletedAt)),
+        );
     }
 
     const assignedMemberships = await db
@@ -116,7 +128,9 @@ export const projectService = {
         ),
       );
 
-    const projectIds = Array.from(new Set(assignedMemberships.map((row) => row.projectId)));
+    const projectIds = Array.from(
+      new Set(assignedMemberships.map((row) => row.projectId)),
+    );
     if (projectIds.length === 0) {
       return [];
     }
@@ -124,7 +138,13 @@ export const projectService = {
     return await db
       .select()
       .from(projects)
-      .where(and(eq(projects.organizationId, orgId), isNull(projects.deletedAt), inArray(projects.id, projectIds)));
+      .where(
+        and(
+          eq(projects.organizationId, orgId),
+          isNull(projects.deletedAt),
+          inArray(projects.id, projectIds),
+        ),
+      );
   },
 
   async createProject(request: Request) {
@@ -148,7 +168,11 @@ export const projectService = {
     const { orgId, userId } = requireContext(request);
     const params = projectIdParamsSchema.parse(readValidatedParams(request));
 
-    return await assertProjectAccess({ orgId, userId, projectId: params.projectId });
+    return await assertProjectAccess({
+      orgId,
+      userId,
+      projectId: params.projectId,
+    });
   },
 
   async updateProject(request: Request) {
@@ -164,7 +188,13 @@ export const projectService = {
         ...body,
         updatedAt: new Date(),
       })
-      .where(and(eq(projects.id, params.projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt)))
+      .where(
+        and(
+          eq(projects.id, params.projectId),
+          eq(projects.organizationId, orgId),
+          isNull(projects.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -187,7 +217,13 @@ export const projectService = {
         deletedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(and(eq(projects.id, params.projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt)))
+      .where(
+        and(
+          eq(projects.id, params.projectId),
+          eq(projects.organizationId, orgId),
+          isNull(projects.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -199,7 +235,9 @@ export const projectService = {
 
   async listProjectMembers(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = projectMembersParamsSchema.parse(readValidatedParams(request));
+    const params = projectMembersParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     await assertProjectAccess({ orgId, userId, projectId: params.projectId });
 
@@ -233,7 +271,9 @@ export const projectService = {
 
   async createProjectMember(request: Request) {
     const { orgId } = requireContext(request);
-    const params = projectMembersParamsSchema.parse(readValidatedParams(request));
+    const params = projectMembersParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = createProjectMemberSchema.parse(readValidatedBody(request));
 
     await ensureProject(orgId, params.projectId);
@@ -263,7 +303,9 @@ export const projectService = {
 
   async updateProjectMember(request: Request) {
     const { orgId } = requireContext(request);
-    const params = projectMemberParamsSchema.parse(readValidatedParams(request));
+    const params = projectMemberParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateProjectMemberSchema.parse(readValidatedBody(request));
 
     await ensureProject(orgId, params.projectId);
@@ -293,7 +335,9 @@ export const projectService = {
 
   async removeProjectMember(request: Request) {
     const { orgId } = requireContext(request);
-    const params = projectMemberParamsSchema.parse(readValidatedParams(request));
+    const params = projectMemberParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     await ensureProject(orgId, params.projectId);
 

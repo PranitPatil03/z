@@ -5,7 +5,11 @@ import { badRequest } from "../lib/errors";
 import { aiTaskQueue, enqueueAiTask } from "../lib/queues";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { aiEstimateSchema, aiGenerateSchema, aiJobParamsSchema } from "../schemas/ai.schema";
+import {
+  aiEstimateSchema,
+  aiGenerateSchema,
+  aiJobParamsSchema,
+} from "../schemas/ai.schema";
 import { entitlementsService } from "./entitlements";
 
 function readValidatedBody<T>(request: Request) {
@@ -28,8 +32,12 @@ export const aiService = {
   async generateText(request: Request) {
     const orgId = requireOrg(request);
     const body = aiGenerateSchema.parse(readValidatedBody(request));
+    await entitlementsService.assertFeatureAccess(orgId, "ai.generate");
     const usageUnits = entitlementsService.estimateAiUnits(body.prompt);
-    const subscription = await entitlementsService.assertAiUsageAllowed(orgId, usageUnits);
+    const subscription = await entitlementsService.assertAiUsageAllowed(
+      orgId,
+      usageUnits,
+    );
 
     if (body.mode === "async") {
       const jobId = await enqueueAiTask({
@@ -49,6 +57,7 @@ export const aiService = {
       const updatedSubscription = await entitlementsService.recordAiUsage({
         organizationId: orgId,
         subscriptionId: subscription.id,
+        feature: "ai.generate",
         units: usageUnits,
         source: "ai.generate.async",
         model: body.model,
@@ -63,8 +72,11 @@ export const aiService = {
         jobId,
         usage: {
           units: usageUnits,
-          aiCreditsIncluded: updatedSubscription?.aiCreditsIncluded ?? subscription.aiCreditsIncluded,
-          aiCreditsUsed: updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
+          aiCreditsIncluded:
+            updatedSubscription?.aiCreditsIncluded ??
+            subscription.aiCreditsIncluded,
+          aiCreditsUsed:
+            updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
         },
       };
     }
@@ -81,12 +93,13 @@ export const aiService = {
         geminiApiKey: env.GEMINI_API_KEY,
         azureOpenAiApiKey: env.AZURE_OPENAI_API_KEY,
         azureOpenAiEndpoint: env.AZURE_OPENAI_ENDPOINT,
-      }
+      },
     );
 
     const updatedSubscription = await entitlementsService.recordAiUsage({
       organizationId: orgId,
       subscriptionId: subscription.id,
+      feature: "ai.generate",
       units: usageUnits,
       source: "ai.generate.sync",
       model: body.model,
@@ -101,8 +114,11 @@ export const aiService = {
       mode: "sync",
       usage: {
         units: usageUnits,
-        aiCreditsIncluded: updatedSubscription?.aiCreditsIncluded ?? subscription.aiCreditsIncluded,
-        aiCreditsUsed: updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
+        aiCreditsIncluded:
+          updatedSubscription?.aiCreditsIncluded ??
+          subscription.aiCreditsIncluded,
+        aiCreditsUsed:
+          updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
       },
     };
   },

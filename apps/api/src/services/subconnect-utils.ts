@@ -1,6 +1,6 @@
-import { randomBytes, createHash } from "node:crypto";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
 import { complianceItems, complianceRequirementTemplates } from "@foreman/db";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../database";
 
 export function hashToken(rawToken: string) {
@@ -49,7 +49,9 @@ export async function applyComplianceTemplatesForSubcontractor(input: {
     };
   }
 
-  const complianceTypes = Array.from(new Set(templates.map((template) => template.complianceType)));
+  const complianceTypes = Array.from(
+    new Set(templates.map((template) => template.complianceType)),
+  );
 
   const existing = await db
     .select({ complianceType: complianceItems.complianceType })
@@ -72,7 +74,9 @@ export async function applyComplianceTemplatesForSubcontractor(input: {
     .map((template) => {
       const dueDate = input.dueDateOverride
         ? input.dueDateOverride
-        : new Date(now.getTime() + template.defaultDueDays * 24 * 60 * 60 * 1000);
+        : new Date(
+            now.getTime() + template.defaultDueDays * 24 * 60 * 60 * 1000,
+          );
 
       return {
         organizationId: input.organizationId,

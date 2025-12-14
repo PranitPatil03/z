@@ -1,4 +1,3 @@
-import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import {
   budgetAlerts,
   budgetCostCodes,
@@ -8,6 +7,7 @@ import {
   invoices,
   purchaseOrders,
 } from "@foreman/db";
+import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { env } from "../config/env";
 import { db } from "../database";
@@ -19,12 +19,12 @@ import {
   budgetCostCodeEntryParamsSchema,
   budgetCostCodeIdParamsSchema,
   budgetProjectSettingsQuerySchema,
-  createBudgetCostEntrySchema,
   createBudgetCostCodeSchema,
+  createBudgetCostEntrySchema,
   listBudgetCostEntriesQuerySchema,
   listBudgetQuerySchema,
-  upsertBudgetProjectSettingsSchema,
   updateBudgetCostCodeSchema,
+  upsertBudgetProjectSettingsSchema,
 } from "../schemas/budget.schema";
 import { eventService } from "./events";
 
@@ -52,10 +52,15 @@ function varianceBps(item: { budgetCents: number; actualCents: number }) {
   if (item.budgetCents <= 0) {
     return 0;
   }
-  return Math.round(((item.actualCents - item.budgetCents) * 10000) / item.budgetCents);
+  return Math.round(
+    ((item.actualCents - item.budgetCents) * 10000) / item.budgetCents,
+  );
 }
 
-function billedPercentOfCommittedBps(item: { billedCents: number; committedCents: number }) {
+function billedPercentOfCommittedBps(item: {
+  billedCents: number;
+  committedCents: number;
+}) {
   if (item.committedCents <= 0) {
     return 0;
   }
@@ -66,7 +71,10 @@ function defaultAlertThresholdBps() {
   return env.BUDGET_DEFAULT_ALERT_THRESHOLD_BPS ?? 500;
 }
 
-function effectiveAlertThresholdBps(costCodeThresholdBps: number, projectThresholdBps?: number | null) {
+function effectiveAlertThresholdBps(
+  costCodeThresholdBps: number,
+  projectThresholdBps?: number | null,
+) {
   if (typeof projectThresholdBps !== "number") {
     return costCodeThresholdBps;
   }
@@ -96,7 +104,10 @@ function toBudgetMetrics(record: {
   const budgetMinusCommittedCents = record.budgetCents - record.committedCents;
   const committedMinusActualCents = record.committedCents - record.actualCents;
   const budgetMinusActualCents = record.budgetCents - record.actualCents;
-  const varianceBpsValue = varianceBps({ budgetCents: record.budgetCents, actualCents: record.actualCents });
+  const varianceBpsValue = varianceBps({
+    budgetCents: record.budgetCents,
+    actualCents: record.actualCents,
+  });
   const billedPercentOfCommittedBpsValue = billedPercentOfCommittedBps({
     billedCents: record.billedCents,
     committedCents: record.committedCents,
@@ -115,7 +126,12 @@ async function loadProjectSetting(orgId: string, projectId: string) {
   const [setting] = await db
     .select()
     .from(budgetProjectSettings)
-    .where(and(eq(budgetProjectSettings.organizationId, orgId), eq(budgetProjectSettings.projectId, projectId)))
+    .where(
+      and(
+        eq(budgetProjectSettings.organizationId, orgId),
+        eq(budgetProjectSettings.projectId, projectId),
+      ),
+    )
     .limit(1);
 
   return setting ?? null;
@@ -125,7 +141,12 @@ async function ensureCostCode(orgId: string, costCodeId: string) {
   const [costCode] = await db
     .select()
     .from(budgetCostCodes)
-    .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.id, costCodeId)))
+    .where(
+      and(
+        eq(budgetCostCodes.organizationId, orgId),
+        eq(budgetCostCodes.id, costCodeId),
+      ),
+    )
     .limit(1);
 
   if (!costCode) {
@@ -139,7 +160,12 @@ async function recalculateFromEntries(orgId: string, costCodeId: string) {
   const entries = await db
     .select()
     .from(budgetCostEntries)
-    .where(and(eq(budgetCostEntries.organizationId, orgId), eq(budgetCostEntries.costCodeId, costCodeId)));
+    .where(
+      and(
+        eq(budgetCostEntries.organizationId, orgId),
+        eq(budgetCostEntries.costCodeId, costCodeId),
+      ),
+    );
 
   const totals = entries.reduce(
     (acc, entry) => {
@@ -165,7 +191,12 @@ async function recalculateFromEntries(orgId: string, costCodeId: string) {
       billedCents: totals.billedCents,
       updatedAt: new Date(),
     })
-    .where(and(eq(budgetCostCodes.id, costCodeId), eq(budgetCostCodes.organizationId, orgId)))
+    .where(
+      and(
+        eq(budgetCostCodes.id, costCodeId),
+        eq(budgetCostCodes.organizationId, orgId),
+      ),
+    )
     .returning();
 
   if (!record) {
@@ -242,7 +273,13 @@ async function maybeCreateThresholdAlert(input: {
 async function validateSourceLink(input: {
   orgId: string;
   projectId: string;
-  sourceType: "change_order" | "purchase_order" | "invoice" | "payment_application" | "manual" | "other";
+  sourceType:
+    | "change_order"
+    | "purchase_order"
+    | "invoice"
+    | "payment_application"
+    | "manual"
+    | "other";
   sourceId?: string;
   entryType: "committed" | "actual" | "billed";
 }) {
@@ -264,7 +301,9 @@ async function validateSourceLink(input: {
     }
 
     if (input.entryType === "committed" && record.status !== "approved") {
-      throw badRequest("Committed entries can only link to approved change orders");
+      throw badRequest(
+        "Committed entries can only link to approved change orders",
+      );
     }
 
     return { sourceRef: record.title };
@@ -287,8 +326,13 @@ async function validateSourceLink(input: {
       throw badRequest("Linked purchase order was not found for this project");
     }
 
-    if (input.entryType === "committed" && !["issued", "approved"].includes(record.status)) {
-      throw badRequest("Committed entries can only link to issued or approved purchase orders");
+    if (
+      input.entryType === "committed" &&
+      !["issued", "approved"].includes(record.status)
+    ) {
+      throw badRequest(
+        "Committed entries can only link to issued or approved purchase orders",
+      );
     }
 
     return { sourceRef: record.poNumber };
@@ -311,12 +355,22 @@ async function validateSourceLink(input: {
       throw badRequest("Linked invoice was not found for this project");
     }
 
-    if (input.entryType === "actual" && !["approved", "paid"].includes(record.status)) {
-      throw badRequest("Actual entries can only link to approved or paid invoices");
+    if (
+      input.entryType === "actual" &&
+      !["approved", "paid"].includes(record.status)
+    ) {
+      throw badRequest(
+        "Actual entries can only link to approved or paid invoices",
+      );
     }
 
-    if (input.entryType === "billed" && !["submitted", "approved", "paid"].includes(record.status)) {
-      throw badRequest("Billed entries can only link to submitted, approved, or paid invoices");
+    if (
+      input.entryType === "billed" &&
+      !["submitted", "approved", "paid"].includes(record.status)
+    ) {
+      throw badRequest(
+        "Billed entries can only link to submitted, approved, or paid invoices",
+      );
     }
 
     return { sourceRef: record.invoiceNumber };
@@ -334,7 +388,12 @@ export const budgetService = {
       db
         .select()
         .from(budgetCostCodes)
-        .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, query.projectId))),
+        .where(
+          and(
+            eq(budgetCostCodes.organizationId, orgId),
+            eq(budgetCostCodes.projectId, query.projectId),
+          ),
+        ),
       loadProjectSetting(orgId, query.projectId),
     ]);
 
@@ -344,7 +403,10 @@ export const budgetService = {
       return {
         ...code,
         metrics,
-        effectiveAlertThresholdBps: effectiveAlertThresholdBps(code.alertThresholdBps, projectThresholdBps),
+        effectiveAlertThresholdBps: effectiveAlertThresholdBps(
+          code.alertThresholdBps,
+          projectThresholdBps,
+        ),
       };
     });
   },
@@ -373,7 +435,9 @@ export const budgetService = {
 
   async updateCostCode(request: Request) {
     const { orgId } = requireContext(request);
-    const params = budgetCostCodeIdParamsSchema.parse(readValidatedParams(request));
+    const params = budgetCostCodeIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateBudgetCostCodeSchema.parse(readValidatedBody(request));
 
     const [record] = await db
@@ -387,7 +451,12 @@ export const budgetService = {
         alertThresholdBps: body.alertThresholdBps,
         updatedAt: new Date(),
       })
-      .where(and(eq(budgetCostCodes.id, params.costCodeId), eq(budgetCostCodes.organizationId, orgId)))
+      .where(
+        and(
+          eq(budgetCostCodes.id, params.costCodeId),
+          eq(budgetCostCodes.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -395,7 +464,10 @@ export const budgetService = {
     }
 
     const projectSetting = await loadProjectSetting(orgId, record.projectId);
-    const thresholdBps = effectiveAlertThresholdBps(record.alertThresholdBps, projectSetting?.alertThresholdBps);
+    const thresholdBps = effectiveAlertThresholdBps(
+      record.alertThresholdBps,
+      projectSetting?.alertThresholdBps,
+    );
     const alert = await maybeCreateThresholdAlert({
       orgId,
       projectId: record.projectId,
@@ -418,10 +490,16 @@ export const budgetService = {
     const codes = await db
       .select()
       .from(budgetCostCodes)
-      .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, query.projectId)));
+      .where(
+        and(
+          eq(budgetCostCodes.organizationId, orgId),
+          eq(budgetCostCodes.projectId, query.projectId),
+        ),
+      );
 
     const projectSetting = await loadProjectSetting(orgId, query.projectId);
-    const projectThresholdBps = projectSetting?.alertThresholdBps ?? defaultAlertThresholdBps();
+    const projectThresholdBps =
+      projectSetting?.alertThresholdBps ?? defaultAlertThresholdBps();
 
     const totals = codes.reduce(
       (acc, code) => {
@@ -448,7 +526,10 @@ export const budgetService = {
       byCostCode: codes.map((code) => ({
         ...code,
         metrics: toBudgetMetrics(code),
-        effectiveAlertThresholdBps: effectiveAlertThresholdBps(code.alertThresholdBps, projectThresholdBps),
+        effectiveAlertThresholdBps: effectiveAlertThresholdBps(
+          code.alertThresholdBps,
+          projectThresholdBps,
+        ),
       })),
     };
   },
@@ -461,48 +542,74 @@ export const budgetService = {
       db
         .select()
         .from(budgetCostCodes)
-        .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, query.projectId))),
+        .where(
+          and(
+            eq(budgetCostCodes.organizationId, orgId),
+            eq(budgetCostCodes.projectId, query.projectId),
+          ),
+        ),
       db
         .select()
         .from(budgetAlerts)
-        .where(and(eq(budgetAlerts.organizationId, orgId), eq(budgetAlerts.projectId, query.projectId)))
+        .where(
+          and(
+            eq(budgetAlerts.organizationId, orgId),
+            eq(budgetAlerts.projectId, query.projectId),
+          ),
+        )
         .orderBy(desc(budgetAlerts.createdAt)),
       db
         .select()
         .from(budgetCostEntries)
-        .where(and(eq(budgetCostEntries.organizationId, orgId), eq(budgetCostEntries.projectId, query.projectId))),
+        .where(
+          and(
+            eq(budgetCostEntries.organizationId, orgId),
+            eq(budgetCostEntries.projectId, query.projectId),
+          ),
+        ),
       loadProjectSetting(orgId, query.projectId),
     ]);
 
-    const entryStatsByCostCode = entries.reduce<Record<string, { count: number; committed: number; actual: number; billed: number }>>(
-      (acc, entry) => {
-        if (!acc[entry.costCodeId]) {
-          acc[entry.costCodeId] = { count: 0, committed: 0, actual: 0, billed: 0 };
+    const entryStatsByCostCode = entries.reduce<
+      Record<
+        string,
+        { count: number; committed: number; actual: number; billed: number }
+      >
+    >((acc, entry) => {
+      if (!acc[entry.costCodeId]) {
+        acc[entry.costCodeId] = {
+          count: 0,
+          committed: 0,
+          actual: 0,
+          billed: 0,
+        };
+      }
+      acc[entry.costCodeId].count += 1;
+      if (entry.entryType === "committed") {
+        acc[entry.costCodeId].committed += entry.amountCents;
+      }
+      if (entry.entryType === "actual") {
+        acc[entry.costCodeId].actual += entry.amountCents;
+      }
+      if (entry.entryType === "billed") {
+        acc[entry.costCodeId].billed += entry.amountCents;
+      }
+      return acc;
+    }, {});
+
+    const alertsByCostCode = alerts.reduce<Record<string, typeof alerts>>(
+      (acc, alert) => {
+        if (!acc[alert.costCodeId]) {
+          acc[alert.costCodeId] = [];
         }
-        acc[entry.costCodeId].count += 1;
-        if (entry.entryType === "committed") {
-          acc[entry.costCodeId].committed += entry.amountCents;
-        }
-        if (entry.entryType === "actual") {
-          acc[entry.costCodeId].actual += entry.amountCents;
-        }
-        if (entry.entryType === "billed") {
-          acc[entry.costCodeId].billed += entry.amountCents;
-        }
+        acc[alert.costCodeId].push(alert);
         return acc;
       },
       {},
     );
 
-    const alertsByCostCode = alerts.reduce<Record<string, typeof alerts>>((acc, alert) => {
-      if (!acc[alert.costCodeId]) {
-        acc[alert.costCodeId] = [];
-      }
-      acc[alert.costCodeId].push(alert);
-      return acc;
-    }, {});
-
-    const projectThresholdBps = projectSetting?.alertThresholdBps ?? defaultAlertThresholdBps();
+    const projectThresholdBps =
+      projectSetting?.alertThresholdBps ?? defaultAlertThresholdBps();
 
     return {
       items: codes.map((code) => ({
@@ -514,20 +621,31 @@ export const budgetService = {
         actualCents: code.actualCents,
         billedCents: code.billedCents,
         metrics: toBudgetMetrics(code),
-        effectiveAlertThresholdBps: effectiveAlertThresholdBps(code.alertThresholdBps, projectThresholdBps),
-        entryStats: entryStatsByCostCode[code.id] ?? { count: 0, committed: 0, actual: 0, billed: 0 },
+        effectiveAlertThresholdBps: effectiveAlertThresholdBps(
+          code.alertThresholdBps,
+          projectThresholdBps,
+        ),
+        entryStats: entryStatsByCostCode[code.id] ?? {
+          count: 0,
+          committed: 0,
+          actual: 0,
+          billed: 0,
+        },
         latestAlert: alertsByCostCode[code.id]?.[0] ?? null,
       })),
       projectAlertThresholdBps: projectThresholdBps,
       alerts,
-      unresolvedAlertCount: alerts.filter((alert) => alert.resolvedAt === null).length,
+      unresolvedAlertCount: alerts.filter((alert) => alert.resolvedAt === null)
+        .length,
       entryCount: entries.length,
     };
   },
 
   async getSettings(request: Request) {
     const { orgId } = requireContext(request);
-    const query = budgetProjectSettingsQuerySchema.parse(readValidatedQuery(request));
+    const query = budgetProjectSettingsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     const setting = await loadProjectSetting(orgId, query.projectId);
     if (!setting) {
@@ -546,7 +664,9 @@ export const budgetService = {
 
   async upsertSettings(request: Request) {
     const { orgId } = requireContext(request);
-    const body = upsertBudgetProjectSettingsSchema.parse(readValidatedBody(request));
+    const body = upsertBudgetProjectSettingsSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [record] = await db
       .insert(budgetProjectSettings)
@@ -556,7 +676,10 @@ export const budgetService = {
         alertThresholdBps: body.alertThresholdBps,
       })
       .onConflictDoUpdate({
-        target: [budgetProjectSettings.organizationId, budgetProjectSettings.projectId],
+        target: [
+          budgetProjectSettings.organizationId,
+          budgetProjectSettings.projectId,
+        ],
         set: {
           alertThresholdBps: body.alertThresholdBps,
           updatedAt: new Date(),
@@ -569,8 +692,12 @@ export const budgetService = {
 
   async listEntries(request: Request) {
     const { orgId } = requireContext(request);
-    const params = budgetCostCodeEntryParamsSchema.parse(readValidatedParams(request));
-    const query = listBudgetCostEntriesQuerySchema.parse(readValidatedQuery(request));
+    const params = budgetCostCodeEntryParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const query = listBudgetCostEntriesQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     const costCode = await ensureCostCode(orgId, params.costCodeId);
     if (costCode.projectId !== query.projectId) {
@@ -595,13 +722,18 @@ export const budgetService = {
       .select()
       .from(budgetCostEntries)
       .where(and(...conditions))
-      .orderBy(desc(budgetCostEntries.occurredAt), desc(budgetCostEntries.createdAt))
+      .orderBy(
+        desc(budgetCostEntries.occurredAt),
+        desc(budgetCostEntries.createdAt),
+      )
       .limit(query.limit);
   },
 
   async createEntry(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = budgetCostCodeEntryParamsSchema.parse(readValidatedParams(request));
+    const params = budgetCostCodeEntryParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = createBudgetCostEntrySchema.parse(readValidatedBody(request));
 
     const costCode = await ensureCostCode(orgId, params.costCodeId);
@@ -637,7 +769,10 @@ export const budgetService = {
 
     const updatedCostCode = await recalculateFromEntries(orgId, costCode.id);
     const projectSetting = await loadProjectSetting(orgId, body.projectId);
-    const thresholdBps = effectiveAlertThresholdBps(updatedCostCode.alertThresholdBps, projectSetting?.alertThresholdBps);
+    const thresholdBps = effectiveAlertThresholdBps(
+      updatedCostCode.alertThresholdBps,
+      projectSetting?.alertThresholdBps,
+    );
     const thresholdAlert = await maybeCreateThresholdAlert({
       orgId,
       projectId: body.projectId,
@@ -656,8 +791,12 @@ export const budgetService = {
 
   async drilldown(request: Request) {
     const { orgId } = requireContext(request);
-    const params = budgetCostCodeEntryParamsSchema.parse(readValidatedParams(request));
-    const query = budgetCostCodeDrilldownQuerySchema.parse(readValidatedQuery(request));
+    const params = budgetCostCodeEntryParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const query = budgetCostCodeDrilldownQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     const costCode = await ensureCostCode(orgId, params.costCodeId);
     if (costCode.projectId !== query.projectId) {
@@ -676,49 +815,110 @@ export const budgetService = {
             eq(budgetCostEntries.costCodeId, costCode.id),
           ),
         )
-        .orderBy(desc(budgetCostEntries.occurredAt), desc(budgetCostEntries.createdAt))
+        .orderBy(
+          desc(budgetCostEntries.occurredAt),
+          desc(budgetCostEntries.createdAt),
+        )
         .limit(query.limit),
       db
         .select()
         .from(budgetAlerts)
-        .where(and(eq(budgetAlerts.organizationId, orgId), eq(budgetAlerts.costCodeId, costCode.id)))
+        .where(
+          and(
+            eq(budgetAlerts.organizationId, orgId),
+            eq(budgetAlerts.costCodeId, costCode.id),
+          ),
+        )
         .orderBy(desc(budgetAlerts.createdAt))
         .limit(query.limit),
     ]);
 
     const changeOrderIds = Array.from(
-      new Set(entries.filter((entry) => entry.sourceType === "change_order" && entry.sourceId).map((entry) => entry.sourceId!)),
+      new Set(
+        entries
+          .filter((entry) => entry.sourceType === "change_order")
+          .map((entry) => entry.sourceId)
+          .filter(
+            (sourceId): sourceId is string => typeof sourceId === "string",
+          ),
+      ),
     );
     const purchaseOrderIds = Array.from(
-      new Set(entries.filter((entry) => entry.sourceType === "purchase_order" && entry.sourceId).map((entry) => entry.sourceId!)),
+      new Set(
+        entries
+          .filter((entry) => entry.sourceType === "purchase_order")
+          .map((entry) => entry.sourceId)
+          .filter(
+            (sourceId): sourceId is string => typeof sourceId === "string",
+          ),
+      ),
     );
     const invoiceIds = Array.from(
-      new Set(entries.filter((entry) => entry.sourceType === "invoice" && entry.sourceId).map((entry) => entry.sourceId!)),
+      new Set(
+        entries
+          .filter((entry) => entry.sourceType === "invoice")
+          .map((entry) => entry.sourceId)
+          .filter(
+            (sourceId): sourceId is string => typeof sourceId === "string",
+          ),
+      ),
     );
 
-    const [changeOrderRecords, purchaseOrderRecords, invoiceRecords] = await Promise.all([
-      changeOrderIds.length > 0
-        ? db
-            .select({ id: changeOrders.id, title: changeOrders.title, status: changeOrders.status })
-            .from(changeOrders)
-            .where(and(eq(changeOrders.organizationId, orgId), inArray(changeOrders.id, changeOrderIds)))
-        : Promise.resolve([]),
-      purchaseOrderIds.length > 0
-        ? db
-            .select({ id: purchaseOrders.id, poNumber: purchaseOrders.poNumber, status: purchaseOrders.status })
-            .from(purchaseOrders)
-            .where(and(eq(purchaseOrders.organizationId, orgId), inArray(purchaseOrders.id, purchaseOrderIds)))
-        : Promise.resolve([]),
-      invoiceIds.length > 0
-        ? db
-            .select({ id: invoices.id, invoiceNumber: invoices.invoiceNumber, status: invoices.status })
-            .from(invoices)
-            .where(and(eq(invoices.organizationId, orgId), inArray(invoices.id, invoiceIds)))
-        : Promise.resolve([]),
-    ]);
+    const [changeOrderRecords, purchaseOrderRecords, invoiceRecords] =
+      await Promise.all([
+        changeOrderIds.length > 0
+          ? db
+              .select({
+                id: changeOrders.id,
+                title: changeOrders.title,
+                status: changeOrders.status,
+              })
+              .from(changeOrders)
+              .where(
+                and(
+                  eq(changeOrders.organizationId, orgId),
+                  inArray(changeOrders.id, changeOrderIds),
+                ),
+              )
+          : Promise.resolve([]),
+        purchaseOrderIds.length > 0
+          ? db
+              .select({
+                id: purchaseOrders.id,
+                poNumber: purchaseOrders.poNumber,
+                status: purchaseOrders.status,
+              })
+              .from(purchaseOrders)
+              .where(
+                and(
+                  eq(purchaseOrders.organizationId, orgId),
+                  inArray(purchaseOrders.id, purchaseOrderIds),
+                ),
+              )
+          : Promise.resolve([]),
+        invoiceIds.length > 0
+          ? db
+              .select({
+                id: invoices.id,
+                invoiceNumber: invoices.invoiceNumber,
+                status: invoices.status,
+              })
+              .from(invoices)
+              .where(
+                and(
+                  eq(invoices.organizationId, orgId),
+                  inArray(invoices.id, invoiceIds),
+                ),
+              )
+          : Promise.resolve([]),
+      ]);
 
-    const changeOrderById = new Map(changeOrderRecords.map((row) => [row.id, row]));
-    const purchaseOrderById = new Map(purchaseOrderRecords.map((row) => [row.id, row]));
+    const changeOrderById = new Map(
+      changeOrderRecords.map((row) => [row.id, row]),
+    );
+    const purchaseOrderById = new Map(
+      purchaseOrderRecords.map((row) => [row.id, row]),
+    );
     const invoiceById = new Map(invoiceRecords.map((row) => [row.id, row]));
 
     const entryTotals = entries.reduce(
@@ -741,7 +941,10 @@ export const budgetService = {
       costCode: {
         ...costCode,
         metrics: toBudgetMetrics(costCode),
-        effectiveAlertThresholdBps: effectiveAlertThresholdBps(costCode.alertThresholdBps, projectSetting?.alertThresholdBps),
+        effectiveAlertThresholdBps: effectiveAlertThresholdBps(
+          costCode.alertThresholdBps,
+          projectSetting?.alertThresholdBps,
+        ),
       },
       entryTotals,
       entries: entries.map((entry) => {

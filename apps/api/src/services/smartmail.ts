@@ -1,4 +1,4 @@
-import { generateAiCompletion, type LlmProviderName } from "@foreman/ai";
+import { type LlmProviderName, generateAiCompletion } from "@foreman/ai";
 import {
   changeOrders,
   invoices,
@@ -35,8 +35,13 @@ import {
   updateSmartMailTemplateSchema,
 } from "../schemas/smartmail.schema";
 import { entitlementsService } from "./entitlements";
-import { detectDeterministicEntityLink, type SmartMailLinkedEntityType } from "./smartmail-linking";
 import {
+  type SmartMailLinkedEntityType,
+  detectDeterministicEntityLink,
+} from "./smartmail-linking";
+import {
+  type OAuthProviderConfig,
+  type SmartMailProvider,
   decryptOpaqueToken,
   encryptOpaqueToken,
   exchangeGoogleCode,
@@ -44,8 +49,6 @@ import {
   fetchProviderMessages,
   refreshProviderAccessToken,
   sendProviderMessage,
-  type OAuthProviderConfig,
-  type SmartMailProvider,
 } from "./smartmail-provider";
 
 function readValidatedBody<T>(request: Request) {
@@ -78,13 +81,16 @@ function providerConfig(): OAuthProviderConfig {
     googleClientSecret: env.GOOGLE_CLIENT_SECRET,
     outlookClientId: env.OUTLOOK_CLIENT_ID,
     outlookClientSecret: env.OUTLOOK_CLIENT_SECRET,
-    redirectUri: env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
+    redirectUri:
+      env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
   };
 }
 
 function encryptionKey() {
   if (!env.ENCRYPTION_KEY) {
-    throw badRequest("ENCRYPTION_KEY is required for SmartMail token operations");
+    throw badRequest(
+      "ENCRYPTION_KEY is required for SmartMail token operations",
+    );
   }
 
   return env.ENCRYPTION_KEY;
@@ -125,7 +131,12 @@ async function loadAccountOrThrow(orgId: string, accountId: string) {
   const [account] = await db
     .select()
     .from(smartMailAccounts)
-    .where(and(eq(smartMailAccounts.id, accountId), eq(smartMailAccounts.organizationId, orgId)));
+    .where(
+      and(
+        eq(smartMailAccounts.id, accountId),
+        eq(smartMailAccounts.organizationId, orgId),
+      ),
+    );
 
   if (!account) {
     throw notFound("SmartMail account not found");
@@ -138,7 +149,12 @@ async function loadThreadOrThrow(orgId: string, threadId: string) {
   const [thread] = await db
     .select()
     .from(smartMailThreads)
-    .where(and(eq(smartMailThreads.id, threadId), eq(smartMailThreads.organizationId, orgId)));
+    .where(
+      and(
+        eq(smartMailThreads.id, threadId),
+        eq(smartMailThreads.organizationId, orgId),
+      ),
+    );
 
   if (!thread) {
     throw notFound("SmartMail thread not found");
@@ -147,15 +163,23 @@ async function loadThreadOrThrow(orgId: string, threadId: string) {
   return thread;
 }
 
-function resolveProjectIdForSync(account: typeof smartMailAccounts.$inferSelect, requestedProjectId?: string) {
+function resolveProjectIdForSync(
+  account: typeof smartMailAccounts.$inferSelect,
+  requestedProjectId?: string,
+) {
   const projectId = requestedProjectId ?? account.defaultProjectId ?? undefined;
   if (!projectId) {
-    throw badRequest("projectId is required when account.defaultProjectId is not configured");
+    throw badRequest(
+      "projectId is required when account.defaultProjectId is not configured",
+    );
   }
   return projectId;
 }
 
-async function resolveValidAccessToken(account: typeof smartMailAccounts.$inferSelect, forceRefresh = false) {
+async function resolveValidAccessToken(
+  account: typeof smartMailAccounts.$inferSelect,
+  forceRefresh = false,
+) {
   if (!account.accessToken) {
     throw badRequest("Account access token is missing");
   }
@@ -189,7 +213,9 @@ async function resolveValidAccessToken(account: typeof smartMailAccounts.$inferS
     .update(smartMailAccounts)
     .set({
       accessToken: encryptOpaqueToken(refreshed.accessToken, key),
-      refreshToken: refreshed.refreshToken ? encryptOpaqueToken(refreshed.refreshToken, key) : account.refreshToken,
+      refreshToken: refreshed.refreshToken
+        ? encryptOpaqueToken(refreshed.refreshToken, key)
+        : account.refreshToken,
       tokenExpiresAt: refreshed.expiresAt,
       status: "connected",
       lastSyncError: null,
@@ -209,36 +235,52 @@ async function resolveValidAccessToken(account: typeof smartMailAccounts.$inferS
 }
 
 async function loadLinkInputs(orgId: string, projectId: string) {
-  const [poRows, invoiceRows, changeOrderRows, subcontractorRows] = await Promise.all([
-    db
-      .select({ id: purchaseOrders.id, ref: purchaseOrders.poNumber })
-      .from(purchaseOrders)
-      .where(
-        and(
-          eq(purchaseOrders.organizationId, orgId),
-          eq(purchaseOrders.projectId, projectId),
-          isNull(purchaseOrders.deletedAt),
+  const [poRows, invoiceRows, changeOrderRows, subcontractorRows] =
+    await Promise.all([
+      db
+        .select({ id: purchaseOrders.id, ref: purchaseOrders.poNumber })
+        .from(purchaseOrders)
+        .where(
+          and(
+            eq(purchaseOrders.organizationId, orgId),
+            eq(purchaseOrders.projectId, projectId),
+            isNull(purchaseOrders.deletedAt),
+          ),
         ),
-      ),
-    db
-      .select({ id: invoices.id, ref: invoices.invoiceNumber })
-      .from(invoices)
-      .where(and(eq(invoices.organizationId, orgId), eq(invoices.projectId, projectId), isNull(invoices.deletedAt))),
-    db
-      .select({ id: changeOrders.id, ref: changeOrders.title })
-      .from(changeOrders)
-      .where(and(eq(changeOrders.organizationId, orgId), eq(changeOrders.projectId, projectId))),
-    db
-      .select({ id: subcontractors.id, name: subcontractors.name, email: subcontractors.email })
-      .from(subcontractors)
-      .where(
-        and(
-          eq(subcontractors.organizationId, orgId),
-          eq(subcontractors.projectId, projectId),
-          isNull(subcontractors.deletedAt),
+      db
+        .select({ id: invoices.id, ref: invoices.invoiceNumber })
+        .from(invoices)
+        .where(
+          and(
+            eq(invoices.organizationId, orgId),
+            eq(invoices.projectId, projectId),
+            isNull(invoices.deletedAt),
+          ),
         ),
-      ),
-  ]);
+      db
+        .select({ id: changeOrders.id, ref: changeOrders.title })
+        .from(changeOrders)
+        .where(
+          and(
+            eq(changeOrders.organizationId, orgId),
+            eq(changeOrders.projectId, projectId),
+          ),
+        ),
+      db
+        .select({
+          id: subcontractors.id,
+          name: subcontractors.name,
+          email: subcontractors.email,
+        })
+        .from(subcontractors)
+        .where(
+          and(
+            eq(subcontractors.organizationId, orgId),
+            eq(subcontractors.projectId, projectId),
+            isNull(subcontractors.deletedAt),
+          ),
+        ),
+    ]);
 
   return {
     purchaseOrders: poRows,
@@ -297,7 +339,11 @@ async function upsertThread(input: {
       lastMessageAt: input.lastMessageAt,
     })
     .onConflictDoUpdate({
-      target: [smartMailThreads.organizationId, smartMailThreads.accountId, smartMailThreads.externalThreadId],
+      target: [
+        smartMailThreads.organizationId,
+        smartMailThreads.accountId,
+        smartMailThreads.externalThreadId,
+      ],
       set: {
         projectId: input.projectId,
         subject: input.subject,
@@ -317,8 +363,15 @@ function toPrimaryToEmail(toEmails: string[]) {
   return toEmails[0] ?? "";
 }
 
-function buildDeterministicLinkText(subject: string, body: string, fromEmail: string, toEmails: string[]) {
-  return [subject, body, fromEmail, toEmails.join(" ")].filter(Boolean).join("\n");
+function buildDeterministicLinkText(
+  subject: string,
+  body: string,
+  fromEmail: string,
+  toEmails: string[],
+) {
+  return [subject, body, fromEmail, toEmails.join(" ")]
+    .filter(Boolean)
+    .join("\n");
 }
 
 async function runSmartMailSync(input: {
@@ -328,6 +381,7 @@ async function runSmartMailSync(input: {
   maxResults: number;
   forceRefresh?: boolean;
 }) {
+  await entitlementsService.assertFeatureAccess(input.orgId, "smartmail.sync");
   const account = await loadAccountOrThrow(input.orgId, input.accountId);
   const projectId = resolveProjectIdForSync(account, input.projectId);
 
@@ -344,11 +398,15 @@ async function runSmartMailSync(input: {
     .returning();
 
   try {
-    const { accessToken, account: latestAccount } = await resolveValidAccessToken(account, input.forceRefresh ?? false);
+    const { accessToken, account: latestAccount } =
+      await resolveValidAccessToken(account, input.forceRefresh ?? false);
 
     const lookbackMinutes = Number(env.SMARTMAIL_SYNC_LOOKBACK_MINUTES ?? "30");
     const since = latestAccount.lastSyncAt
-      ? new Date(latestAccount.lastSyncAt.getTime() - Math.max(0, lookbackMinutes) * 60_000)
+      ? new Date(
+          latestAccount.lastSyncAt.getTime() -
+            Math.max(0, lookbackMinutes) * 60_000,
+        )
       : undefined;
 
     const rows = await fetchProviderMessages({
@@ -365,7 +423,12 @@ async function runSmartMailSync(input: {
 
     for (const row of rows) {
       const autoLink = detectDeterministicEntityLink(
-        buildDeterministicLinkText(row.subject, row.body, row.fromEmail, row.toEmails),
+        buildDeterministicLinkText(
+          row.subject,
+          row.body,
+          row.fromEmail,
+          row.toEmails,
+        ),
         linkInputs,
       );
 
@@ -375,7 +438,11 @@ async function runSmartMailSync(input: {
         accountId: latestAccount.id,
         subject: row.subject,
         externalThreadId: row.externalThreadId,
-        participants: Array.from(new Set([row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(Boolean))),
+        participants: Array.from(
+          new Set(
+            [row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(Boolean),
+          ),
+        ),
         linkedEntityType: autoLink?.linkedEntityType ?? null,
         linkedEntityId: autoLink?.linkedEntityId ?? null,
         lastMessageAt: row.sentAt,
@@ -406,10 +473,18 @@ async function runSmartMailSync(input: {
             ccEmails: row.ccEmails,
             subject: row.subject,
             body: row.body,
-            linkedEntityType: preserveManualLink ? existing.linkedEntityType : autoLink?.linkedEntityType ?? null,
-            linkedEntityId: preserveManualLink ? existing.linkedEntityId : autoLink?.linkedEntityId ?? null,
-            linkConfidenceBps: preserveManualLink ? existing.linkConfidenceBps : autoLink?.confidenceBps ?? 0,
-            linkReason: preserveManualLink ? existing.linkReason : autoLink?.reason ?? null,
+            linkedEntityType: preserveManualLink
+              ? existing.linkedEntityType
+              : (autoLink?.linkedEntityType ?? null),
+            linkedEntityId: preserveManualLink
+              ? existing.linkedEntityId
+              : (autoLink?.linkedEntityId ?? null),
+            linkConfidenceBps: preserveManualLink
+              ? existing.linkConfidenceBps
+              : (autoLink?.confidenceBps ?? 0),
+            linkReason: preserveManualLink
+              ? existing.linkReason
+              : (autoLink?.reason ?? null),
             providerMetadata: row.providerMetadata,
             externalCreatedAt: row.sentAt,
             sentAt: row.sentAt,
@@ -446,7 +521,9 @@ async function runSmartMailSync(input: {
     }
 
     const now = new Date();
-    const cursorValue = latestCursor ? latestCursor.toISOString() : latestAccount.syncCursor;
+    const cursorValue = latestCursor
+      ? latestCursor.toISOString()
+      : latestAccount.syncCursor;
 
     await db
       .update(smartMailAccounts)
@@ -480,7 +557,8 @@ async function runSmartMailSync(input: {
       syncedAt: now,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown sync error";
+    const message =
+      error instanceof Error ? error.message : "Unknown sync error";
     const now = new Date();
 
     await db
@@ -509,13 +587,17 @@ async function runSmartMailSync(input: {
 export const smartMailService = {
   async listAccounts(request: Request) {
     const { orgId } = requireContext(request);
-    const records = await db.select().from(smartMailAccounts).where(eq(smartMailAccounts.organizationId, orgId));
+    const records = await db
+      .select()
+      .from(smartMailAccounts)
+      .where(eq(smartMailAccounts.organizationId, orgId));
     return records.map(sanitizeAccount);
   },
 
   async createAccount(request: Request) {
     const { orgId, userId } = requireContext(request);
     const body = createSmartMailAccountSchema.parse(readValidatedBody(request));
+    await entitlementsService.assertSmartMailAccountAllowed(orgId);
     const key = env.ENCRYPTION_KEY;
 
     if ((body.accessToken || body.refreshToken) && !key) {
@@ -529,20 +611,40 @@ export const smartMailService = {
         userId,
         provider: body.provider,
         email: body.email,
-        accessToken: body.accessToken && key ? encryptOpaqueToken(body.accessToken, key) : null,
-        refreshToken: body.refreshToken && key ? encryptOpaqueToken(body.refreshToken, key) : null,
-        tokenExpiresAt: body.tokenExpiresAt ? new Date(body.tokenExpiresAt) : undefined,
+        accessToken:
+          body.accessToken && key
+            ? encryptOpaqueToken(body.accessToken, key)
+            : null,
+        refreshToken:
+          body.refreshToken && key
+            ? encryptOpaqueToken(body.refreshToken, key)
+            : null,
+        tokenExpiresAt: body.tokenExpiresAt
+          ? new Date(body.tokenExpiresAt)
+          : undefined,
         autoSyncEnabled: body.autoSyncEnabled,
         defaultProjectId: body.defaultProjectId,
         metadata: body.metadata,
       })
       .onConflictDoUpdate({
-        target: [smartMailAccounts.organizationId, smartMailAccounts.provider, smartMailAccounts.email],
+        target: [
+          smartMailAccounts.organizationId,
+          smartMailAccounts.provider,
+          smartMailAccounts.email,
+        ],
         set: {
           userId,
-          accessToken: body.accessToken && key ? encryptOpaqueToken(body.accessToken, key) : undefined,
-          refreshToken: body.refreshToken && key ? encryptOpaqueToken(body.refreshToken, key) : undefined,
-          tokenExpiresAt: body.tokenExpiresAt ? new Date(body.tokenExpiresAt) : undefined,
+          accessToken:
+            body.accessToken && key
+              ? encryptOpaqueToken(body.accessToken, key)
+              : undefined,
+          refreshToken:
+            body.refreshToken && key
+              ? encryptOpaqueToken(body.refreshToken, key)
+              : undefined,
+          tokenExpiresAt: body.tokenExpiresAt
+            ? new Date(body.tokenExpiresAt)
+            : undefined,
           status: "connected",
           revokedAt: null,
           autoSyncEnabled: body.autoSyncEnabled,
@@ -558,7 +660,9 @@ export const smartMailService = {
 
   async updateAccount(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailAccountIdParamsSchema.parse(readValidatedParams(request));
+    const params = smartMailAccountIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateSmartMailAccountSchema.parse(readValidatedBody(request));
     const key = env.ENCRYPTION_KEY;
 
@@ -570,16 +674,29 @@ export const smartMailService = {
       .update(smartMailAccounts)
       .set({
         status: body.status,
-        accessToken: body.accessToken && key ? encryptOpaqueToken(body.accessToken, key) : undefined,
-        refreshToken: body.refreshToken && key ? encryptOpaqueToken(body.refreshToken, key) : undefined,
-        tokenExpiresAt: body.tokenExpiresAt ? new Date(body.tokenExpiresAt) : undefined,
+        accessToken:
+          body.accessToken && key
+            ? encryptOpaqueToken(body.accessToken, key)
+            : undefined,
+        refreshToken:
+          body.refreshToken && key
+            ? encryptOpaqueToken(body.refreshToken, key)
+            : undefined,
+        tokenExpiresAt: body.tokenExpiresAt
+          ? new Date(body.tokenExpiresAt)
+          : undefined,
         autoSyncEnabled: body.autoSyncEnabled,
         defaultProjectId: body.defaultProjectId,
         revokedAt: body.status === "disconnected" ? new Date() : undefined,
         metadata: body.metadata,
         updatedAt: new Date(),
       })
-      .where(and(eq(smartMailAccounts.id, params.accountId), eq(smartMailAccounts.organizationId, orgId)))
+      .where(
+        and(
+          eq(smartMailAccounts.id, params.accountId),
+          eq(smartMailAccounts.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -591,7 +708,9 @@ export const smartMailService = {
 
   async syncAccount(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailAccountIdParamsSchema.parse(readValidatedParams(request));
+    const params = smartMailAccountIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = syncSmartMailAccountSchema.parse(readValidatedBody(request));
 
     return await runSmartMailSync({
@@ -614,9 +733,11 @@ export const smartMailService = {
 
   async listThreads(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listSmartMailThreadsQuerySchema.parse(readValidatedQuery(request));
+    const query = listSmartMailThreadsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    const conditions: any[] = [
+    const conditions = [
       eq(smartMailThreads.organizationId, orgId),
       eq(smartMailThreads.projectId, query.projectId),
     ];
@@ -656,7 +777,9 @@ export const smartMailService = {
 
   async listMessages(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailThreadIdParamsSchema.parse(readValidatedParams(request));
+    const params = smartMailThreadIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     await loadThreadOrThrow(orgId, params.threadId);
 
@@ -664,12 +787,17 @@ export const smartMailService = {
       .select()
       .from(smartMailMessages)
       .where(eq(smartMailMessages.threadId, params.threadId))
-      .orderBy(desc(smartMailMessages.sentAt), desc(smartMailMessages.createdAt));
+      .orderBy(
+        desc(smartMailMessages.sentAt),
+        desc(smartMailMessages.createdAt),
+      );
   },
 
   async createMessage(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailThreadIdParamsSchema.parse(readValidatedParams(request));
+    const params = smartMailThreadIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = createSmartMailMessageSchema.parse(readValidatedBody(request));
     const thread = await loadThreadOrThrow(orgId, params.threadId);
     const account = await loadAccountOrThrow(orgId, body.accountId);
@@ -680,24 +808,34 @@ export const smartMailService = {
 
     const subject = body.subject ?? thread.subject;
     const linkInputs = await loadLinkInputs(orgId, body.projectId);
-    const autoLink = body.linkedEntityType && body.linkedEntityId
-      ? {
-          linkedEntityType: body.linkedEntityType,
-          linkedEntityId: body.linkedEntityId,
-          confidenceBps: 10000,
-          reason: "Linked manually at send time",
-        }
-      : detectDeterministicEntityLink(
-          buildDeterministicLinkText(subject, body.body, account.email, body.toEmails),
-          linkInputs,
-        );
+    const autoLink =
+      body.linkedEntityType && body.linkedEntityId
+        ? {
+            linkedEntityType: body.linkedEntityType,
+            linkedEntityId: body.linkedEntityId,
+            confidenceBps: 10000,
+            reason: "Linked manually at send time",
+          }
+        : detectDeterministicEntityLink(
+            buildDeterministicLinkText(
+              subject,
+              body.body,
+              account.email,
+              body.toEmails,
+            ),
+            linkInputs,
+          );
 
     let status: "draft" | "sent" | "failed" = body.sendNow ? "sent" : "draft";
     let externalMessageId: string | undefined;
     let externalThreadId: string | undefined;
     let providerMetadata: Record<string, unknown> | null = null;
     let sendError: string | undefined;
-    let sentAt = body.sentAt ? new Date(body.sentAt) : body.sendNow ? new Date() : undefined;
+    let sentAt = body.sentAt
+      ? new Date(body.sentAt)
+      : body.sendNow
+        ? new Date()
+        : undefined;
 
     if (body.sendNow) {
       try {
@@ -719,7 +857,10 @@ export const smartMailService = {
         sentAt = providerResult.sentAt;
       } catch (error) {
         status = "failed";
-        sendError = error instanceof Error ? error.message : "Unknown provider send error";
+        sendError =
+          error instanceof Error
+            ? error.message
+            : "Unknown provider send error";
       }
     }
 
@@ -767,7 +908,10 @@ export const smartMailService = {
 
   async createDraft(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailThreadIdParamsSchema.parse(readValidatedParams(request));
+    await entitlementsService.assertFeatureAccess(orgId, "smartmail.ai_draft");
+    const params = smartMailThreadIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = createSmartMailDraftSchema.parse(readValidatedBody(request));
     const thread = await loadThreadOrThrow(orgId, params.threadId);
     const account = await loadAccountOrThrow(orgId, body.accountId);
@@ -808,7 +952,10 @@ export const smartMailService = {
       `User instruction: ${body.prompt}`,
       recentMessages.length > 0
         ? `Recent context:\n${recentMessages
-            .map((message, index) => `${index + 1}. From ${message.fromEmail}: ${message.subject}\n${message.body}`)
+            .map(
+              (message, index) =>
+                `${index + 1}. From ${message.fromEmail}: ${message.subject}\n${message.body}`,
+            )
             .join("\n\n")}`
         : "",
     ]
@@ -816,7 +963,10 @@ export const smartMailService = {
       .join("\n\n");
 
     const usageUnits = entitlementsService.estimateAiUnits(prompt);
-    const subscription = await entitlementsService.assertAiUsageAllowed(orgId, usageUnits);
+    const subscription = await entitlementsService.assertAiUsageAllowed(
+      orgId,
+      usageUnits,
+    );
 
     const completion = await generateAiCompletion(
       {
@@ -836,6 +986,7 @@ export const smartMailService = {
     const updatedSubscription = await entitlementsService.recordAiUsage({
       organizationId: orgId,
       subscriptionId: subscription.id,
+      feature: "smartmail.ai_draft",
       units: usageUnits,
       source: "smartmail.ai_draft",
       model: completion.model,
@@ -846,14 +997,18 @@ export const smartMailService = {
     });
 
     const linkInputs = await loadLinkInputs(orgId, body.projectId);
-    const autoLink = body.linkedEntityType && body.linkedEntityId
-      ? {
-          linkedEntityType: body.linkedEntityType,
-          linkedEntityId: body.linkedEntityId,
-          confidenceBps: 10000,
-          reason: "Linked manually for AI draft",
-        }
-      : detectDeterministicEntityLink(`${thread.subject}\n${completion.output}`, linkInputs);
+    const autoLink =
+      body.linkedEntityType && body.linkedEntityId
+        ? {
+            linkedEntityType: body.linkedEntityType,
+            linkedEntityId: body.linkedEntityId,
+            confidenceBps: 10000,
+            reason: "Linked manually for AI draft",
+          }
+        : detectDeterministicEntityLink(
+            `${thread.subject}\n${completion.output}`,
+            linkInputs,
+          );
 
     const [draftMessage] = await db
       .insert(smartMailMessages)
@@ -874,7 +1029,9 @@ export const smartMailService = {
         aiDraft: 1,
         isAiDraft: true,
         aiModel: completion.model,
-        aiPromptTemplateVersion: template ? `${template.type}:${template.id}` : "manual:v1",
+        aiPromptTemplateVersion: template
+          ? `${template.type}:${template.id}`
+          : "manual:v1",
         providerMetadata: {
           provider: completion.provider,
           usageUnits,
@@ -887,28 +1044,42 @@ export const smartMailService = {
       message: draftMessage,
       usage: {
         units: usageUnits,
-        aiCreditsIncluded: updatedSubscription?.aiCreditsIncluded ?? subscription.aiCreditsIncluded,
-        aiCreditsUsed: updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
+        aiCreditsIncluded:
+          updatedSubscription?.aiCreditsIncluded ??
+          subscription.aiCreditsIncluded,
+        aiCreditsUsed:
+          updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
       },
     };
   },
 
   async overrideMessageLink(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = smartMailMessageIdParamsSchema.parse(readValidatedParams(request));
-    const body = updateSmartMailMessageLinkSchema.parse(readValidatedBody(request));
+    const params = smartMailMessageIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const body = updateSmartMailMessageLinkSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [message] = await db
       .select()
       .from(smartMailMessages)
-      .where(and(eq(smartMailMessages.id, params.messageId), eq(smartMailMessages.organizationId, orgId)));
+      .where(
+        and(
+          eq(smartMailMessages.id, params.messageId),
+          eq(smartMailMessages.organizationId, orgId),
+        ),
+      );
 
     if (!message) {
       throw notFound("SmartMail message not found");
     }
 
     if (!body.clear && (!body.linkedEntityType || !body.linkedEntityId)) {
-      throw badRequest("linkedEntityType and linkedEntityId are required when clear=false");
+      throw badRequest(
+        "linkedEntityType and linkedEntityId are required when clear=false",
+      );
     }
 
     const [updated] = await db
@@ -917,7 +1088,9 @@ export const smartMailService = {
         linkedEntityType: body.clear ? null : body.linkedEntityType,
         linkedEntityId: body.clear ? null : body.linkedEntityId,
         linkConfidenceBps: body.clear ? 0 : 10000,
-        linkReason: body.clear ? "Link manually cleared" : "Link manually overridden",
+        linkReason: body.clear
+          ? "Link manually cleared"
+          : "Link manually overridden",
         linkOverriddenByUserId: userId,
         linkOverriddenAt: new Date(),
         updatedAt: new Date(),
@@ -930,12 +1103,23 @@ export const smartMailService = {
 
   async listTemplates(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listSmartMailTemplatesQuerySchema.parse(readValidatedQuery(request));
+    const query = listSmartMailTemplatesQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    const conditions: any[] = [eq(smartMailTemplates.organizationId, orgId), isNull(smartMailTemplates.deletedAt)];
+    const conditions = [
+      eq(smartMailTemplates.organizationId, orgId),
+      isNull(smartMailTemplates.deletedAt),
+    ];
 
     if (query.projectId) {
-      conditions.push(or(eq(smartMailTemplates.projectId, query.projectId), isNull(smartMailTemplates.projectId)));
+      const projectScopeFilter = or(
+        eq(smartMailTemplates.projectId, query.projectId),
+        isNull(smartMailTemplates.projectId),
+      );
+      if (projectScopeFilter) {
+        conditions.push(projectScopeFilter);
+      }
     }
 
     if (query.type) {
@@ -951,7 +1135,9 @@ export const smartMailService = {
 
   async createTemplate(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const body = createSmartMailTemplateSchema.parse(readValidatedBody(request));
+    const body = createSmartMailTemplateSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [record] = await db
       .insert(smartMailTemplates)
@@ -974,8 +1160,12 @@ export const smartMailService = {
 
   async updateTemplate(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailTemplateIdParamsSchema.parse(readValidatedParams(request));
-    const body = updateSmartMailTemplateSchema.parse(readValidatedBody(request));
+    const params = smartMailTemplateIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const body = updateSmartMailTemplateSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [record] = await db
       .update(smartMailTemplates)
@@ -1006,7 +1196,9 @@ export const smartMailService = {
 
   async deleteTemplate(request: Request) {
     const { orgId } = requireContext(request);
-    const params = smartMailTemplateIdParamsSchema.parse(readValidatedParams(request));
+    const params = smartMailTemplateIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(smartMailTemplates)
@@ -1030,7 +1222,10 @@ export const smartMailService = {
     return { id: record.id, deletedAt: record.deletedAt };
   },
 
-  async exchangeOAuthCode(input: { provider: SmartMailProvider; code: string }) {
+  async exchangeOAuthCode(input: {
+    provider: SmartMailProvider;
+    code: string;
+  }) {
     if (input.provider === "gmail") {
       return await exchangeGoogleCode(input.code, providerConfig());
     }

@@ -1,6 +1,3 @@
-import { and, asc, desc, eq, gte, isNull } from "drizzle-orm";
-import * as bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import {
   complianceItems,
   dailyLogStatusEvents,
@@ -13,16 +10,25 @@ import {
   subcontractorInvitations,
   subcontractors,
 } from "@foreman/db";
-import { db } from "../database";
-import { badRequest, unauthorized, notFound } from "../lib/errors";
+import * as bcrypt from "bcrypt";
+import { and, asc, desc, eq, gte, isNull } from "drizzle-orm";
+import jwt from "jsonwebtoken";
 import { env } from "../config/env";
+import { db } from "../database";
+import { badRequest, notFound, unauthorized } from "../lib/errors";
 import { enqueueNotificationDelivery } from "../lib/queues";
-import { applyComplianceTemplatesForSubcontractor, hashToken, issueOneTimeToken } from "./subconnect-utils";
+import {
+  applyComplianceTemplatesForSubcontractor,
+  hashToken,
+  issueOneTimeToken,
+} from "./subconnect-utils";
 
 function getJwtSecret(): string {
   const secret = env.JWT_SECRET;
   if (!secret) {
-    throw new Error("JWT_SECRET environment variable is required for portal authentication");
+    throw new Error(
+      "JWT_SECRET environment variable is required for portal authentication",
+    );
   }
   return secret;
 }
@@ -62,12 +68,17 @@ interface PortalCreateDailyLogInput {
   metadata?: Record<string, unknown>;
 }
 
-const isUniqueConstraintError = (error: unknown, constraintName: string): boolean => {
+const isUniqueConstraintError = (
+  error: unknown,
+  constraintName: string,
+): boolean => {
   if (!(error instanceof Error)) {
     return false;
   }
 
-  const cause = (error as Error & { cause?: { code?: string; constraint?: string } }).cause;
+  const cause = (
+    error as Error & { cause?: { code?: string; constraint?: string } }
+  ).cause;
 
   return cause?.code === "23505" && cause?.constraint === constraintName;
 };
@@ -76,7 +87,10 @@ function isPortalSelfRegistrationEnabled() {
   return env.PORTAL_ALLOW_PROJECT_CODE_REGISTRATION !== false;
 }
 
-async function loadActivePortalSubcontractor(subcontractorId: string, organizationId: string) {
+async function loadActivePortalSubcontractor(
+  subcontractorId: string,
+  organizationId: string,
+) {
   const [subcontractor] = await db
     .select()
     .from(subcontractors)
@@ -133,7 +147,9 @@ function mergePortalAssignmentMetadata(input: {
 }) {
   const metadata = input.metadata ?? {};
   const existingAssignment =
-    metadata.portalAssignment && typeof metadata.portalAssignment === "object" && !Array.isArray(metadata.portalAssignment)
+    metadata.portalAssignment &&
+    typeof metadata.portalAssignment === "object" &&
+    !Array.isArray(metadata.portalAssignment)
       ? (metadata.portalAssignment as Record<string, unknown>)
       : {};
 
@@ -141,10 +157,16 @@ function mergePortalAssignmentMetadata(input: {
     ...metadata,
     portalAssignment: {
       ...existingAssignment,
-      ...(input.assignedScope !== undefined ? { assignedScope: input.assignedScope } : {}),
-      ...(input.milestones !== undefined ? { milestones: input.milestones } : {}),
+      ...(input.assignedScope !== undefined
+        ? { assignedScope: input.assignedScope }
+        : {}),
+      ...(input.milestones !== undefined
+        ? { milestones: input.milestones }
+        : {}),
       ...(input.invitedAt !== undefined ? { invitedAt: input.invitedAt } : {}),
-      ...(input.invitedByUserId !== undefined ? { invitedByUserId: input.invitedByUserId } : {}),
+      ...(input.invitedByUserId !== undefined
+        ? { invitedByUserId: input.invitedByUserId }
+        : {}),
     },
   };
 }
@@ -159,7 +181,9 @@ export const portalAuthService = {
     projectCode: string,
   ) {
     if (!isPortalSelfRegistrationEnabled()) {
-      throw badRequest("Portal self-registration by project code is disabled. Please use an invitation link.");
+      throw badRequest(
+        "Portal self-registration by project code is disabled. Please use an invitation link.",
+      );
     }
 
     // Look up project by code to get organization ID
@@ -170,7 +194,9 @@ export const portalAuthService = {
       .limit(1);
 
     if (!project) {
-      throw badRequest("Invalid project code. Please check with your general contractor.");
+      throw badRequest(
+        "Invalid project code. Please check with your general contractor.",
+      );
     }
 
     const existingEmail = await db
@@ -191,7 +217,7 @@ export const portalAuthService = {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    let subcontractor;
+    let subcontractor: typeof subcontractors.$inferSelect | undefined;
 
     try {
       [subcontractor] = await db
@@ -257,7 +283,10 @@ export const portalAuthService = {
       throw unauthorized("Portal access not configured for this account");
     }
 
-    const passwordMatch = await bcrypt.compare(password, subcontractor.passwordHash);
+    const passwordMatch = await bcrypt.compare(
+      password,
+      subcontractor.passwordHash,
+    );
     if (!passwordMatch) {
       throw unauthorized("Invalid email or password");
     }
@@ -291,7 +320,12 @@ export const portalAuthService = {
     }
   },
 
-  async acceptInvitation(token: string, password: string, name?: string, phone?: string) {
+  async acceptInvitation(
+    token: string,
+    password: string,
+    name?: string,
+    phone?: string,
+  ) {
     const tokenHash = hashToken(token);
     const now = new Date();
 
@@ -334,14 +368,18 @@ export const portalAuthService = {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const metadata =
-      existing.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata)
+      existing.metadata &&
+      typeof existing.metadata === "object" &&
+      !Array.isArray(existing.metadata)
         ? (existing.metadata as Record<string, unknown>)
         : {};
 
     const mergedMetadata = mergePortalAssignmentMetadata({
       metadata,
       assignedScope: invitation.assignedScope ?? null,
-      milestones: Array.isArray(invitation.milestones) ? invitation.milestones : [],
+      milestones: Array.isArray(invitation.milestones)
+        ? invitation.milestones
+        : [],
       invitedAt: invitation.invitedAt.toISOString(),
       invitedByUserId: invitation.invitedByUserId,
     });
@@ -375,8 +413,14 @@ export const portalAuthService = {
       .set({ status: "revoked", updatedAt: now })
       .where(
         and(
-          eq(subcontractorInvitations.organizationId, invitation.organizationId),
-          eq(subcontractorInvitations.subcontractorId, invitation.subcontractorId),
+          eq(
+            subcontractorInvitations.organizationId,
+            invitation.organizationId,
+          ),
+          eq(
+            subcontractorInvitations.subcontractorId,
+            invitation.subcontractorId,
+          ),
           eq(subcontractorInvitations.status, "pending"),
         ),
       );
@@ -437,7 +481,10 @@ export const portalAuthService = {
       })
       .where(
         and(
-          eq(portalPasswordResetTokens.organizationId, subcontractor.organizationId),
+          eq(
+            portalPasswordResetTokens.organizationId,
+            subcontractor.organizationId,
+          ),
           eq(portalPasswordResetTokens.subcontractorId, subcontractor.id),
           isNull(portalPasswordResetTokens.usedAt),
         ),
@@ -458,10 +505,7 @@ export const portalAuthService = {
     await enqueueNotificationDelivery({
       toEmail: subcontractor.email,
       subject: "Foreman SubConnect Password Reset",
-      body:
-        `A password reset was requested for your SubConnect account. ` +
-        `Use this secure link to reset your password: ${resetUrl}. ` +
-        `If prompted for token, use: ${rawToken}. This token expires on ${expiresAt.toISOString()}.`,
+      body: `A password reset was requested for your SubConnect account. Use this secure link to reset your password: ${resetUrl}. If prompted for token, use: ${rawToken}. This token expires on ${expiresAt.toISOString()}.`,
     });
 
     return {
@@ -522,7 +566,10 @@ export const portalAuthService = {
   },
 
   async getUserCompliance(subcontractorId: string, organizationId: string) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
 
     const filters = [
       eq(complianceItems.subcontractorId, subcontractorId),
@@ -550,7 +597,10 @@ export const portalAuthService = {
     evidence: string | null,
     notes: string | null,
   ) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
 
     const filters = [
       eq(complianceItems.id, complianceItemId),
@@ -574,7 +624,9 @@ export const portalAuthService = {
     }
 
     const existingEvidence =
-      item.evidence && typeof item.evidence === "object" && !Array.isArray(item.evidence)
+      item.evidence &&
+      typeof item.evidence === "object" &&
+      !Array.isArray(item.evidence)
         ? (item.evidence as Record<string, unknown>)
         : {};
     const existingUploads = Array.isArray(existingEvidence.uploads)
@@ -608,7 +660,9 @@ export const portalAuthService = {
             uploadedByEmail: subcontractor.email,
             lastStatus: "pending",
             needsReviewerConfirmation: item.highRisk,
-            uploads: uploadTrace ? [...existingUploads, uploadTrace] : existingUploads,
+            uploads: uploadTrace
+              ? [...existingUploads, uploadTrace]
+              : existingUploads,
           };
 
     const [updated] = await db
@@ -628,72 +682,80 @@ export const portalAuthService = {
   },
 
   async getPortalOverview(subcontractorId: string, organizationId: string) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
 
-    const [project, compliance, recentPayApps, recentDailyLogs] = await Promise.all([
-      subcontractor.projectId
-        ? db
-            .select({
-              id: projects.id,
-              code: projects.code,
-              name: projects.name,
-              status: projects.status,
-              startDate: projects.startDate,
-              endDate: projects.endDate,
-            })
-            .from(projects)
-            .where(
-              and(
-                eq(projects.id, subcontractor.projectId),
-                eq(projects.organizationId, organizationId),
-                isNull(projects.deletedAt),
-              ),
-            )
-            .limit(1)
-            .then((rows) => rows[0] ?? null)
-        : Promise.resolve(null),
-      this.getUserCompliance(subcontractor.id, organizationId),
-      db
-        .select({
-          id: payApplications.id,
-          status: payApplications.status,
-          totalAmountCents: payApplications.totalAmountCents,
-          currency: payApplications.currency,
-          submittedAt: payApplications.submittedAt,
-          reviewedAt: payApplications.reviewedAt,
-          updatedAt: payApplications.updatedAt,
-        })
-        .from(payApplications)
-        .where(
-          and(
-            eq(payApplications.organizationId, organizationId),
-            eq(payApplications.subcontractorId, subcontractor.id),
-            subcontractor.projectId ? eq(payApplications.projectId, subcontractor.projectId) : undefined,
-            isNull(payApplications.deletedAt),
-          ),
-        )
-        .orderBy(desc(payApplications.createdAt))
-        .limit(10),
-      db
-        .select({
-          id: dailyLogs.id,
-          logDate: dailyLogs.logDate,
-          reviewStatus: dailyLogs.reviewStatus,
-          submittedAt: dailyLogs.submittedAt,
-          reviewedAt: dailyLogs.reviewedAt,
-        })
-        .from(dailyLogs)
-        .where(
-          and(
-            eq(dailyLogs.organizationId, organizationId),
-            eq(dailyLogs.subcontractorId, subcontractor.id),
-            subcontractor.projectId ? eq(dailyLogs.projectId, subcontractor.projectId) : undefined,
-            isNull(dailyLogs.deletedAt),
-          ),
-        )
-        .orderBy(desc(dailyLogs.logDate), desc(dailyLogs.createdAt))
-        .limit(10),
-    ]);
+    const [project, compliance, recentPayApps, recentDailyLogs] =
+      await Promise.all([
+        subcontractor.projectId
+          ? db
+              .select({
+                id: projects.id,
+                code: projects.code,
+                name: projects.name,
+                status: projects.status,
+                startDate: projects.startDate,
+                endDate: projects.endDate,
+              })
+              .from(projects)
+              .where(
+                and(
+                  eq(projects.id, subcontractor.projectId),
+                  eq(projects.organizationId, organizationId),
+                  isNull(projects.deletedAt),
+                ),
+              )
+              .limit(1)
+              .then((rows) => rows[0] ?? null)
+          : Promise.resolve(null),
+        this.getUserCompliance(subcontractor.id, organizationId),
+        db
+          .select({
+            id: payApplications.id,
+            status: payApplications.status,
+            totalAmountCents: payApplications.totalAmountCents,
+            currency: payApplications.currency,
+            submittedAt: payApplications.submittedAt,
+            reviewedAt: payApplications.reviewedAt,
+            updatedAt: payApplications.updatedAt,
+          })
+          .from(payApplications)
+          .where(
+            and(
+              eq(payApplications.organizationId, organizationId),
+              eq(payApplications.subcontractorId, subcontractor.id),
+              subcontractor.projectId
+                ? eq(payApplications.projectId, subcontractor.projectId)
+                : undefined,
+              isNull(payApplications.deletedAt),
+            ),
+          )
+          .orderBy(desc(payApplications.createdAt))
+          .limit(10),
+        db
+          .select({
+            id: dailyLogs.id,
+            logDate: dailyLogs.logDate,
+            reviewStatus: dailyLogs.reviewStatus,
+            submittedAt: dailyLogs.submittedAt,
+            reviewedAt: dailyLogs.reviewedAt,
+          })
+          .from(dailyLogs)
+          .where(
+            and(
+              eq(dailyLogs.organizationId, organizationId),
+              eq(dailyLogs.subcontractorId, subcontractor.id),
+              subcontractor.projectId
+                ? eq(dailyLogs.projectId, subcontractor.projectId)
+                : undefined,
+              isNull(dailyLogs.deletedAt),
+            ),
+          )
+          .orderBy(desc(dailyLogs.logDate), desc(dailyLogs.createdAt))
+          .limit(10),
+      ]);
 
     const now = Date.now();
     const dueSoonCutoff = now + 14 * 24 * 60 * 60 * 1000;
@@ -721,10 +783,19 @@ export const portalAuthService = {
 
         const dueAt = item.dueDate?.getTime();
         if (typeof dueAt === "number") {
-          if (dueAt < now && item.status !== "verified" && item.status !== "compliant") {
+          if (
+            dueAt < now &&
+            item.status !== "verified" &&
+            item.status !== "compliant"
+          ) {
             acc.overdue += 1;
           }
-          if (dueAt >= now && dueAt <= dueSoonCutoff && item.status !== "verified" && item.status !== "compliant") {
+          if (
+            dueAt >= now &&
+            dueAt <= dueSoonCutoff &&
+            item.status !== "verified" &&
+            item.status !== "compliant"
+          ) {
             acc.dueSoon += 1;
           }
         }
@@ -745,11 +816,15 @@ export const portalAuthService = {
     );
 
     const metadata =
-      subcontractor.metadata && typeof subcontractor.metadata === "object" && !Array.isArray(subcontractor.metadata)
+      subcontractor.metadata &&
+      typeof subcontractor.metadata === "object" &&
+      !Array.isArray(subcontractor.metadata)
         ? (subcontractor.metadata as Record<string, unknown>)
         : {};
     const portalAssignment =
-      metadata.portalAssignment && typeof metadata.portalAssignment === "object" && !Array.isArray(metadata.portalAssignment)
+      metadata.portalAssignment &&
+      typeof metadata.portalAssignment === "object" &&
+      !Array.isArray(metadata.portalAssignment)
         ? (metadata.portalAssignment as Record<string, unknown>)
         : {};
 
@@ -764,14 +839,19 @@ export const portalAuthService = {
       },
       project,
       assignedScope:
-        typeof portalAssignment.assignedScope === "string" ? portalAssignment.assignedScope : subcontractor.trade,
-      milestones: Array.isArray(portalAssignment.milestones) ? portalAssignment.milestones : [],
+        typeof portalAssignment.assignedScope === "string"
+          ? portalAssignment.assignedScope
+          : subcontractor.trade,
+      milestones: Array.isArray(portalAssignment.milestones)
+        ? portalAssignment.milestones
+        : [],
       complianceSummary,
       complianceItems: compliance,
       timeline: {
         lastPortalLoginAt: subcontractor.lastPortalLoginAt,
         invitedAt:
-          typeof portalAssignment.invitedAt === "string" || portalAssignment.invitedAt === null
+          typeof portalAssignment.invitedAt === "string" ||
+          portalAssignment.invitedAt === null
             ? portalAssignment.invitedAt
             : null,
         payApplications: recentPayApps,
@@ -783,9 +863,21 @@ export const portalAuthService = {
   async listPortalPayApplications(
     subcontractorId: string,
     organizationId: string,
-    options: { status?: "draft" | "submitted" | "under_review" | "approved" | "rejected" | "paid"; limit: number },
+    options: {
+      status?:
+        | "draft"
+        | "submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "paid";
+      limit: number;
+    },
   ) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
     const filters = [
       eq(payApplications.organizationId, organizationId),
       eq(payApplications.subcontractorId, subcontractor.id),
@@ -813,7 +905,10 @@ export const portalAuthService = {
     organizationId: string,
     input: PortalCreatePayApplicationInput,
   ) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
     if (!subcontractor.projectId) {
       throw badRequest("No project scope assigned for this subcontractor");
     }
@@ -824,7 +919,10 @@ export const portalAuthService = {
       throw badRequest("periodStart cannot be after periodEnd");
     }
 
-    const totalAmountCents = input.lineItems.reduce((sum, item) => sum + item.amountCents, 0);
+    const totalAmountCents = input.lineItems.reduce(
+      (sum, item) => sum + item.amountCents,
+      0,
+    );
     const now = new Date();
 
     const [record] = await db
@@ -881,8 +979,15 @@ export const portalAuthService = {
     };
   },
 
-  async getPortalPayApplication(subcontractorId: string, organizationId: string, payApplicationId: string) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+  async getPortalPayApplication(
+    subcontractorId: string,
+    organizationId: string,
+    payApplicationId: string,
+  ) {
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
 
     const [record] = await db
       .select()
@@ -892,7 +997,9 @@ export const portalAuthService = {
           eq(payApplications.id, payApplicationId),
           eq(payApplications.organizationId, organizationId),
           eq(payApplications.subcontractorId, subcontractor.id),
-          subcontractor.projectId ? eq(payApplications.projectId, subcontractor.projectId) : undefined,
+          subcontractor.projectId
+            ? eq(payApplications.projectId, subcontractor.projectId)
+            : undefined,
           isNull(payApplications.deletedAt),
         ),
       )
@@ -925,9 +1032,15 @@ export const portalAuthService = {
   async listPortalDailyLogs(
     subcontractorId: string,
     organizationId: string,
-    options: { reviewStatus?: "pending" | "reviewed" | "rejected"; limit: number },
+    options: {
+      reviewStatus?: "pending" | "reviewed" | "rejected";
+      limit: number;
+    },
   ) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
     const filters = [
       eq(dailyLogs.organizationId, organizationId),
       eq(dailyLogs.subcontractorId, subcontractor.id),
@@ -950,8 +1063,15 @@ export const portalAuthService = {
       .limit(options.limit);
   },
 
-  async submitPortalDailyLog(subcontractorId: string, organizationId: string, input: PortalCreateDailyLogInput) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+  async submitPortalDailyLog(
+    subcontractorId: string,
+    organizationId: string,
+    input: PortalCreateDailyLogInput,
+  ) {
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
     if (!subcontractor.projectId) {
       throw badRequest("No project scope assigned for this subcontractor");
     }
@@ -989,8 +1109,15 @@ export const portalAuthService = {
     return record;
   },
 
-  async getPortalDailyLog(subcontractorId: string, organizationId: string, dailyLogId: string) {
-    const subcontractor = await loadActivePortalSubcontractor(subcontractorId, organizationId);
+  async getPortalDailyLog(
+    subcontractorId: string,
+    organizationId: string,
+    dailyLogId: string,
+  ) {
+    const subcontractor = await loadActivePortalSubcontractor(
+      subcontractorId,
+      organizationId,
+    );
 
     const [record] = await db
       .select()
@@ -1000,7 +1127,9 @@ export const portalAuthService = {
           eq(dailyLogs.id, dailyLogId),
           eq(dailyLogs.organizationId, organizationId),
           eq(dailyLogs.subcontractorId, subcontractor.id),
-          subcontractor.projectId ? eq(dailyLogs.projectId, subcontractor.projectId) : undefined,
+          subcontractor.projectId
+            ? eq(dailyLogs.projectId, subcontractor.projectId)
+            : undefined,
           isNull(dailyLogs.deletedAt),
         ),
       )

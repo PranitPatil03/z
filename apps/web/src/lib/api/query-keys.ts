@@ -207,12 +207,36 @@ export const queryKeys = {
       [...queryKeys.smartmailThreads.all, "list", params] as const,
     detail: (id: string) => [...queryKeys.smartmailThreads.all, id] as const,
   },
+  smartmailMessages: {
+    all: ["smartmail-messages"] as const,
+    list: (threadId: string) =>
+      [...queryKeys.smartmailMessages.all, "list", threadId] as const,
+  },
+  smartmailTemplates: {
+    all: ["smartmail-templates"] as const,
+    list: (params?: object) =>
+      [...queryKeys.smartmailTemplates.all, "list", params] as const,
+    detail: (id: string) =>
+      [...queryKeys.smartmailTemplates.all, "detail", id] as const,
+  },
+  integrations: {
+    all: ["integrations"] as const,
+    list: () => [...queryKeys.integrations.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.integrations.all, id] as const,
+  },
 
   // M11 Billing
   billing: {
     all: ["billing"] as const,
     list: (params?: object) =>
       [...queryKeys.billing.all, "list", params] as const,
+    detail: (billingRecordId: string) =>
+      [...queryKeys.billing.all, "detail", billingRecordId] as const,
+    usage: () => [...queryKeys.billing.all, "usage"] as const,
+    plans: () => [...queryKeys.billing.all, "plans"] as const,
+    subscription: () => [...queryKeys.billing.all, "subscription"] as const,
+    webhookEvents: (params?: object) =>
+      [...queryKeys.billing.all, "webhook-events", params] as const,
   },
 
   // M1 Identity, Session, and Route Protection

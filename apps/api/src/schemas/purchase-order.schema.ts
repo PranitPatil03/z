@@ -18,6 +18,8 @@ export const updatePurchaseOrderSchema = z.object({
   vendorName: z.string().min(2).optional(),
   currency: z.string().length(3).optional(),
   totalAmountCents: z.number().int().nonnegative().optional(),
-  status: z.enum(["draft", "issued", "approved", "closed", "canceled"]).optional(),
+  status: z
+    .enum(["draft", "issued", "approved", "closed", "canceled"])
+    .optional(),
   issueDate: z.string().datetime().optional(),
 });

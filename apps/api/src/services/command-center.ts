@@ -23,11 +23,11 @@ import {
   commandCenterTrendsQuerySchema,
 } from "../schemas/command-center.schema";
 import {
+  type CommandCenterHealthInputs,
   buildHealthScore,
   computeAverageAgeDays,
   computeBudgetBurnBps,
   computeRateBps,
-  type CommandCenterHealthInputs,
 } from "./command-center-metrics";
 
 function readValidatedQuery<T>(request: Request) {
@@ -42,7 +42,11 @@ function requireOrg(request: Request) {
   return session.activeOrganizationId;
 }
 
-const OPEN_CHANGE_ORDER_STATUSES = new Set(["submitted", "under_review", "revision_requested"]);
+const OPEN_CHANGE_ORDER_STATUSES = new Set([
+  "submitted",
+  "under_review",
+  "revision_requested",
+]);
 const COMPLIANCE_OK_STATUSES = new Set(["verified", "compliant"]);
 const COMPLIANCE_RISK_STATUSES = new Set(["expired", "non_compliant"]);
 const PENDING_PAY_APPLICATION_STATUSES = new Set(["submitted", "under_review"]);
@@ -76,21 +80,35 @@ interface TrendPoint {
 }
 
 function startOfUtcDay(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
 }
 
 function toDateLabel(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildTrendBuckets(windowDays: number, interval: "day" | "week", now: Date): TrendBucket[] {
-  const start = startOfUtcDay(new Date(now.getTime() - (windowDays - 1) * DAY_MS));
+function buildTrendBuckets(
+  windowDays: number,
+  interval: "day" | "week",
+  now: Date,
+): TrendBucket[] {
+  const start = startOfUtcDay(
+    new Date(now.getTime() - (windowDays - 1) * DAY_MS),
+  );
   const stepDays = interval === "week" ? 7 : 1;
   const buckets: TrendBucket[] = [];
 
-  for (let cursor = new Date(start); cursor <= now; cursor = new Date(cursor.getTime() + stepDays * DAY_MS)) {
+  for (
+    let cursor = new Date(start);
+    cursor <= now;
+    cursor = new Date(cursor.getTime() + stepDays * DAY_MS)
+  ) {
     const bucketStart = new Date(cursor);
-    const bucketEndCandidate = new Date(bucketStart.getTime() + stepDays * DAY_MS - 1);
+    const bucketEndCandidate = new Date(
+      bucketStart.getTime() + stepDays * DAY_MS - 1,
+    );
     const bucketEnd = bucketEndCandidate > now ? now : bucketEndCandidate;
     const label =
       interval === "week"
@@ -107,7 +125,10 @@ function buildTrendBuckets(windowDays: number, interval: "day" | "week", now: Da
   return buckets;
 }
 
-function resolveBucketIndex(buckets: TrendBucket[], value: Date | null | undefined) {
+function resolveBucketIndex(
+  buckets: TrendBucket[],
+  value: Date | null | undefined,
+) {
   if (!value) {
     return -1;
   }
@@ -115,7 +136,10 @@ function resolveBucketIndex(buckets: TrendBucket[], value: Date | null | undefin
   const timestamp = value.getTime();
   for (let index = 0; index < buckets.length; index += 1) {
     const bucket = buckets[index];
-    if (timestamp >= bucket.start.getTime() && timestamp <= bucket.end.getTime()) {
+    if (
+      timestamp >= bucket.start.getTime() &&
+      timestamp <= bucket.end.getTime()
+    ) {
       return index;
     }
   }
@@ -166,9 +190,15 @@ interface ProjectMetrics {
   healthInputs: CommandCenterHealthInputs;
 }
 
-async function collectProjectMetrics(orgId: string, projectId: string, windowDays: number): Promise<ProjectMetrics> {
+async function collectProjectMetrics(
+  orgId: string,
+  projectId: string,
+  windowDays: number,
+): Promise<ProjectMetrics> {
   const now = new Date();
-  const windowStart = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const windowStart = new Date(
+    now.getTime() - windowDays * 24 * 60 * 60 * 1000,
+  );
 
   const [
     projectChangeOrders,
@@ -184,31 +214,66 @@ async function collectProjectMetrics(orgId: string, projectId: string, windowDay
     db
       .select()
       .from(changeOrders)
-      .where(and(eq(changeOrders.organizationId, orgId), eq(changeOrders.projectId, projectId))),
+      .where(
+        and(
+          eq(changeOrders.organizationId, orgId),
+          eq(changeOrders.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(budgetAlerts)
-      .where(and(eq(budgetAlerts.organizationId, orgId), eq(budgetAlerts.projectId, projectId))),
+      .where(
+        and(
+          eq(budgetAlerts.organizationId, orgId),
+          eq(budgetAlerts.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(siteSnaps)
-      .where(and(eq(siteSnaps.organizationId, orgId), eq(siteSnaps.projectId, projectId))),
+      .where(
+        and(
+          eq(siteSnaps.organizationId, orgId),
+          eq(siteSnaps.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(smartMailThreads)
-      .where(and(eq(smartMailThreads.organizationId, orgId), eq(smartMailThreads.projectId, projectId))),
+      .where(
+        and(
+          eq(smartMailThreads.organizationId, orgId),
+          eq(smartMailThreads.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(invoices)
-      .where(and(eq(invoices.organizationId, orgId), eq(invoices.projectId, projectId))),
+      .where(
+        and(
+          eq(invoices.organizationId, orgId),
+          eq(invoices.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(matchRuns)
-      .where(and(eq(matchRuns.organizationId, orgId), eq(matchRuns.projectId, projectId))),
+      .where(
+        and(
+          eq(matchRuns.organizationId, orgId),
+          eq(matchRuns.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(budgetCostCodes)
-      .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, projectId))),
+      .where(
+        and(
+          eq(budgetCostCodes.organizationId, orgId),
+          eq(budgetCostCodes.projectId, projectId),
+        ),
+      ),
     db
       .select()
       .from(complianceItems)
@@ -235,38 +300,71 @@ async function collectProjectMetrics(orgId: string, projectId: string, windowDay
   const complianceByStatus = countByStatus(projectComplianceItems);
 
   const highRiskAlerts = projectBudgetAlerts.filter(
-    (row) => (row.severity === "high" || row.severity === "critical") && row.resolvedAt === null,
+    (row) =>
+      (row.severity === "high" || row.severity === "critical") &&
+      row.resolvedAt === null,
   ).length;
 
-  const reviewedSnaps = projectSiteSnaps.filter((row) => row.status === "reviewed").length;
-  const reviewedSiteSnapRateBps = computeRateBps(reviewedSnaps, projectSiteSnaps.length);
+  const reviewedSnaps = projectSiteSnaps.filter(
+    (row) => row.status === "reviewed",
+  ).length;
+  const reviewedSiteSnapRateBps = computeRateBps(
+    reviewedSnaps,
+    projectSiteSnaps.length,
+  );
 
-  const totalBudgetCents = projectBudgetCostCodes.reduce((sum, row) => sum + row.budgetCents, 0);
-  const totalActualCents = projectBudgetCostCodes.reduce((sum, row) => sum + row.actualCents, 0);
-  const budgetBurnBps = computeBudgetBurnBps(totalBudgetCents, totalActualCents);
+  const totalBudgetCents = projectBudgetCostCodes.reduce(
+    (sum, row) => sum + row.budgetCents,
+    0,
+  );
+  const totalActualCents = projectBudgetCostCodes.reduce(
+    (sum, row) => sum + row.actualCents,
+    0,
+  );
+  const budgetBurnBps = computeBudgetBurnBps(
+    totalBudgetCents,
+    totalActualCents,
+  );
 
-  const openChangeOrders = projectChangeOrders.filter((row) => OPEN_CHANGE_ORDER_STATUSES.has(row.status)).length;
+  const openChangeOrders = projectChangeOrders.filter((row) =>
+    OPEN_CHANGE_ORDER_STATUSES.has(row.status),
+  ).length;
   const submittedInWindow = projectChangeOrders.filter(
     (row) => row.submittedAt !== null && row.submittedAt >= windowStart,
   ).length;
   const resolvedInWindow = projectChangeOrders.filter(
     (row) => row.resolvedAt !== null && row.resolvedAt >= windowStart,
   ).length;
-  const changeOrderVelocityBps = computeRateBps(resolvedInWindow, submittedInWindow);
+  const changeOrderVelocityBps = computeRateBps(
+    resolvedInWindow,
+    submittedInWindow,
+  );
 
   const overdueComplianceItems = projectComplianceItems.filter(
-    (row) => row.dueDate !== null && row.dueDate < now && !COMPLIANCE_OK_STATUSES.has(row.status),
+    (row) =>
+      row.dueDate !== null &&
+      row.dueDate < now &&
+      !COMPLIANCE_OK_STATUSES.has(row.status),
   ).length;
-  const nonCompliantComplianceItems = projectComplianceItems.filter((row) => COMPLIANCE_RISK_STATUSES.has(row.status)).length;
+  const nonCompliantComplianceItems = projectComplianceItems.filter((row) =>
+    COMPLIANCE_RISK_STATUSES.has(row.status),
+  ).length;
 
-  const pendingPayApplications = projectPayApplications.filter((row) => PENDING_PAY_APPLICATION_STATUSES.has(row.status));
+  const pendingPayApplications = projectPayApplications.filter((row) =>
+    PENDING_PAY_APPLICATION_STATUSES.has(row.status),
+  );
   const pendingPayApplicationAverageAgeDays = computeAverageAgeDays(
     pendingPayApplications.map((row) => row.submittedAt ?? row.createdAt),
     now,
   );
 
-  const completedMatchRuns = projectMatchRuns.filter((row) => row.result === "matched").length;
-  const matchSuccessRateBps = computeRateBps(completedMatchRuns, projectMatchRuns.length);
+  const completedMatchRuns = projectMatchRuns.filter(
+    (row) => row.result === "matched",
+  ).length;
+  const matchSuccessRateBps = computeRateBps(
+    completedMatchRuns,
+    projectMatchRuns.length,
+  );
 
   const recentSmartMailThreads = projectThreads.filter(
     (row) => row.lastMessageAt !== null && row.lastMessageAt >= windowStart,
@@ -317,15 +415,27 @@ async function collectProjectMetrics(orgId: string, projectId: string, windowDay
 export const commandCenterService = {
   async overview(request: Request) {
     const orgId = requireOrg(request);
-    const query = commandCenterOverviewQuerySchema.parse(readValidatedQuery(request));
+    const query = commandCenterOverviewQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    return await collectProjectMetrics(orgId, query.projectId, query.windowDays);
+    return await collectProjectMetrics(
+      orgId,
+      query.projectId,
+      query.windowDays,
+    );
   },
 
   async health(request: Request) {
     const orgId = requireOrg(request);
-    const query = commandCenterHealthQuerySchema.parse(readValidatedQuery(request));
-    const metrics = await collectProjectMetrics(orgId, query.projectId, query.windowDays);
+    const query = commandCenterHealthQuerySchema.parse(
+      readValidatedQuery(request),
+    );
+    const metrics = await collectProjectMetrics(
+      orgId,
+      query.projectId,
+      query.windowDays,
+    );
     const health = buildHealthScore(metrics.healthInputs);
 
     return {
@@ -341,8 +451,11 @@ export const commandCenterService = {
         highRiskBudgetAlerts: metrics.summary.highRiskBudgetAlerts,
         overdueComplianceItems: metrics.summary.overdueComplianceItems,
         pendingPayApplications: metrics.summary.pendingPayApplications,
-        pendingPayApplicationAverageAgeDays: metrics.summary.pendingPayApplicationAverageAgeDays,
-        reviewedSiteSnapRatePercent: toPercent(metrics.summary.reviewedSiteSnapRateBps),
+        pendingPayApplicationAverageAgeDays:
+          metrics.summary.pendingPayApplicationAverageAgeDays,
+        reviewedSiteSnapRatePercent: toPercent(
+          metrics.summary.reviewedSiteSnapRateBps,
+        ),
         matchSuccessRatePercent: toPercent(metrics.summary.matchSuccessRateBps),
       },
     };
@@ -350,7 +463,9 @@ export const commandCenterService = {
 
   async portfolio(request: Request) {
     const orgId = requireOrg(request);
-    const query = commandCenterPortfolioQuerySchema.parse(readValidatedQuery(request));
+    const query = commandCenterPortfolioQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     const scopedProjects = await db
       .select({
@@ -360,13 +475,23 @@ export const commandCenterService = {
         status: projects.status,
       })
       .from(projects)
-      .where(and(eq(projects.organizationId, orgId), isNull(projects.deletedAt), ne(projects.status, "archived")))
+      .where(
+        and(
+          eq(projects.organizationId, orgId),
+          isNull(projects.deletedAt),
+          ne(projects.status, "archived"),
+        ),
+      )
       .orderBy(desc(projects.updatedAt))
       .limit(query.limit);
 
     const projectCards = await Promise.all(
       scopedProjects.map(async (project) => {
-        const metrics = await collectProjectMetrics(orgId, project.id, query.windowDays);
+        const metrics = await collectProjectMetrics(
+          orgId,
+          project.id,
+          query.windowDays,
+        );
         const health = buildHealthScore(metrics.healthInputs);
         const topRiskFactors = health.factors
           .filter((factor) => factor.impactBps < 0)
@@ -398,10 +523,19 @@ export const commandCenterService = {
     const totalProjects = projectCards.length;
     const averageHealthScore =
       totalProjects > 0
-        ? Math.round(projectCards.reduce((sum, project) => sum + project.health.score, 0) / totalProjects)
+        ? Math.round(
+            projectCards.reduce(
+              (sum, project) => sum + project.health.score,
+              0,
+            ) / totalProjects,
+          )
         : 0;
-    const criticalProjects = projectCards.filter((project) => project.health.status === "critical").length;
-    const watchProjects = projectCards.filter((project) => project.health.status === "watch").length;
+    const criticalProjects = projectCards.filter(
+      (project) => project.health.status === "critical",
+    ).length;
+    const watchProjects = projectCards.filter(
+      (project) => project.health.status === "watch",
+    ).length;
 
     const topRisks = [...projectCards]
       .sort((a, b) => a.health.scoreBps - b.health.scoreBps)
@@ -428,74 +562,83 @@ export const commandCenterService = {
 
   async trends(request: Request) {
     const orgId = requireOrg(request);
-    const query = commandCenterTrendsQuerySchema.parse(readValidatedQuery(request));
+    const query = commandCenterTrendsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
     const now = new Date();
     const buckets = buildTrendBuckets(query.windowDays, query.interval, now);
     const rangeStart = buckets[0]?.start ?? now;
 
-    const [changeOrderRows, alertRows, snapRows, payApplicationRows] = await Promise.all([
-      db
-        .select({
-          createdAt: changeOrders.createdAt,
-          submittedAt: changeOrders.submittedAt,
-          resolvedAt: changeOrders.resolvedAt,
-        })
-        .from(changeOrders)
-        .where(
-          and(
-            eq(changeOrders.organizationId, orgId),
-            eq(changeOrders.projectId, query.projectId),
-            or(
-              gte(changeOrders.createdAt, rangeStart),
-              gte(changeOrders.submittedAt, rangeStart),
-              gte(changeOrders.resolvedAt, rangeStart),
+    const [changeOrderRows, alertRows, snapRows, payApplicationRows] =
+      await Promise.all([
+        db
+          .select({
+            createdAt: changeOrders.createdAt,
+            submittedAt: changeOrders.submittedAt,
+            resolvedAt: changeOrders.resolvedAt,
+          })
+          .from(changeOrders)
+          .where(
+            and(
+              eq(changeOrders.organizationId, orgId),
+              eq(changeOrders.projectId, query.projectId),
+              or(
+                gte(changeOrders.createdAt, rangeStart),
+                gte(changeOrders.submittedAt, rangeStart),
+                gte(changeOrders.resolvedAt, rangeStart),
+              ),
             ),
           ),
-        ),
-      db
-        .select({
-          createdAt: budgetAlerts.createdAt,
-          severity: budgetAlerts.severity,
-          resolvedAt: budgetAlerts.resolvedAt,
-        })
-        .from(budgetAlerts)
-        .where(
-          and(
-            eq(budgetAlerts.organizationId, orgId),
-            eq(budgetAlerts.projectId, query.projectId),
-            gte(budgetAlerts.createdAt, rangeStart),
+        db
+          .select({
+            createdAt: budgetAlerts.createdAt,
+            severity: budgetAlerts.severity,
+            resolvedAt: budgetAlerts.resolvedAt,
+          })
+          .from(budgetAlerts)
+          .where(
+            and(
+              eq(budgetAlerts.organizationId, orgId),
+              eq(budgetAlerts.projectId, query.projectId),
+              gte(budgetAlerts.createdAt, rangeStart),
+            ),
           ),
-        ),
-      db
-        .select({
-          createdAt: siteSnaps.createdAt,
-          reviewedAt: siteSnaps.reviewedAt,
-          status: siteSnaps.status,
-        })
-        .from(siteSnaps)
-        .where(
-          and(
-            eq(siteSnaps.organizationId, orgId),
-            eq(siteSnaps.projectId, query.projectId),
-            or(gte(siteSnaps.createdAt, rangeStart), gte(siteSnaps.reviewedAt, rangeStart)),
+        db
+          .select({
+            createdAt: siteSnaps.createdAt,
+            reviewedAt: siteSnaps.reviewedAt,
+            status: siteSnaps.status,
+          })
+          .from(siteSnaps)
+          .where(
+            and(
+              eq(siteSnaps.organizationId, orgId),
+              eq(siteSnaps.projectId, query.projectId),
+              or(
+                gte(siteSnaps.createdAt, rangeStart),
+                gte(siteSnaps.reviewedAt, rangeStart),
+              ),
+            ),
           ),
-        ),
-      db
-        .select({
-          createdAt: payApplications.createdAt,
-          submittedAt: payApplications.submittedAt,
-          status: payApplications.status,
-        })
-        .from(payApplications)
-        .where(
-          and(
-            eq(payApplications.organizationId, orgId),
-            eq(payApplications.projectId, query.projectId),
-            isNull(payApplications.deletedAt),
-            or(gte(payApplications.createdAt, rangeStart), gte(payApplications.submittedAt, rangeStart)),
+        db
+          .select({
+            createdAt: payApplications.createdAt,
+            submittedAt: payApplications.submittedAt,
+            status: payApplications.status,
+          })
+          .from(payApplications)
+          .where(
+            and(
+              eq(payApplications.organizationId, orgId),
+              eq(payApplications.projectId, query.projectId),
+              isNull(payApplications.deletedAt),
+              or(
+                gte(payApplications.createdAt, rangeStart),
+                gte(payApplications.submittedAt, rangeStart),
+              ),
+            ),
           ),
-        ),
-    ]);
+      ]);
 
     const series: TrendPoint[] = buckets.map((bucket) => ({
       period: bucket.label,
@@ -508,7 +651,10 @@ export const commandCenterService = {
     }));
 
     for (const row of changeOrderRows) {
-      const submittedIndex = resolveBucketIndex(buckets, row.submittedAt ?? row.createdAt);
+      const submittedIndex = resolveBucketIndex(
+        buckets,
+        row.submittedAt ?? row.createdAt,
+      );
       if (submittedIndex >= 0) {
         series[submittedIndex].submittedChangeOrders += 1;
       }
@@ -520,7 +666,10 @@ export const commandCenterService = {
     }
 
     for (const row of alertRows) {
-      if ((row.severity !== "high" && row.severity !== "critical") || row.resolvedAt !== null) {
+      if (
+        (row.severity !== "high" && row.severity !== "critical") ||
+        row.resolvedAt !== null
+      ) {
         continue;
       }
       const alertIndex = resolveBucketIndex(buckets, row.createdAt);
@@ -534,7 +683,10 @@ export const commandCenterService = {
         continue;
       }
 
-      const reviewedIndex = resolveBucketIndex(buckets, row.reviewedAt ?? row.createdAt);
+      const reviewedIndex = resolveBucketIndex(
+        buckets,
+        row.reviewedAt ?? row.createdAt,
+      );
       if (reviewedIndex >= 0) {
         series[reviewedIndex].reviewedSiteSnaps += 1;
       }
@@ -545,7 +697,10 @@ export const commandCenterService = {
         continue;
       }
 
-      const payAppIndex = resolveBucketIndex(buckets, row.submittedAt ?? row.createdAt);
+      const payAppIndex = resolveBucketIndex(
+        buckets,
+        row.submittedAt ?? row.createdAt,
+      );
       if (payAppIndex >= 0) {
         series[payAppIndex].submittedPayApplications += 1;
       }
@@ -557,7 +712,9 @@ export const commandCenterService = {
         0,
       );
       point.riskPressureScore =
-        unresolvedChangeOrderPressure * 2 + point.highRiskBudgetAlerts * 3 + point.submittedPayApplications;
+        unresolvedChangeOrderPressure * 2 +
+        point.highRiskBudgetAlerts * 3 +
+        point.submittedPayApplications;
     }
 
     const summary = series.reduce(
@@ -581,7 +738,9 @@ export const commandCenterService = {
     );
 
     const periodCount = series.length || 1;
-    summary.averageRiskPressure = Number((summary.averageRiskPressure / periodCount).toFixed(2));
+    summary.averageRiskPressure = Number(
+      (summary.averageRiskPressure / periodCount).toFixed(2),
+    );
 
     const firstPressure = series[0]?.riskPressureScore ?? 0;
     const lastPressure = series[series.length - 1]?.riskPressureScore ?? 0;

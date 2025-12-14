@@ -7,48 +7,67 @@
 [1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/worker[39m
 
 [?2026h
-[1m[33m ❯ [39m[22msrc/runtime.test.ts[2m [queued][22m
-
 [2m Test Files [22m[1m[32m0 passed[39m[22m[90m (2)[39m
 [2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
-[2m   Start at [22m15:55:58
-[2m   Duration [22m640ms
-[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
-[1m[33m ❯ [39m[22msrc/runtime.test.ts[2m [queued][22m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m953ms
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
 [1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m [queued][22m
 
 [2m Test Files [22m[1m[32m0 passed[39m[22m[90m (2)[39m
 [2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
-[2m   Start at [22m15:55:58
-[2m   Duration [22m985ms
-[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[2m   Start at [22m13:07:43
+[2m   Duration [22m1.67s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
 [1m[33m ❯ [39m[22msrc/runtime.test.ts[2m 0/2[22m
 [1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m [queued][22m
 
 [2m Test Files [22m[1m[32m0 passed[39m[22m[90m (2)[39m
 [2m      Tests [22m[1m[32m0 passed[39m[22m[90m (2)[39m
-[2m   Start at [22m15:55:58
-[2m   Duration [22m1.19s
-[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/runtime.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m1.88s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/runtime.test.ts[2m 1/2[22m
+[1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m2.47s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/runtime.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
 
 [1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m [queued][22m
 
 [2m Test Files [22m[1m[32m1 passed[39m[22m[90m (2)[39m
 [2m      Tests [22m[1m[32m2 passed[39m[22m[90m (2)[39m
-[2m   Start at [22m15:55:58
-[2m   Duration [22m1.89s
+[2m   Start at [22m13:07:43
+[2m   Duration [22m3.17s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m[1m[32m2 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m3.37s
 [?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
 [1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m 0/2[22m
 
 [2m Test Files [22m[1m[32m1 passed[39m[22m[90m (2)[39m
 [2m      Tests [22m[1m[32m2 passed[39m[22m[90m (4)[39m
-[2m   Start at [22m15:55:58
-[2m   Duration [22m2.25s
-[?2026l[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/site-snap-analysis.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m3.58s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/site-snap-analysis.test.ts[2m 1/2[22m
+
+[2m Test Files [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m3.78s
+[?2026l[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/site-snap-analysis.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 152[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
 [2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
-[2m   Start at [22m 15:55:58
-[2m   Duration [22m 2.34s[2m (transform 1.09s, setup 0ms, collect 2.09s, tests 29ms, environment 3ms, prepare 645ms)[22m
+[2m   Start at [22m 13:07:43
+[2m   Duration [22m 4.06s[2m (transform 1.41s, setup 0ms, collect 2.06s, tests 158ms, environment 0ms, prepare 1.36s)[22m
 
 [?25h

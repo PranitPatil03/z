@@ -35,51 +35,63 @@ function withValidationMetadata(
 }
 
 export function validateBody(schema: ZodTypeAny) {
-  return withValidationMetadata((request: Request, _response: Response, next: NextFunction) => {
-    try {
-      const parsed = schema.parse(request.body);
-      const validatedRequest = request as ValidatedRequest;
-      validatedRequest.validated = {
-        ...(validatedRequest.validated ?? {}),
-        body: parsed,
-      };
-      next();
-    } catch (error) {
-      next(error);
-    }
-  }, "body", schema);
+  return withValidationMetadata(
+    (request: Request, _response: Response, next: NextFunction) => {
+      try {
+        const parsed = schema.parse(request.body);
+        const validatedRequest = request as ValidatedRequest;
+        validatedRequest.validated = {
+          ...(validatedRequest.validated ?? {}),
+          body: parsed,
+        };
+        next();
+      } catch (error) {
+        next(error);
+      }
+    },
+    "body",
+    schema,
+  );
 }
 
 export function validateQuery(schema: ZodTypeAny) {
-  return withValidationMetadata((request: Request, _response: Response, next: NextFunction) => {
-    try {
-      const parsed = schema.parse(request.query);
-      const validatedRequest = request as ValidatedRequest;
-      validatedRequest.validated = {
-        ...(validatedRequest.validated ?? {}),
-        query: parsed,
-      };
-      next();
-    } catch (error) {
-      next(error);
-    }
-  }, "query", schema);
+  return withValidationMetadata(
+    (request: Request, _response: Response, next: NextFunction) => {
+      try {
+        const parsed = schema.parse(request.query);
+        const validatedRequest = request as ValidatedRequest;
+        validatedRequest.validated = {
+          ...(validatedRequest.validated ?? {}),
+          query: parsed,
+        };
+        next();
+      } catch (error) {
+        next(error);
+      }
+    },
+    "query",
+    schema,
+  );
 }
 
 export function validateParams(schema: ZodTypeAny) {
-  return withValidationMetadata((request: Request, _response: Response, next: NextFunction) => {
-    try {
-      const parsed = schema.parse(request.params);
-      const validatedRequest = request as ValidatedRequest;
-      validatedRequest.validated = {
-        ...(validatedRequest.validated ?? {}),
-        params: parsed,
-      };
-      next();
-    } catch (error) {
-      next(error);
-    }
-  }, "params", schema);
+  return withValidationMetadata(
+    (request: Request, _response: Response, next: NextFunction) => {
+      try {
+        const parsed = schema.parse(request.params);
+        const validatedRequest = request as ValidatedRequest;
+        validatedRequest.validated = {
+          ...(validatedRequest.validated ?? {}),
+          params: parsed,
+        };
+        next();
+      } catch (error) {
+        next(error);
+      }
+    },
+    "params",
+    schema,
+  );
 }
 
 export function parseZodError(error: unknown) {

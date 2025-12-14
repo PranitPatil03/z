@@ -23,7 +23,10 @@ export const listComplianceItemsQuerySchema = z.object({
   status: complianceStatusSchema.optional(),
   complianceType: z.string().min(1).optional(),
   highRiskOnly: z
-    .union([z.boolean(), z.string().transform((value) => value.toLowerCase() === "true")])
+    .union([
+      z.boolean(),
+      z.string().transform((value) => value.toLowerCase() === "true"),
+    ])
     .optional(),
 });
 
@@ -81,6 +84,8 @@ export const queueInsuranceExtractionSchema = z.object({
   prompt: z.string().min(10).max(10000),
   sourceFileName: z.string().max(255).optional(),
   sourceUrl: z.string().url().optional(),
-  provider: z.enum(["openai", "anthropic", "gemini", "azure-openai"]).optional(),
+  provider: z
+    .enum(["openai", "anthropic", "gemini", "azure-openai"])
+    .optional(),
   model: z.string().min(1).optional(),
 });

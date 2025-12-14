@@ -50,7 +50,9 @@ export function buildStorageKey(input: {
   fileId: string;
   fileName: string;
 }) {
-  const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 128);
+  const safeName = input.fileName
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 128);
   const prefix = normalizePrefix(env.S3_PREFIX);
   return `${prefix}${input.organizationId}/${input.entityType}/${input.entityId}/${input.fileId}-${safeName}`;
 }

@@ -1,6 +1,7 @@
 import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 import { auth } from "../auth";
+import type { ValidatedRequest } from "../lib/validate";
 import {
   activeMemberQuerySchema,
   addMemberSchema,
@@ -22,7 +23,6 @@ import {
   updateOrganizationSchema,
   updateTeamSchema,
 } from "../schemas/organization.schema";
-import type { ValidatedRequest } from "../lib/validate";
 
 function sessionHeaders(request: Request) {
   return fromNodeHeaders(request.headers);
@@ -62,7 +62,9 @@ export const organizationService = {
   },
 
   async getFullOrganization(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     return await auth.api.getFullOrganization({
       headers: buildHeaders(request),
       query: { organizationId: params.organizationId },
@@ -70,7 +72,9 @@ export const organizationService = {
   },
 
   async updateOrganization(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateOrganizationSchema.parse(readValidatedBody(request));
     return await auth.api.updateOrganization({
       headers: buildHeaders(request),
@@ -80,7 +84,9 @@ export const organizationService = {
   },
 
   async deleteOrganization(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const result = await auth.api.deleteOrganization({
       headers: buildHeaders(request),
       body: { organizationId: params.organizationId },
@@ -89,7 +95,9 @@ export const organizationService = {
   },
 
   async listMembers(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     return await auth.api.listMembers({
       headers: buildHeaders(request),
       query: { organizationId: params.organizationId },
@@ -97,7 +105,9 @@ export const organizationService = {
   },
 
   async addMember(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = addMemberSchema.parse(readValidatedBody(request));
 
     return await auth.api.addMember({
@@ -148,7 +158,9 @@ export const organizationService = {
   },
 
   async createInvitation(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = inviteMemberSchema.parse(readValidatedBody(request));
     return await auth.api.createInvitation({
       headers: buildHeaders(request),
@@ -163,7 +175,9 @@ export const organizationService = {
   },
 
   async listInvitations(request: Request) {
-    const query = listInvitationsQuerySchema.parse(readValidatedQuery(request) ?? {});
+    const query = listInvitationsQuerySchema.parse(
+      readValidatedQuery(request) ?? {},
+    );
 
     return await auth.api.listInvitations({
       headers: buildHeaders(request),
@@ -218,7 +232,9 @@ export const organizationService = {
   },
 
   async getActiveMember(request: Request) {
-    const query = activeMemberQuerySchema.parse(readValidatedQuery(request) ?? {});
+    const query = activeMemberQuerySchema.parse(
+      readValidatedQuery(request) ?? {},
+    );
 
     return await auth.api.getActiveMember({
       headers: buildHeaders(request),
@@ -227,7 +243,9 @@ export const organizationService = {
   },
 
   async getActiveMemberRole(request: Request) {
-    const query = activeMemberQuerySchema.parse(readValidatedQuery(request) ?? {});
+    const query = activeMemberQuerySchema.parse(
+      readValidatedQuery(request) ?? {},
+    );
 
     return await auth.api.getActiveMemberRole({
       headers: buildHeaders(request),
@@ -246,7 +264,9 @@ export const organizationService = {
   },
 
   async createTeam(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = createTeamSchema.parse(readValidatedBody(request));
 
     return await auth.api.createTeam({
@@ -259,7 +279,9 @@ export const organizationService = {
   },
 
   async listOrganizationTeams(request: Request) {
-    const params = organizationIdParamsSchema.parse(readValidatedParams(request));
+    const params = organizationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     return await auth.api.listOrganizationTeams({
       headers: buildHeaders(request),
       query: { organizationId: params.organizationId },

@@ -1,9 +1,17 @@
 import type { Router } from "express";
 import type { OpenAPIV3 } from "openapi-types";
-import { toJSONSchema, type ZodTypeAny } from "zod";
+import { type ZodTypeAny, toJSONSchema } from "zod";
 import type { ValidationAwareMiddleware } from "./validate";
 
-const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "options", "head"] as const;
+const HTTP_METHODS = [
+  "get",
+  "post",
+  "put",
+  "patch",
+  "delete",
+  "options",
+  "head",
+] as const;
 
 type HttpMethod = (typeof HTTP_METHODS)[number];
 
@@ -90,7 +98,9 @@ function toOperationId(method: string, openApiPath: string) {
     })
     .join("");
 
-  return suffix.length > 0 ? `${method.toLowerCase()}${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}` : method;
+  return suffix.length > 0
+    ? `${method.toLowerCase()}${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`
+    : method;
 }
 
 function toHandlerName(layer: {
@@ -100,7 +110,10 @@ function toHandlerName(layer: {
     __wrappedHandlerName?: string;
   };
 }) {
-  if (typeof layer.handle?.__wrappedHandlerName === "string" && layer.handle.__wrappedHandlerName.length > 0) {
+  if (
+    typeof layer.handle?.__wrappedHandlerName === "string" &&
+    layer.handle.__wrappedHandlerName.length > 0
+  ) {
     return layer.handle.__wrappedHandlerName;
   }
 
@@ -125,7 +138,7 @@ function normalizeSchema(value: unknown): OpenAPIV3.SchemaObject {
   }
 
   const schema = { ...(value as Record<string, unknown>) };
-  delete schema.$schema;
+  schema.$schema = undefined;
 
   return schema as OpenAPIV3.SchemaObject;
 }
@@ -150,7 +163,9 @@ function extractObjectProperties(schema: ZodTypeAny) {
 
   const required = new Set(
     Array.isArray(schemaObject.required)
-      ? schemaObject.required.filter((item): item is string => typeof item === "string")
+      ? schemaObject.required.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
   );
 
@@ -174,19 +189,24 @@ function buildParameters(
     return [];
   }
 
-  return Object.entries(objectSchema.properties).map(([name, propertySchema]) => {
-    const required = location === "params" ? true : objectSchema.required.has(name);
+  return Object.entries(objectSchema.properties).map(
+    ([name, propertySchema]) => {
+      const required =
+        location === "params" ? true : objectSchema.required.has(name);
 
-    return {
-      name,
-      in: location === "params" ? "path" : "query",
-      required,
-      schema: propertySchema,
-    } satisfies OpenAPIV3.ParameterObject;
-  });
+      return {
+        name,
+        in: location === "params" ? "path" : "query",
+        required,
+        schema: propertySchema,
+      } satisfies OpenAPIV3.ParameterObject;
+    },
+  );
 }
 
-function resolveSecurity(middlewareNames: string[]): OpenAPIV3.SecurityRequirementObject[] | undefined {
+function resolveSecurity(
+  middlewareNames: string[],
+): OpenAPIV3.SecurityRequirementObject[] | undefined {
   const normalizedNames = middlewareNames.map((name) => name.toLowerCase());
 
   if (normalizedNames.includes("requireportalauth")) {
@@ -296,14 +316,16 @@ function addAuthPassthroughPath(paths: OpenAPIV3.PathsObject) {
       tags: ["Auth"],
       operationId: "getAuthDynamic",
       summary: "Better Auth dynamic GET endpoint",
-      description: "Proxy endpoint managed by Better Auth. See Better Auth docs for concrete route contracts.",
+      description:
+        "Proxy endpoint managed by Better Auth. See Better Auth docs for concrete route contracts.",
       responses: buildResponses("get"),
     },
     post: {
       tags: ["Auth"],
       operationId: "postAuthDynamic",
       summary: "Better Auth dynamic POST endpoint",
-      description: "Proxy endpoint managed by Better Auth. See Better Auth docs for concrete route contracts.",
+      description:
+        "Proxy endpoint managed by Better Auth. See Better Auth docs for concrete route contracts.",
       responses: buildResponses("post"),
     },
   };
@@ -319,11 +341,14 @@ function routePathArray(path: string | string[] | undefined) {
   return Array.isArray(path) ? path : [path];
 }
 
-export function buildOpenApiDocument(options: OpenApiBuildOptions): OpenAPIV3.Document {
+export function buildOpenApiDocument(
+  options: OpenApiBuildOptions,
+): OpenAPIV3.Document {
   const paths: OpenAPIV3.PathsObject = {};
 
   for (const mount of options.mounts) {
-    const stack = ((mount.router as unknown as { stack?: ExpressRouteLayer[] }).stack ?? []) as ExpressRouteLayer[];
+    const stack = ((mount.router as unknown as { stack?: ExpressRouteLayer[] })
+      .stack ?? []) as ExpressRouteLayer[];
     const activeMiddlewareNames: string[] = [];
     let operationsRegisteredForMount = 0;
 
@@ -347,7 +372,9 @@ export function buildOpenApiDocument(options: OpenApiBuildOptions): OpenAPIV3.Do
       const routeMiddleware = layer.route.stack ?? [];
       const operationMiddlewareNames = [
         ...activeMiddlewareNames,
-        ...routeMiddleware.map((middlewareLayer) => toHandlerName(middlewareLayer)),
+        ...routeMiddleware.map((middlewareLayer) =>
+          toHandlerName(middlewareLayer),
+        ),
       ];
 
       const bodyValidation = routeMiddleware
@@ -364,18 +391,26 @@ export function buildOpenApiDocument(options: OpenApiBuildOptions): OpenAPIV3.Do
 
       for (const routePath of routePathArray(layer.route.path)) {
         const fullPath = toOpenApiPath(joinPaths(mount.path, routePath));
-        const pathItem = (paths[fullPath] ??= {});
+        let pathItem = paths[fullPath];
+        if (!pathItem || "$ref" in pathItem) {
+          pathItem = {};
+          paths[fullPath] = pathItem;
+        }
         operationsRegisteredForMount += methods.length;
 
         for (const method of methods) {
           const parameters: OpenAPIV3.ParameterObject[] = [];
 
           if (paramsValidation?.schema) {
-            parameters.push(...buildParameters("params", paramsValidation.schema));
+            parameters.push(
+              ...buildParameters("params", paramsValidation.schema),
+            );
           }
 
           if (queryValidation?.schema) {
-            parameters.push(...buildParameters("query", queryValidation.schema));
+            parameters.push(
+              ...buildParameters("query", queryValidation.schema),
+            );
           }
 
           const security = resolveSecurity(operationMiddlewareNames);
@@ -410,7 +445,8 @@ export function buildOpenApiDocument(options: OpenApiBuildOptions): OpenAPIV3.Do
             operation.security = security;
           }
 
-          (pathItem as Record<string, OpenAPIV3.OperationObject>)[method] = operation;
+          (pathItem as Record<string, OpenAPIV3.OperationObject>)[method] =
+            operation;
         }
       }
     }
@@ -451,14 +487,17 @@ export function buildOpenApiDocument(options: OpenApiBuildOptions): OpenAPIV3.Do
       title: options.title,
       version: options.version,
       description:
-        options.description ?? "Autogenerated from Express routes and Zod validators. Use this contract for frontend integration.",
+        options.description ??
+        "Autogenerated from Express routes and Zod validators. Use this contract for frontend integration.",
     },
     servers: [
       {
         url: "/",
       },
     ],
-    tags: Array.from(new Set(options.mounts.map((mount) => mount.tag))).map((name) => ({ name })),
+    tags: Array.from(new Set(options.mounts.map((mount) => mount.tag))).map(
+      (name) => ({ name }),
+    ),
     paths,
     components: {
       securitySchemes: {

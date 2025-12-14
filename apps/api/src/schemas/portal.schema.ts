@@ -15,7 +15,16 @@ export const portalLoginSchema = z.object({
 });
 
 export const portalComplianceUpdateSchema = z.object({
-  status: z.enum(["pending", "verified", "expiring", "expired", "non_compliant", "compliant"]).optional(),
+  status: z
+    .enum([
+      "pending",
+      "verified",
+      "expiring",
+      "expired",
+      "non_compliant",
+      "compliant",
+    ])
+    .optional(),
   evidence: z.record(z.string(), z.unknown()).optional(),
   notes: z.string().optional(),
 });
@@ -76,7 +85,16 @@ export const portalCreatePayApplicationSchema = z.object({
 });
 
 export const portalListPayApplicationsQuerySchema = z.object({
-  status: z.enum(["draft", "submitted", "under_review", "approved", "rejected", "paid"]).optional(),
+  status: z
+    .enum([
+      "draft",
+      "submitted",
+      "under_review",
+      "approved",
+      "rejected",
+      "paid",
+    ])
+    .optional(),
   limit: z.number().int().min(1).max(200).default(50),
 });
 

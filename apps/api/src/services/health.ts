@@ -20,7 +20,8 @@ async function checkDatabase() {
   } catch (error) {
     return {
       status: "error" as const,
-      message: error instanceof Error ? error.message : "Unknown database error",
+      message:
+        error instanceof Error ? error.message : "Unknown database error",
     };
   }
 }
@@ -51,13 +52,19 @@ async function checkRedis() {
 
 async function checkStorage() {
   if (env.STORAGE_PROVIDER !== "aws-s3") {
-    return { status: "skipped" as const, message: "Storage provider not configured" };
+    return {
+      status: "skipped" as const,
+      message: "Storage provider not configured",
+    };
   }
 
   const bucket = getStorageBucket();
   const s3 = getS3Client();
   if (!bucket || !s3) {
-    return { status: "error" as const, message: "S3 bucket or client configuration missing" };
+    return {
+      status: "error" as const,
+      message: "S3 bucket or client configuration missing",
+    };
   }
 
   try {
@@ -82,7 +89,10 @@ function checkEmailConfiguration() {
     if (env.RESEND_API_KEY && env.RESEND_FROM_EMAIL) {
       return { status: "ok" as const };
     }
-    return { status: "error" as const, message: "Resend provider is missing API key or from email" };
+    return {
+      status: "error" as const,
+      message: "Resend provider is missing API key or from email",
+    };
   }
 
   if (env.SMTP_HOST && env.SMTP_PORT && env.SMTP_FROM) {
@@ -103,7 +113,9 @@ export async function readinessService() {
   ]);
   const email = checkEmailConfiguration();
 
-  const requiredChecks = [database, redis, storage].filter((check) => check.status !== "skipped");
+  const requiredChecks = [database, redis, storage].filter(
+    (check) => check.status !== "skipped",
+  );
   const ready = requiredChecks.every((check) => check.status === "ok");
 
   return {

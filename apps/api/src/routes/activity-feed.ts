@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
-  getEntityTimelineController,
   getActivityFeedController,
+  getEntityTimelineController,
   getHealthScoreController,
   getProjectHealthController,
 } from "../controllers/activity-feed";
@@ -19,7 +19,11 @@ export const activityFeedRouter: import("express").Router = Router();
 
 activityFeedRouter.use(requireAuth);
 
-activityFeedRouter.get("/", validateQuery(listActivityFeedQuerySchema), asyncHandler(getActivityFeedController));
+activityFeedRouter.get(
+  "/",
+  validateQuery(listActivityFeedQuerySchema),
+  asyncHandler(getActivityFeedController),
+);
 activityFeedRouter.get(
   "/entity/:entityType/:entityId",
   validateParams(activityFeedEntityParamsSchema),

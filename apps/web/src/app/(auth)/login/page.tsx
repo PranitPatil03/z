@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { organizationsApi } from "@/lib/api/modules/organizations-api";
 import { authClient } from "@/lib/auth-client";
 import { LayoutDashboard, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -51,6 +52,17 @@ export default function LoginPage() {
       toast.error(error.message ?? "Invalid credentials");
       setLoading(false);
       return;
+    }
+
+    try {
+      const organizations = await organizationsApi.list();
+      const fallbackOrganizationId = organizations[0]?.id;
+
+      if (fallbackOrganizationId) {
+        await organizationsApi.setActive(fallbackOrganizationId);
+      }
+    } catch {
+      // Session bootstrap will retry activation when app shell mounts.
     }
 
     router.push(nextPath);

@@ -17,8 +17,16 @@ import {
 
 export const oauthRouter: import("express").Router = Router();
 
-oauthRouter.get("/gmail/auth-url", requireAuth, asyncHandler(getGmailAuthUrlController));
-oauthRouter.get("/outlook/auth-url", requireAuth, asyncHandler(getOutlookAuthUrlController));
+oauthRouter.get(
+  "/gmail/auth-url",
+  requireAuth,
+  asyncHandler(getGmailAuthUrlController),
+);
+oauthRouter.get(
+  "/outlook/auth-url",
+  requireAuth,
+  asyncHandler(getOutlookAuthUrlController),
+);
 
 oauthRouter.post(
   "/callback",

@@ -15,7 +15,10 @@ export async function sendMail(message: MailMessage) {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_PORT === 465,
-      auth: env.SMTP_USER && env.SMTP_PASSWORD ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
+      auth:
+        env.SMTP_USER && env.SMTP_PASSWORD
+          ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD }
+          : undefined,
     });
 
     await transporter.sendMail({
@@ -29,5 +32,8 @@ export async function sendMail(message: MailMessage) {
     return;
   }
 
-  logger.info({ to: message.to, subject: message.subject }, "Mail queued (SMTP not configured)");
+  logger.info(
+    { to: message.to, subject: message.subject },
+    "Mail queued (SMTP not configured)",
+  );
 }

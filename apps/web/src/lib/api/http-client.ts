@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { reportFrontendDiagnostic } from "@/lib/observability/frontend-observability";
 import { useSessionStore } from "@/store/session-store";
 import type { ApiErrorEnvelope } from "@/types/api";
 
@@ -112,6 +113,19 @@ export async function requestJson<T>(
 
   if (!response.ok) {
     const errorPayload = await parseErrorPayload(response);
+
+    reportFrontendDiagnostic({
+      type: "api-request-error",
+      timestamp: new Date().toISOString(),
+      message:
+        errorPayload?.error.message ??
+        `Request failed with status ${response.status}`,
+      details: {
+        path,
+        status: response.status,
+        code: errorPayload?.error.code ?? "HTTP_ERROR",
+      },
+    });
 
     if (
       response.status === 401 &&

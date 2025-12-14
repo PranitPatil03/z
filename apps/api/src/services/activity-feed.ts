@@ -1,10 +1,26 @@
-import { and, count, desc, eq, gt, gte, inArray, isNull, lte } from "drizzle-orm";
-import { auditLogs, projects, billingRecords, budgetCostCodes, changeOrders } from "@foreman/db";
+import {
+  auditLogs,
+  billingRecords,
+  budgetCostCodes,
+  changeOrders,
+  projects,
+} from "@foreman/db";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lte,
+} from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest } from "../lib/errors";
-import { getAuthContext } from "../middleware/require-auth";
 import type { ValidatedRequest } from "../lib/validate";
+import { getAuthContext } from "../middleware/require-auth";
 import {
   activityFeedEntityTimelineQuerySchema,
   listActivityFeedQuerySchema,
@@ -59,7 +75,9 @@ function extractProjectId(value: unknown): string | null {
   }
 
   const projectId = (value as Record<string, unknown>).projectId;
-  return typeof projectId === "string" && projectId.length > 0 ? projectId : null;
+  return typeof projectId === "string" && projectId.length > 0
+    ? projectId
+    : null;
 }
 
 function resolveProjectIdFromLog(log: {
@@ -67,10 +85,26 @@ function resolveProjectIdFromLog(log: {
   beforeData: unknown;
   afterData: unknown;
 }) {
-  return extractProjectId(log.metadata) ?? extractProjectId(log.afterData) ?? extractProjectId(log.beforeData);
+  return (
+    extractProjectId(log.metadata) ??
+    extractProjectId(log.afterData) ??
+    extractProjectId(log.beforeData)
+  );
 }
 
-function toActivityItem(log: any) {
+type ActivityLogRecord = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  actorUserId: string | null;
+  metadata: unknown;
+  beforeData: unknown;
+  afterData: unknown;
+  createdAt: Date;
+};
+
+function toActivityItem(log: ActivityLogRecord) {
   return {
     id: log.id,
     type: log.action,
@@ -79,7 +113,9 @@ function toActivityItem(log: any) {
     actor: log.actorUserId,
     projectId: resolveProjectIdFromLog(log),
     timestamp: log.createdAt,
-    changes: log.beforeData ? { before: log.beforeData, after: log.afterData } : null,
+    changes: log.beforeData
+      ? { before: log.beforeData, after: log.afterData }
+      : null,
     description: `${log.action} ${log.entityType}: ${log.entityId}`,
   };
 }
@@ -117,7 +153,10 @@ export function buildActivityHealthAssessment(metrics: {
     },
   ];
 
-  const totalDeduction = factors.reduce((sum, factor) => sum + Math.abs(factor.impact), 0);
+  const totalDeduction = factors.reduce(
+    (sum, factor) => sum + Math.abs(factor.impact),
+    0,
+  );
   const score = Math.max(0, Math.min(100, Math.round(100 - totalDeduction)));
   const status = score >= 80 ? "healthy" : score >= 60 ? "warning" : "critical";
 
@@ -140,15 +179,21 @@ function getRecommendations(
   const recommendations: string[] = [];
 
   if (metrics.pendingChangeOrders > 0) {
-    recommendations.push(`Review ${metrics.pendingChangeOrders} pending change orders`);
+    recommendations.push(
+      `Review ${metrics.pendingChangeOrders} pending change orders`,
+    );
   }
 
   if (metrics.overBudgetItems > 0) {
-    recommendations.push(`Address ${metrics.overBudgetItems} over-budget cost codes`);
+    recommendations.push(
+      `Address ${metrics.overBudgetItems} over-budget cost codes`,
+    );
   }
 
   if (metrics.unpaidInvoices > 0) {
-    recommendations.push(`Collect payment for ${metrics.unpaidInvoices} unpaid invoices`);
+    recommendations.push(
+      `Collect payment for ${metrics.unpaidInvoices} unpaid invoices`,
+    );
   }
 
   if (score < 50) {
@@ -164,7 +209,9 @@ export const activityFeedService = {
    */
   async getActivityFeed(request: Request) {
     const orgId = requireOrg(request);
-    const query = listActivityFeedQuerySchema.parse(readValidatedQuery(request));
+    const query = listActivityFeedQuerySchema.parse(
+      readValidatedQuery(request),
+    );
     const offset = (query.page - 1) * query.pageSize;
     const fromDate = query.from ? new Date(query.from) : null;
     const toDate = query.to ? new Date(query.to) : null;
@@ -189,7 +236,11 @@ export const activityFeedService = {
     const whereClause = and(...whereConditions);
 
     const activitiesBase = query.projectId
-      ? await db.select().from(auditLogs).where(whereClause).orderBy(desc(auditLogs.createdAt))
+      ? await db
+          .select()
+          .from(auditLogs)
+          .where(whereClause)
+          .orderBy(desc(auditLogs.createdAt))
       : await db
           .select()
           .from(auditLogs)
@@ -199,7 +250,9 @@ export const activityFeedService = {
           .offset(offset);
 
     const activitiesFiltered = query.projectId
-      ? activitiesBase.filter((log: any) => resolveProjectIdFromLog(log) === query.projectId)
+      ? activitiesBase.filter(
+          (log) => resolveProjectIdFromLog(log) === query.projectId,
+        )
       : activitiesBase;
 
     const pagedActivities = query.projectId
@@ -218,7 +271,7 @@ export const activityFeedService = {
         );
 
     return {
-      items: pagedActivities.map((log: any) => toActivityItem(log)),
+      items: pagedActivities.map((log) => toActivityItem(log)),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,
@@ -236,9 +289,15 @@ export const activityFeedService = {
     };
   },
 
-  async getEntityTimeline(request: Request, entityType: string, entityId: string) {
+  async getEntityTimeline(
+    request: Request,
+    entityType: string,
+    entityId: string,
+  ) {
     const orgId = requireOrg(request);
-    const query = activityFeedEntityTimelineQuerySchema.parse(readValidatedQuery(request));
+    const query = activityFeedEntityTimelineQuerySchema.parse(
+      readValidatedQuery(request),
+    );
     const offset = (query.page - 1) * query.pageSize;
     const fromDate = query.from ? new Date(query.from) : null;
     const toDate = query.to ? new Date(query.to) : null;
@@ -269,10 +328,7 @@ export const activityFeedService = {
         .orderBy(desc(auditLogs.createdAt))
         .limit(query.pageSize)
         .offset(offset),
-      db
-        .select({ total: count() })
-        .from(auditLogs)
-        .where(whereClause),
+      db.select({ total: count() }).from(auditLogs).where(whereClause),
     ]);
 
     const total = toNumber(totalResult?.[0]?.total);
@@ -282,7 +338,7 @@ export const activityFeedService = {
         entityType,
         entityId,
       },
-      items: items.map((log: any) => toActivityItem(log)),
+      items: items.map((log) => toActivityItem(log)),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,
@@ -307,7 +363,9 @@ export const activityFeedService = {
     const [projectCountResult] = await db
       .select({ count: count() })
       .from(projects)
-      .where(and(eq(projects.organizationId, orgId), isNull(projects.deletedAt)));
+      .where(
+        and(eq(projects.organizationId, orgId), isNull(projects.deletedAt)),
+      );
 
     const [pendingChangeOrdersResult] = await db
       .select({ count: count() })
@@ -315,14 +373,23 @@ export const activityFeedService = {
       .where(
         and(
           eq(changeOrders.organizationId, orgId),
-          inArray(changeOrders.status, ["submitted", "under_review", "revision_requested"]),
+          inArray(changeOrders.status, [
+            "submitted",
+            "under_review",
+            "revision_requested",
+          ]),
         ),
       );
 
     const [overBudgetItemsResult] = await db
       .select({ count: count() })
       .from(budgetCostCodes)
-      .where(and(eq(budgetCostCodes.organizationId, orgId), gt(budgetCostCodes.actualCents, budgetCostCodes.budgetCents)));
+      .where(
+        and(
+          eq(budgetCostCodes.organizationId, orgId),
+          gt(budgetCostCodes.actualCents, budgetCostCodes.budgetCents),
+        ),
+      );
 
     const [unpaidInvoicesResult] = await db
       .select({ count: count() })
@@ -370,7 +437,13 @@ export const activityFeedService = {
     const [project] = await db
       .select()
       .from(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt)))
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.organizationId, orgId),
+          isNull(projects.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!project) {
@@ -381,7 +454,12 @@ export const activityFeedService = {
     const [costCodeStatsResult] = await db
       .select({ count: count() })
       .from(budgetCostCodes)
-      .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, projectId)));
+      .where(
+        and(
+          eq(budgetCostCodes.organizationId, orgId),
+          eq(budgetCostCodes.projectId, projectId),
+        ),
+      );
 
     const [changeOrderStatsResult] = await db
       .select({ count: count() })
@@ -407,7 +485,12 @@ export const activityFeedService = {
       projectId,
       projectName: project.name,
       score: Math.round(projectScore),
-      status: projectScore >= 80 ? "healthy" : projectScore >= 60 ? "warning" : "critical",
+      status:
+        projectScore >= 80
+          ? "healthy"
+          : projectScore >= 60
+            ? "warning"
+            : "critical",
       metrics: {
         totalCostCodes,
         totalChangeOrders,

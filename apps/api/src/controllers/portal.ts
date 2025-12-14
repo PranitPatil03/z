@@ -1,27 +1,30 @@
 import type { Request, Response } from "express";
-import { portalAuthService } from "../services/portal-auth";
+import type { ValidatedRequest } from "../lib/validate";
+import { getPortalSession } from "../middleware/require-portal-auth";
 import {
   dailyLogIdParamsSchema,
   payApplicationIdParamsSchema,
   portalAcceptInvitationSchema,
-  portalRegisterSchema,
-  portalLoginSchema,
   portalComplianceUploadSchema,
   portalCreateDailyLogSchema,
   portalCreatePayApplicationSchema,
   portalListDailyLogsQuerySchema,
   portalListPayApplicationsQuerySchema,
+  portalLoginSchema,
   portalPasswordResetConfirmSchema,
   portalPasswordResetRequestSchema,
+  portalRegisterSchema,
 } from "../schemas/portal.schema";
-import type { ValidatedRequest } from "../lib/validate";
-import { getPortalSession } from "../middleware/require-portal-auth";
+import { portalAuthService } from "../services/portal-auth";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
 }
 
-export async function portalRegisterController(request: Request, response: Response) {
+export async function portalRegisterController(
+  request: Request,
+  response: Response,
+) {
   const body = portalRegisterSchema.parse(readValidatedBody(request));
 
   const result = await portalAuthService.register(
@@ -36,7 +39,10 @@ export async function portalRegisterController(request: Request, response: Respo
   response.status(201).json(result);
 }
 
-export async function portalLoginController(request: Request, response: Response) {
+export async function portalLoginController(
+  request: Request,
+  response: Response,
+) {
   const body = portalLoginSchema.parse(readValidatedBody(request));
 
   const result = await portalAuthService.login(body.email, body.password);
@@ -44,35 +50,65 @@ export async function portalLoginController(request: Request, response: Response
   response.json(result);
 }
 
-export async function portalAcceptInvitationController(request: Request, response: Response) {
+export async function portalAcceptInvitationController(
+  request: Request,
+  response: Response,
+) {
   const body = portalAcceptInvitationSchema.parse(readValidatedBody(request));
 
-  const result = await portalAuthService.acceptInvitation(body.token, body.password, body.name, body.phone);
+  const result = await portalAuthService.acceptInvitation(
+    body.token,
+    body.password,
+    body.name,
+    body.phone,
+  );
   response.json(result);
 }
 
-export async function portalPasswordResetRequestController(request: Request, response: Response) {
-  const body = portalPasswordResetRequestSchema.parse(readValidatedBody(request));
+export async function portalPasswordResetRequestController(
+  request: Request,
+  response: Response,
+) {
+  const body = portalPasswordResetRequestSchema.parse(
+    readValidatedBody(request),
+  );
 
   const result = await portalAuthService.requestPasswordReset(body.email);
   response.json(result);
 }
 
-export async function portalPasswordResetConfirmController(request: Request, response: Response) {
-  const body = portalPasswordResetConfirmSchema.parse(readValidatedBody(request));
+export async function portalPasswordResetConfirmController(
+  request: Request,
+  response: Response,
+) {
+  const body = portalPasswordResetConfirmSchema.parse(
+    readValidatedBody(request),
+  );
 
-  const result = await portalAuthService.confirmPasswordReset(body.token, body.password);
+  const result = await portalAuthService.confirmPasswordReset(
+    body.token,
+    body.password,
+  );
   response.json(result);
 }
 
-export async function portalGetComplianceController(request: Request, response: Response) {
+export async function portalGetComplianceController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const items = await portalAuthService.getUserCompliance(session.subcontractorId, session.organizationId);
+  const items = await portalAuthService.getUserCompliance(
+    session.subcontractorId,
+    session.organizationId,
+  );
 
   response.json({ items });
 }
 
-export async function portalUpdateComplianceController(request: Request, response: Response) {
+export async function portalUpdateComplianceController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
   const body = portalComplianceUploadSchema.parse(readValidatedBody(request));
 
@@ -87,37 +123,69 @@ export async function portalUpdateComplianceController(request: Request, respons
   response.json({ compliance: updated });
 }
 
-export async function portalGetProfileController(request: Request, response: Response) {
+export async function portalGetProfileController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
   response.json({ profile: session });
 }
 
-export async function portalGetOverviewController(request: Request, response: Response) {
+export async function portalGetOverviewController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const overview = await portalAuthService.getPortalOverview(session.subcontractorId, session.organizationId);
+  const overview = await portalAuthService.getPortalOverview(
+    session.subcontractorId,
+    session.organizationId,
+  );
 
   response.json({ data: overview });
 }
 
-export async function portalListPayApplicationsController(request: Request, response: Response) {
+export async function portalListPayApplicationsController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const query = portalListPayApplicationsQuerySchema.parse((request as ValidatedRequest).validated?.query ?? {});
-  const data = await portalAuthService.listPortalPayApplications(session.subcontractorId, session.organizationId, query);
+  const query = portalListPayApplicationsQuerySchema.parse(
+    (request as ValidatedRequest).validated?.query ?? {},
+  );
+  const data = await portalAuthService.listPortalPayApplications(
+    session.subcontractorId,
+    session.organizationId,
+    query,
+  );
 
   response.json({ data });
 }
 
-export async function portalCreatePayApplicationController(request: Request, response: Response) {
+export async function portalCreatePayApplicationController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const body = portalCreatePayApplicationSchema.parse(readValidatedBody(request));
-  const data = await portalAuthService.submitPortalPayApplication(session.subcontractorId, session.organizationId, body);
+  const body = portalCreatePayApplicationSchema.parse(
+    readValidatedBody(request),
+  );
+  const data = await portalAuthService.submitPortalPayApplication(
+    session.subcontractorId,
+    session.organizationId,
+    body,
+  );
 
   response.status(201).json({ data });
 }
 
-export async function portalGetPayApplicationController(request: Request, response: Response) {
+export async function portalGetPayApplicationController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const params = payApplicationIdParamsSchema.parse((request as ValidatedRequest).validated?.params ?? {});
+  const params = payApplicationIdParamsSchema.parse(
+    (request as ValidatedRequest).validated?.params ?? {},
+  );
   const data = await portalAuthService.getPortalPayApplication(
     session.subcontractorId,
     session.organizationId,
@@ -127,26 +195,51 @@ export async function portalGetPayApplicationController(request: Request, respon
   response.json({ data });
 }
 
-export async function portalListDailyLogsController(request: Request, response: Response) {
+export async function portalListDailyLogsController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const query = portalListDailyLogsQuerySchema.parse((request as ValidatedRequest).validated?.query ?? {});
-  const data = await portalAuthService.listPortalDailyLogs(session.subcontractorId, session.organizationId, query);
+  const query = portalListDailyLogsQuerySchema.parse(
+    (request as ValidatedRequest).validated?.query ?? {},
+  );
+  const data = await portalAuthService.listPortalDailyLogs(
+    session.subcontractorId,
+    session.organizationId,
+    query,
+  );
 
   response.json({ data });
 }
 
-export async function portalCreateDailyLogController(request: Request, response: Response) {
+export async function portalCreateDailyLogController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
   const body = portalCreateDailyLogSchema.parse(readValidatedBody(request));
-  const data = await portalAuthService.submitPortalDailyLog(session.subcontractorId, session.organizationId, body);
+  const data = await portalAuthService.submitPortalDailyLog(
+    session.subcontractorId,
+    session.organizationId,
+    body,
+  );
 
   response.status(201).json({ data });
 }
 
-export async function portalGetDailyLogController(request: Request, response: Response) {
+export async function portalGetDailyLogController(
+  request: Request,
+  response: Response,
+) {
   const session = getPortalSession(request);
-  const params = dailyLogIdParamsSchema.parse((request as ValidatedRequest).validated?.params ?? {});
-  const data = await portalAuthService.getPortalDailyLog(session.subcontractorId, session.organizationId, params.dailyLogId);
+  const params = dailyLogIdParamsSchema.parse(
+    (request as ValidatedRequest).validated?.params ?? {},
+  );
+  const data = await portalAuthService.getPortalDailyLog(
+    session.subcontractorId,
+    session.organizationId,
+    params.dailyLogId,
+  );
 
   response.json({ data });
 }

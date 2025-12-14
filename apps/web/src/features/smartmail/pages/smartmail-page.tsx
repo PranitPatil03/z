@@ -1,35 +1,97 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import type { DataTableColumn } from "@/components/ui/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { type OAuthProvider, oauthApi } from "@/lib/api/modules/oauth-api";
 import {
+  type CreateSmartMailTemplateInput,
   type SmartMailAccount,
+  type SmartMailLinkedEntityType,
+  type SmartMailTemplate,
+  type SmartMailTemplateType,
   type SmartMailThread,
   smartmailApi,
 } from "@/lib/api/modules/smartmail-api";
 import { queryKeys } from "@/lib/api/query-keys";
-import { cn } from "@/lib/utils";
+import { env } from "@/lib/env";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link2, Mail, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowRight, Link2, Mail, Plus, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-const THREAD_SKELETON_KEYS = [
-  "thread-skeleton-1",
-  "thread-skeleton-2",
-  "thread-skeleton-3",
-  "thread-skeleton-4",
-  "thread-skeleton-5",
+const LINKED_ENTITY_TYPES: SmartMailLinkedEntityType[] = [
+  "purchase_order",
+  "invoice",
+  "change_order",
+  "subcontractor",
 ];
+
+const TEMPLATE_TYPES: SmartMailTemplateType[] = ["template", "snippet"];
+
+function toIsoOrUndefined(value: string) {
+  if (value.trim().length === 0) {
+    return undefined;
+  }
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return undefined;
+  }
+
+  return new Date(value).toISOString();
+}
+
+function parseCsv(input: string) {
+  return input
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function parseOptionalJson(input: string) {
+  const value = input.trim();
+  if (value.length === 0) {
+    return undefined;
+  }
+
+  const parsed = JSON.parse(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("JSON metadata must be an object");
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 function AccountCard({
   account,
-  onDisconnect,
+  onSelect,
   onSync,
 }: {
   account: SmartMailAccount;
-  onDisconnect: () => void;
+  onSelect: () => void;
   onSync: () => void;
 }) {
   return (
@@ -40,13 +102,16 @@ function AccountCard({
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">{account.email}</p>
-          <p className="text-xs text-muted-foreground capitalize">
-            {account.provider} ·{" "}
-            {account.isActive ? "Connected" : "Disconnected"}
+          <p className="text-xs text-muted-foreground">
+            {account.provider} · {account.status} · Last sync{" "}
+            {formatDateTime(account.lastSyncAt)}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={onSelect}>
+          Select
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -56,103 +121,499 @@ function AccountCard({
         >
           <RefreshCw className="h-3.5 w-3.5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-destructive"
-          onClick={onDisconnect}
-          title="Disconnect"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function ThreadRow({ thread }: { thread: SmartMailThread }) {
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-3 px-5 py-4",
-        !thread.isRead && "bg-primary/5",
-      )}
-    >
-      <div
-        className={cn(
-          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-          !thread.isRead ? "bg-primary" : "bg-transparent",
-        )}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p
-            className={cn(
-              "text-sm truncate",
-              !thread.isRead
-                ? "font-semibold text-foreground"
-                : "text-foreground",
-            )}
-          >
-            {thread.subject || "(no subject)"}
-          </p>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {new Date(thread.lastMessageAt).toLocaleDateString()}
-          </span>
-        </div>
-        <p className="text-xs text-muted-foreground">{thread.from}</p>
-        {thread.snippet && (
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-            {thread.snippet}
-          </p>
-        )}
       </div>
     </div>
   );
 }
 
 export function SmartMailPage() {
+  const isOutlookOAuthEnabled = env.ENABLE_OUTLOOK_OAUTH;
+  const router = useRouter();
   const qc = useQueryClient();
+  const [projectId, setProjectId] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
+  const [createAccountForm, setCreateAccountForm] = useState({
+    provider: "gmail" as OAuthProvider,
+    email: "",
+    defaultProjectId: "",
+    autoSyncEnabled: true,
+    tokenExpiresAt: "",
+    metadataText: "",
+  });
+  const [updateAccountForm, setUpdateAccountForm] = useState({
+    status: "connected" as "connected" | "disconnected" | "error",
+    defaultProjectId: "",
+    autoSyncEnabled: true,
+    tokenExpiresAt: "",
+    metadataText: "",
+  });
+  const [syncMaxResults, setSyncMaxResults] = useState("50");
+
+  const [createThreadForm, setCreateThreadForm] = useState({
+    accountId: "",
+    subject: "",
+    linkedEntityType: "" as SmartMailLinkedEntityType | "",
+    linkedEntityId: "",
+  });
+
+  const [templateForm, setTemplateForm] = useState({
+    name: "",
+    type: "template" as SmartMailTemplateType,
+    subjectTemplate: "",
+    bodyTemplate: "",
+    variablesText: "",
+    isShared: false,
+    metadataText: "",
+  });
+
+  const normalizedProjectId = projectId.trim();
 
   const { data: accounts, isLoading: accountsLoading } = useQuery({
     queryKey: queryKeys.smartmailAccounts.list(),
     queryFn: smartmailApi.listAccounts,
   });
 
+  const selectedAccount = useMemo(
+    () => (accounts ?? []).find((account) => account.id === selectedAccountId),
+    [accounts, selectedAccountId],
+  );
+
+  const accountById = useMemo(() => {
+    const map = new Map<string, SmartMailAccount>();
+    for (const account of accounts ?? []) {
+      map.set(account.id, account);
+    }
+    return map;
+  }, [accounts]);
+
+  useEffect(() => {
+    if (selectedAccountId.length > 0 || (accounts ?? []).length === 0) {
+      return;
+    }
+
+    const firstAccountId = accounts?.[0]?.id;
+    if (firstAccountId) {
+      setSelectedAccountId(firstAccountId);
+      setCreateThreadForm((current) => ({
+        ...current,
+        accountId: firstAccountId,
+      }));
+    }
+  }, [accounts, selectedAccountId.length]);
+
+  useEffect(() => {
+    if (!selectedAccount) {
+      return;
+    }
+
+    setUpdateAccountForm({
+      status: selectedAccount.status,
+      defaultProjectId: selectedAccount.defaultProjectId ?? "",
+      autoSyncEnabled: selectedAccount.autoSyncEnabled,
+      tokenExpiresAt: selectedAccount.tokenExpiresAt
+        ? selectedAccount.tokenExpiresAt.slice(0, 16)
+        : "",
+      metadataText: selectedAccount.metadata
+        ? JSON.stringify(selectedAccount.metadata, null, 2)
+        : "",
+    });
+
+    setCreateThreadForm((current) => ({
+      ...current,
+      accountId: selectedAccount.id,
+    }));
+
+    if (!normalizedProjectId && selectedAccount.defaultProjectId) {
+      setProjectId(selectedAccount.defaultProjectId);
+    }
+  }, [normalizedProjectId, selectedAccount]);
+
   const { data: threads, isLoading: threadsLoading } = useQuery({
-    queryKey: queryKeys.smartmailThreads.list(),
-    queryFn: () => smartmailApi.listThreads({ limit: 30 }),
-    enabled: (accounts?.data ?? []).length > 0,
+    queryKey: queryKeys.smartmailThreads.list({
+      projectId: normalizedProjectId,
+      accountId: selectedAccountId || undefined,
+    }),
+    queryFn: () =>
+      smartmailApi.listThreads({
+        projectId: normalizedProjectId,
+        accountId: selectedAccountId || undefined,
+      }),
+    enabled: normalizedProjectId.length > 0,
   });
 
-  const connectMutation = useMutation({
-    mutationFn: (provider: "gmail" | "outlook") =>
-      smartmailApi.connectAccount(provider),
-    onSuccess: (result) => {
-      window.location.href = result.authUrl;
+  const { data: templates, isLoading: templatesLoading } = useQuery({
+    queryKey: queryKeys.smartmailTemplates.list({
+      projectId: normalizedProjectId || undefined,
+    }),
+    queryFn: () =>
+      smartmailApi.listTemplates({
+        projectId: normalizedProjectId || undefined,
+      }),
+  });
+
+  const selectedTemplate = useMemo(
+    () =>
+      (templates ?? []).find((template) => template.id === selectedTemplateId),
+    [selectedTemplateId, templates],
+  );
+
+  useEffect(() => {
+    if (!selectedTemplate) {
+      return;
+    }
+
+    setTemplateForm({
+      name: selectedTemplate.name,
+      type: selectedTemplate.type,
+      subjectTemplate: selectedTemplate.subjectTemplate,
+      bodyTemplate: selectedTemplate.bodyTemplate,
+      variablesText: selectedTemplate.variables.join(", "),
+      isShared: selectedTemplate.isShared,
+      metadataText: selectedTemplate.metadata
+        ? JSON.stringify(selectedTemplate.metadata, null, 2)
+        : "",
+    });
+  }, [selectedTemplate]);
+
+  const oauthConnectMutation = useMutation({
+    mutationFn: async (provider: OAuthProvider) => {
+      if (provider === "gmail") {
+        return await oauthApi.getGmailAuthUrl();
+      }
+
+      return await oauthApi.getOutlookAuthUrl();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: (result, provider) => {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem("smartmail.oauth.provider", provider);
+        window.sessionStorage.setItem(
+          "smartmail.oauth.returnPath",
+          "/app/smartmail",
+        );
+        window.location.assign(result.authUrl);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
   });
 
-  const disconnectMutation = useMutation({
-    mutationFn: (id: string) => smartmailApi.disconnectAccount(id),
+  const createAccountMutation = useMutation({
+    mutationFn: () =>
+      smartmailApi.createAccount({
+        provider: createAccountForm.provider,
+        email: createAccountForm.email.trim(),
+        defaultProjectId:
+          createAccountForm.defaultProjectId.trim() || undefined,
+        autoSyncEnabled: createAccountForm.autoSyncEnabled,
+        tokenExpiresAt: toIsoOrUndefined(createAccountForm.tokenExpiresAt),
+        metadata: parseOptionalJson(createAccountForm.metadataText),
+      }),
+    onSuccess: (account) => {
+      toast.success("SmartMail account created");
+      setSelectedAccountId(account.id);
+      setCreateAccountForm((current) => ({
+        ...current,
+        email: "",
+        tokenExpiresAt: "",
+        metadataText: "",
+      }));
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailAccounts.all });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const updateAccountMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedAccountId) {
+        throw new Error("Select an account first");
+      }
+
+      return smartmailApi.updateAccount(selectedAccountId, {
+        status: updateAccountForm.status,
+        defaultProjectId:
+          updateAccountForm.defaultProjectId.trim() || undefined,
+        autoSyncEnabled: updateAccountForm.autoSyncEnabled,
+        tokenExpiresAt: toIsoOrUndefined(updateAccountForm.tokenExpiresAt),
+        metadata: parseOptionalJson(updateAccountForm.metadataText),
+      });
+    },
     onSuccess: () => {
-      toast.success("Account disconnected");
-      qc.invalidateQueries({ queryKey: queryKeys.smartmailAccounts.all });
+      toast.success("SmartMail account updated");
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailAccounts.all });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
   });
 
   const syncMutation = useMutation({
-    mutationFn: (id: string) => smartmailApi.syncAccount(id),
+    mutationFn: (accountId: string) =>
+      smartmailApi.syncAccount(accountId, {
+        projectId: normalizedProjectId || undefined,
+        maxResults: Number.parseInt(syncMaxResults, 10) || 50,
+      }),
     onSuccess: () => {
-      toast.success("Sync started");
-      qc.invalidateQueries({ queryKey: queryKeys.smartmailThreads.all });
+      toast.success("Sync completed");
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailAccounts.all });
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailThreads.all });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
   });
 
-  const hasAccounts = (accounts?.data ?? []).length > 0;
+  const createThreadMutation = useMutation({
+    mutationFn: () => {
+      if (!normalizedProjectId) {
+        throw new Error("Project ID is required to create a thread");
+      }
+
+      const accountId = createThreadForm.accountId || selectedAccountId;
+      if (!accountId) {
+        throw new Error("Account ID is required to create a thread");
+      }
+
+      return smartmailApi.createThread({
+        projectId: normalizedProjectId,
+        accountId,
+        subject: createThreadForm.subject.trim(),
+        linkedEntityType:
+          createThreadForm.linkedEntityType === ""
+            ? undefined
+            : createThreadForm.linkedEntityType,
+        linkedEntityId: createThreadForm.linkedEntityId.trim() || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Thread created");
+      setCreateThreadForm((current) => ({
+        ...current,
+        subject: "",
+        linkedEntityType: "",
+        linkedEntityId: "",
+      }));
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailThreads.all });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: () => {
+      const payload: CreateSmartMailTemplateInput = {
+        projectId: normalizedProjectId || undefined,
+        name: templateForm.name.trim(),
+        type: templateForm.type,
+        subjectTemplate: templateForm.subjectTemplate,
+        bodyTemplate: templateForm.bodyTemplate,
+        variables: parseCsv(templateForm.variablesText),
+        isShared: templateForm.isShared,
+        metadata: parseOptionalJson(templateForm.metadataText),
+      };
+
+      return smartmailApi.createTemplate(payload);
+    },
+    onSuccess: () => {
+      toast.success("Template created");
+      setTemplateForm((current) => ({
+        ...current,
+        name: "",
+        subjectTemplate: "",
+        bodyTemplate: "",
+        variablesText: "",
+        metadataText: "",
+      }));
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailTemplates.all });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedTemplateId) {
+        throw new Error("Select a template first");
+      }
+
+      return smartmailApi.updateTemplate(selectedTemplateId, {
+        name: templateForm.name.trim(),
+        subjectTemplate: templateForm.subjectTemplate,
+        bodyTemplate: templateForm.bodyTemplate,
+        variables: parseCsv(templateForm.variablesText),
+        isShared: templateForm.isShared,
+        metadata: parseOptionalJson(templateForm.metadataText),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Template updated");
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailTemplates.all });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (templateId: string) => smartmailApi.deleteTemplate(templateId),
+    onSuccess: () => {
+      toast.success("Template deleted");
+      setSelectedTemplateId("");
+      void qc.invalidateQueries({ queryKey: queryKeys.smartmailTemplates.all });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const accountColumns: DataTableColumn<SmartMailAccount>[] = [
+    {
+      key: "account",
+      header: "Account",
+      render: (row) => (
+        <div>
+          <p className="font-medium text-foreground">{row.email}</p>
+          <p className="text-xs text-muted-foreground">{row.provider}</p>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "170px",
+      render: (row) => (
+        <div>
+          <p className="text-sm text-foreground">{row.status}</p>
+          <p className="text-xs text-muted-foreground">{row.lastSyncStatus}</p>
+        </div>
+      ),
+    },
+    {
+      key: "synced",
+      header: "Last Sync",
+      width: "220px",
+      render: (row) => (
+        <p className="text-xs text-muted-foreground">
+          {formatDateTime(row.lastSyncAt)}
+        </p>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      width: "110px",
+      render: (row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(event) => {
+            event.stopPropagation();
+            syncMutation.mutate(row.id);
+          }}
+          disabled={syncMutation.isPending}
+        >
+          Sync
+        </Button>
+      ),
+    },
+  ];
+
+  const threadColumns: DataTableColumn<SmartMailThread>[] = [
+    {
+      key: "subject",
+      header: "Thread",
+      render: (row) => (
+        <div>
+          <p className="font-medium text-foreground">{row.subject}</p>
+          <p className="text-xs text-muted-foreground">
+            {row.participants.join(", ") || "No participants"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "account",
+      header: "Account",
+      width: "260px",
+      render: (row) => (
+        <p className="text-xs text-muted-foreground">
+          {accountById.get(row.accountId)?.email ?? row.accountId}
+        </p>
+      ),
+    },
+    {
+      key: "updatedAt",
+      header: "Updated",
+      width: "200px",
+      render: (row) => (
+        <p className="text-xs text-muted-foreground">
+          {formatDateTime(row.lastMessageAt ?? row.updatedAt)}
+        </p>
+      ),
+    },
+  ];
+
+  const templateColumns: DataTableColumn<SmartMailTemplate>[] = [
+    {
+      key: "name",
+      header: "Template",
+      render: (row) => (
+        <div>
+          <p className="font-medium text-foreground">{row.name}</p>
+          <p className="text-xs text-muted-foreground">{row.type}</p>
+        </div>
+      ),
+    },
+    {
+      key: "scope",
+      header: "Scope",
+      width: "200px",
+      render: (row) => (
+        <p className="text-xs text-muted-foreground">
+          {row.projectId ?? "Org shared"}
+        </p>
+      ),
+    },
+    {
+      key: "updatedAt",
+      header: "Updated",
+      width: "220px",
+      render: (row) => (
+        <p className="text-xs text-muted-foreground">
+          {formatDateTime(row.updatedAt)}
+        </p>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      width: "100px",
+      render: (row) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive"
+          onClick={(event) => {
+            event.stopPropagation();
+            if (window.confirm("Delete this template?")) {
+              deleteTemplateMutation.mutate(row.id);
+            }
+          }}
+          disabled={deleteTemplateMutation.isPending}
+        >
+          Delete
+        </Button>
+      ),
+    },
+  ];
+
+  const hasAccounts = (accounts ?? []).length > 0;
 
   return (
     <div className="space-y-6">
@@ -164,76 +625,501 @@ export function SmartMailPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => connectMutation.mutate("gmail")}
-              disabled={connectMutation.isPending}
+              onClick={() => oauthConnectMutation.mutate("gmail")}
+              disabled={oauthConnectMutation.isPending}
             >
               <Link2 className="mr-1.5 h-4 w-4" />
               Connect Gmail
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => connectMutation.mutate("outlook")}
-              disabled={connectMutation.isPending}
-            >
-              <Link2 className="mr-1.5 h-4 w-4" />
-              Connect Outlook
+            {isOutlookOAuthEnabled ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => oauthConnectMutation.mutate("outlook")}
+                disabled={oauthConnectMutation.isPending}
+              >
+                <Link2 className="mr-1.5 h-4 w-4" />
+                Connect Outlook
+              </Button>
+            ) : null}
+            <Button size="sm" variant="secondary" asChild>
+              <Link href="/app/integrations">
+                Manage Integrations
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         }
       />
 
-      {/* Connected accounts */}
+      <section className="rounded-xl border border-border bg-card p-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1.5 md:col-span-2">
+            <Label htmlFor="smartmail-project-id">Project ID</Label>
+            <Input
+              id="smartmail-project-id"
+              placeholder="Required for thread and message workflows"
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="smartmail-sync-max">Sync max results</Label>
+            <Input
+              id="smartmail-sync-max"
+              inputMode="numeric"
+              value={syncMaxResults}
+              onChange={(event) => setSyncMaxResults(event.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
       {accountsLoading ? (
         <Skeleton className="h-16 w-full rounded-xl" />
-      ) : (accounts?.data ?? []).length > 0 ? (
+      ) : (accounts ?? []).length > 0 ? (
         <div className="space-y-2">
-          {(accounts?.data ?? []).map((acct) => (
+          {(accounts ?? []).map((acct) => (
             <AccountCard
               key={acct.id}
               account={acct}
-              onDisconnect={() => disconnectMutation.mutate(acct.id)}
+              onSelect={() => setSelectedAccountId(acct.id)}
               onSync={() => syncMutation.mutate(acct.id)}
             />
           ))}
         </div>
       ) : null}
 
-      {/* Thread list */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold text-foreground">Inbox</h2>
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            Create account
+          </h2>
+          <div className="mt-3 grid gap-3">
+            <Select
+              value={createAccountForm.provider}
+              onChange={(event) =>
+                setCreateAccountForm((current) => ({
+                  ...current,
+                  provider: event.target.value as OAuthProvider,
+                }))
+              }
+            >
+              <option value="gmail">gmail</option>
+              {isOutlookOAuthEnabled ? (
+                <option value="outlook">outlook</option>
+              ) : null}
+            </Select>
+            <Input
+              placeholder="Account email"
+              type="email"
+              value={createAccountForm.email}
+              onChange={(event) =>
+                setCreateAccountForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
+            />
+            <Input
+              placeholder="Default project ID"
+              value={createAccountForm.defaultProjectId}
+              onChange={(event) =>
+                setCreateAccountForm((current) => ({
+                  ...current,
+                  defaultProjectId: event.target.value,
+                }))
+              }
+            />
+            <Input
+              type="datetime-local"
+              value={createAccountForm.tokenExpiresAt}
+              onChange={(event) =>
+                setCreateAccountForm((current) => ({
+                  ...current,
+                  tokenExpiresAt: event.target.value,
+                }))
+              }
+            />
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={createAccountForm.autoSyncEnabled}
+                onChange={(event) =>
+                  setCreateAccountForm((current) => ({
+                    ...current,
+                    autoSyncEnabled: event.target.checked,
+                  }))
+                }
+              />
+              Auto sync enabled
+            </label>
+            <textarea
+              className="flex min-h-[92px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+              placeholder="Metadata JSON (optional)"
+              value={createAccountForm.metadataText}
+              onChange={(event) =>
+                setCreateAccountForm((current) => ({
+                  ...current,
+                  metadataText: event.target.value,
+                }))
+              }
+            />
+            <div className="flex justify-end">
+              <Button
+                onClick={() => createAccountMutation.mutate()}
+                disabled={createAccountMutation.isPending}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Create account
+              </Button>
+            </div>
+          </div>
         </div>
-        {!hasAccounts ? (
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            Update selected account
+          </h2>
+          {!selectedAccount ? (
+            <EmptyState
+              title="No account selected"
+              description="Select an account from the list to edit status and sync settings."
+              className="border-none"
+            />
+          ) : (
+            <div className="mt-3 grid gap-3">
+              <p className="text-xs text-muted-foreground">
+                {selectedAccount.email} ({selectedAccount.provider})
+              </p>
+              <Select
+                value={updateAccountForm.status}
+                onChange={(event) =>
+                  setUpdateAccountForm((current) => ({
+                    ...current,
+                    status: event.target.value as
+                      | "connected"
+                      | "disconnected"
+                      | "error",
+                  }))
+                }
+              >
+                <option value="connected">connected</option>
+                <option value="disconnected">disconnected</option>
+                <option value="error">error</option>
+              </Select>
+              <Input
+                placeholder="Default project ID"
+                value={updateAccountForm.defaultProjectId}
+                onChange={(event) =>
+                  setUpdateAccountForm((current) => ({
+                    ...current,
+                    defaultProjectId: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                type="datetime-local"
+                value={updateAccountForm.tokenExpiresAt}
+                onChange={(event) =>
+                  setUpdateAccountForm((current) => ({
+                    ...current,
+                    tokenExpiresAt: event.target.value,
+                  }))
+                }
+              />
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={updateAccountForm.autoSyncEnabled}
+                  onChange={(event) =>
+                    setUpdateAccountForm((current) => ({
+                      ...current,
+                      autoSyncEnabled: event.target.checked,
+                    }))
+                  }
+                />
+                Auto sync enabled
+              </label>
+              <textarea
+                className="flex min-h-[92px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                placeholder="Metadata JSON (optional)"
+                value={updateAccountForm.metadataText}
+                onChange={(event) =>
+                  setUpdateAccountForm((current) => ({
+                    ...current,
+                    metadataText: event.target.value,
+                  }))
+                }
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => syncMutation.mutate(selectedAccount.id)}
+                  disabled={syncMutation.isPending}
+                >
+                  Sync now
+                </Button>
+                <Button
+                  onClick={() => updateAccountMutation.mutate()}
+                  disabled={updateAccountMutation.isPending}
+                >
+                  Save account
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Accounts</h2>
+        <DataTable
+          columns={accountColumns}
+          data={accounts ?? []}
+          rowKey={(row) => row.id}
+          onRowClick={(row) => setSelectedAccountId(row.id)}
+          emptyState={
+            <EmptyState
+              icon={Mail}
+              title="No accounts"
+              description="Create an account manually or connect via OAuth to begin syncing messages."
+              className="border-none"
+            />
+          }
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Create thread</h2>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <Select
+            value={createThreadForm.accountId}
+            onChange={(event) =>
+              setCreateThreadForm((current) => ({
+                ...current,
+                accountId: event.target.value,
+              }))
+            }
+          >
+            <option value="">Select account</option>
+            {(accounts ?? []).map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.email}
+              </option>
+            ))}
+          </Select>
+          <Input
+            placeholder="Thread subject"
+            value={createThreadForm.subject}
+            onChange={(event) =>
+              setCreateThreadForm((current) => ({
+                ...current,
+                subject: event.target.value,
+              }))
+            }
+          />
+          <Select
+            value={createThreadForm.linkedEntityType}
+            onChange={(event) =>
+              setCreateThreadForm((current) => ({
+                ...current,
+                linkedEntityType: event.target.value as
+                  | SmartMailLinkedEntityType
+                  | "",
+              }))
+            }
+          >
+            <option value="">No linked entity</option>
+            {LINKED_ENTITY_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </Select>
+          <Input
+            placeholder="Linked entity ID"
+            value={createThreadForm.linkedEntityId}
+            onChange={(event) =>
+              setCreateThreadForm((current) => ({
+                ...current,
+                linkedEntityId: event.target.value,
+              }))
+            }
+          />
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button
+            onClick={() => createThreadMutation.mutate()}
+            disabled={createThreadMutation.isPending || !normalizedProjectId}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Create thread
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Templates</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input
+            placeholder="Template name"
+            value={templateForm.name}
+            onChange={(event) =>
+              setTemplateForm((current) => ({
+                ...current,
+                name: event.target.value,
+              }))
+            }
+          />
+          <Select
+            value={templateForm.type}
+            onChange={(event) =>
+              setTemplateForm((current) => ({
+                ...current,
+                type: event.target.value as SmartMailTemplateType,
+              }))
+            }
+          >
+            {TEMPLATE_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </Select>
+          <Input
+            placeholder="Subject template"
+            value={templateForm.subjectTemplate}
+            onChange={(event) =>
+              setTemplateForm((current) => ({
+                ...current,
+                subjectTemplate: event.target.value,
+              }))
+            }
+          />
+          <Input
+            placeholder="Variables (comma-separated)"
+            value={templateForm.variablesText}
+            onChange={(event) =>
+              setTemplateForm((current) => ({
+                ...current,
+                variablesText: event.target.value,
+              }))
+            }
+          />
+          <textarea
+            className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+            placeholder="Body template"
+            value={templateForm.bodyTemplate}
+            onChange={(event) =>
+              setTemplateForm((current) => ({
+                ...current,
+                bodyTemplate: event.target.value,
+              }))
+            }
+          />
+          <textarea
+            className="md:col-span-2 flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+            placeholder="Metadata JSON (optional)"
+            value={templateForm.metadataText}
+            onChange={(event) =>
+              setTemplateForm((current) => ({
+                ...current,
+                metadataText: event.target.value,
+              }))
+            }
+          />
+          <label className="md:col-span-2 flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={templateForm.isShared}
+              onChange={(event) =>
+                setTemplateForm((current) => ({
+                  ...current,
+                  isShared: event.target.checked,
+                }))
+              }
+            />
+            Shared template
+          </label>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => createTemplateMutation.mutate()}
+            disabled={createTemplateMutation.isPending}
+          >
+            Create template
+          </Button>
+          <Button
+            onClick={() => updateTemplateMutation.mutate()}
+            disabled={updateTemplateMutation.isPending || !selectedTemplateId}
+          >
+            Update selected
+          </Button>
+        </div>
+
+        {templatesLoading ? (
+          <Skeleton className="h-28 w-full rounded-xl" />
+        ) : (
+          <DataTable
+            columns={templateColumns}
+            data={templates ?? []}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => setSelectedTemplateId(row.id)}
+            emptyState={
+              <EmptyState
+                icon={Mail}
+                title="No templates"
+                description="Create a template or snippet for draft generation."
+                className="border-none"
+              />
+            }
+          />
+        )}
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Threads</h2>
+        {normalizedProjectId.length === 0 ? (
           <EmptyState
             icon={Mail}
-            title="No accounts connected"
-            description="Connect Gmail or Outlook to see your project-related threads here."
-            className="rounded-none border-0"
+            title="Project ID required"
+            description="Enter a project ID to load SmartMail threads."
+            className="border-none"
           />
         ) : threadsLoading ? (
-          <div className="divide-y divide-border px-5">
-            {THREAD_SKELETON_KEYS.map((rowKey) => (
-              <div key={rowKey} className="py-4 space-y-1.5">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/3" />
-              </div>
-            ))}
-          </div>
-        ) : (threads?.data ?? []).length === 0 ? (
-          <EmptyState
-            title="No threads yet"
-            description="Sync your account to load threads."
-            className="rounded-none border-0"
-          />
+          <Skeleton className="h-28 w-full rounded-xl" />
         ) : (
-          <div className="divide-y divide-border">
-            {(threads?.data ?? []).map((t) => (
-              <ThreadRow key={t.id} thread={t} />
-            ))}
-          </div>
+          <DataTable
+            columns={threadColumns}
+            data={threads ?? []}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => {
+              const params = new URLSearchParams();
+              params.set("projectId", normalizedProjectId);
+              params.set("accountId", row.accountId);
+              router.push(`/app/smartmail/${row.id}?${params.toString()}`);
+            }}
+            emptyState={
+              <EmptyState
+                icon={Mail}
+                title="No threads"
+                description="Create or sync threads for this project."
+                className="border-none"
+              />
+            }
+          />
         )}
-      </div>
+      </section>
+
+      {!hasAccounts && (
+        <EmptyState
+          icon={Mail}
+          title="No accounts connected"
+          description="Connect Gmail or Outlook to unlock thread, compose, and AI draft workflows."
+        />
+      )}
     </div>
   );
 }

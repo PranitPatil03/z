@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 export const aiGenerateSchema = z.object({
-  provider: z.enum(["openai", "anthropic", "gemini", "azure-openai"]).optional(),
+  provider: z
+    .enum(["openai", "anthropic", "gemini", "azure-openai"])
+    .optional(),
   model: z.string().min(1),
   prompt: z.string().min(3),
   mode: z.enum(["sync", "async"]).default("sync"),

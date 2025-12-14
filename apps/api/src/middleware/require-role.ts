@@ -1,10 +1,10 @@
-import type { NextFunction, Request, Response } from "express";
-import { and, eq } from "drizzle-orm";
 import { members, projectMembers } from "@foreman/db";
+import { and, eq } from "drizzle-orm";
+import type { NextFunction, Request, Response } from "express";
 import { db } from "../database";
-import { getAuthContext } from "./require-auth";
-import { unauthorized, badRequest, forbidden } from "../lib/errors";
+import { badRequest, forbidden, unauthorized } from "../lib/errors";
 import { hasPermission } from "../services/permission";
+import { getAuthContext } from "./require-auth";
 
 /**
  * Organization-level roles (from Better Auth org plugin).
@@ -105,8 +105,12 @@ export function requireProjectRole(...allowedRoles: (ProjectRole | OrgRole)[]) {
       }
 
       // Otherwise check project-level role
-      const rawProjectId = request.params.projectId || request.query.projectId || request.body?.projectId;
-      const projectId = typeof rawProjectId === "string" ? rawProjectId : undefined;
+      const rawProjectId =
+        request.params.projectId ||
+        request.query.projectId ||
+        request.body?.projectId;
+      const projectId =
+        typeof rawProjectId === "string" ? rawProjectId : undefined;
 
       if (!projectId) {
         throw badRequest("Project ID is required for role-based access");
@@ -146,7 +150,10 @@ interface PermissionGuardOptions {
   allowAdminBypass?: boolean;
 }
 
-function resolveProjectIdFromRequest(request: Request, projectIdParam = "projectId") {
+function resolveProjectIdFromRequest(
+  request: Request,
+  projectIdParam = "projectId",
+) {
   const fromParams = request.params?.[projectIdParam];
   const fromQuery = request.query?.[projectIdParam];
   const fromBody = request.body?.[projectIdParam];
@@ -173,7 +180,10 @@ function resolveProjectIdFromRequest(request: Request, projectIdParam = "project
  * requirePermission("invoice.approve")
  * requirePermission("change_order.decision", { projectIdParam: "projectId" })
  */
-export function requirePermission(permissionKey: string, options: PermissionGuardOptions = {}) {
+export function requirePermission(
+  permissionKey: string,
+  options: PermissionGuardOptions = {},
+) {
   return async (request: Request, _response: Response, next: NextFunction) => {
     try {
       const { user, session } = getAuthContext(request);
@@ -207,7 +217,10 @@ export function requirePermission(permissionKey: string, options: PermissionGuar
         return;
       }
 
-      const projectId = resolveProjectIdFromRequest(request, options.projectIdParam);
+      const projectId = resolveProjectIdFromRequest(
+        request,
+        options.projectIdParam,
+      );
       const allowed = await hasPermission({
         organizationId: session.activeOrganizationId,
         userId: user.id,

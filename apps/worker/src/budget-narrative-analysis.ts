@@ -69,17 +69,24 @@ export async function persistBudgetNarrative(params: {
   logger: pino.Logger;
 }) {
   if (!isBudgetNarrativeContext(params.context)) {
-    return { handled: false as const, reason: "not_budget_narrative_context" as const };
+    return {
+      handled: false as const,
+      reason: "not_budget_narrative_context" as const,
+    };
   }
 
-  const organizationId = readString(params.context.organizationId) ?? readString(params.context.orgId);
+  const organizationId =
+    readString(params.context.organizationId) ??
+    readString(params.context.orgId);
   if (!organizationId) {
     return { handled: false as const, reason: "missing_organization" as const };
   }
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    params.logger.warn("Budget narrative persistence skipped: DATABASE_URL not configured");
+    params.logger.warn(
+      "Budget narrative persistence skipped: DATABASE_URL not configured",
+    );
     return { handled: false as const, reason: "database_unavailable" as const };
   }
 
@@ -115,7 +122,8 @@ export async function persistBudgetNarrative(params: {
   }
 
   const varianceBps =
-    readNumber(params.context.varianceBps) ?? calculateVarianceBps(costCode.budgetCents, costCode.actualCents);
+    readNumber(params.context.varianceBps) ??
+    calculateVarianceBps(costCode.budgetCents, costCode.actualCents);
   const severity = severityFromVarianceBps(varianceBps);
   const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
 

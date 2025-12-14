@@ -20,7 +20,9 @@ const notificationChannelPreferenceSchema = z.object({
 export const updateNotificationPreferencesSchema = z
   .object({
     defaults: notificationChannelPreferenceSchema.optional(),
-    events: z.record(z.string(), notificationChannelPreferenceSchema).optional(),
+    events: z
+      .record(z.string(), notificationChannelPreferenceSchema)
+      .optional(),
   })
   .superRefine((value, context) => {
     if (value.defaults === undefined && value.events === undefined) {

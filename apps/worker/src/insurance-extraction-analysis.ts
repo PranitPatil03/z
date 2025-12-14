@@ -63,12 +63,17 @@ export async function persistInsuranceExtraction(params: {
   logger: pino.Logger;
 }) {
   if (!isInsuranceExtractionContext(params.context)) {
-    return { handled: false as const, reason: "not_insurance_extraction_context" as const };
+    return {
+      handled: false as const,
+      reason: "not_insurance_extraction_context" as const,
+    };
   }
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    params.logger.warn("Insurance extraction persistence skipped: DATABASE_URL not configured");
+    params.logger.warn(
+      "Insurance extraction persistence skipped: DATABASE_URL not configured",
+    );
     return { handled: false as const, reason: "database_unavailable" as const };
   }
 
@@ -93,12 +98,17 @@ export async function persistInsuranceExtraction(params: {
       },
       "Insurance extraction persistence skipped: compliance item not found",
     );
-    return { handled: false as const, reason: "compliance_item_not_found" as const };
+    return {
+      handled: false as const,
+      reason: "compliance_item_not_found" as const,
+    };
   }
 
   const parsed = extractJson(params.output);
   const existingEvidence =
-    item.evidence && typeof item.evidence === "object" && !Array.isArray(item.evidence)
+    item.evidence &&
+    typeof item.evidence === "object" &&
+    !Array.isArray(item.evidence)
       ? (item.evidence as Record<string, unknown>)
       : {};
 

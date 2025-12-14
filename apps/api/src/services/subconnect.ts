@@ -1,4 +1,3 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
 import {
   complianceRequirementTemplates,
   dailyLogStatusEvents,
@@ -10,6 +9,7 @@ import {
   subcontractorPrequalificationScores,
   subcontractors,
 } from "@foreman/db";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
@@ -33,7 +33,10 @@ import {
   subcontractorIdParamsSchema,
   upsertPrequalificationScoreSchema,
 } from "../schemas/subconnect.schema";
-import { applyComplianceTemplatesForSubcontractor, riskLevelFromScore } from "./subconnect-utils";
+import {
+  applyComplianceTemplatesForSubcontractor,
+  riskLevelFromScore,
+} from "./subconnect-utils";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -81,14 +84,18 @@ async function ensureSubcontractor(orgId: string, subcontractorId: string) {
 export const subconnectService = {
   async listInvitations(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listSubconnectInvitationsQuerySchema.parse(readValidatedQuery(request));
+    const query = listSubconnectInvitationsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     const filters = [eq(subcontractorInvitations.organizationId, orgId)];
     if (query.projectId) {
       filters.push(eq(subcontractorInvitations.projectId, query.projectId));
     }
     if (query.subcontractorId) {
-      filters.push(eq(subcontractorInvitations.subcontractorId, query.subcontractorId));
+      filters.push(
+        eq(subcontractorInvitations.subcontractorId, query.subcontractorId),
+      );
     }
     if (query.status) {
       filters.push(eq(subcontractorInvitations.status, query.status));
@@ -104,9 +111,14 @@ export const subconnectService = {
 
   async upsertPrequalificationScore(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const body = upsertPrequalificationScoreSchema.parse(readValidatedBody(request));
+    const body = upsertPrequalificationScoreSchema.parse(
+      readValidatedBody(request),
+    );
 
-    const subcontractor = await ensureSubcontractor(orgId, body.subcontractorId);
+    const subcontractor = await ensureSubcontractor(
+      orgId,
+      body.subcontractorId,
+    );
     const projectId = body.projectId ?? subcontractor.projectId ?? null;
 
     const [record] = await db
@@ -133,7 +145,9 @@ export const subconnectService = {
 
   async getLatestPrequalificationScore(request: Request) {
     const { orgId } = requireContext(request);
-    const params = subcontractorIdParamsSchema.parse(readValidatedParams(request));
+    const params = subcontractorIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     await ensureSubcontractor(orgId, params.subcontractorId);
 
@@ -143,7 +157,10 @@ export const subconnectService = {
       .where(
         and(
           eq(subcontractorPrequalificationScores.organizationId, orgId),
-          eq(subcontractorPrequalificationScores.subcontractorId, params.subcontractorId),
+          eq(
+            subcontractorPrequalificationScores.subcontractorId,
+            params.subcontractorId,
+          ),
         ),
       )
       .orderBy(desc(subcontractorPrequalificationScores.createdAt))
@@ -158,7 +175,9 @@ export const subconnectService = {
 
   async listComplianceTemplates(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listComplianceTemplatesQuerySchema.parse(readValidatedQuery(request));
+    const query = listComplianceTemplatesQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     return await db
       .select()
@@ -175,7 +194,9 @@ export const subconnectService = {
 
   async createComplianceTemplate(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const body = createComplianceTemplateSchema.parse(readValidatedBody(request));
+    const body = createComplianceTemplateSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [record] = await db
       .insert(complianceRequirementTemplates)
@@ -197,8 +218,12 @@ export const subconnectService = {
 
   async updateComplianceTemplate(request: Request) {
     const { orgId } = requireContext(request);
-    const params = complianceTemplateIdParamsSchema.parse(readValidatedParams(request));
-    const body = updateComplianceTemplateSchema.parse(readValidatedBody(request));
+    const params = complianceTemplateIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const body = updateComplianceTemplateSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [record] = await db
       .update(complianceRequirementTemplates)
@@ -224,7 +249,9 @@ export const subconnectService = {
 
   async archiveComplianceTemplate(request: Request) {
     const { orgId } = requireContext(request);
-    const params = complianceTemplateIdParamsSchema.parse(readValidatedParams(request));
+    const params = complianceTemplateIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(complianceRequirementTemplates)
@@ -250,7 +277,9 @@ export const subconnectService = {
 
   async applyComplianceTemplates(request: Request) {
     const { orgId } = requireContext(request);
-    const body = applyComplianceTemplatesSchema.parse(readValidatedBody(request));
+    const body = applyComplianceTemplatesSchema.parse(
+      readValidatedBody(request),
+    );
 
     await ensureSubcontractor(orgId, body.subcontractorId);
 
@@ -258,7 +287,9 @@ export const subconnectService = {
       organizationId: orgId,
       projectId: body.projectId,
       subcontractorId: body.subcontractorId,
-      dueDateOverride: body.dueDateOverride ? new Date(body.dueDateOverride) : undefined,
+      dueDateOverride: body.dueDateOverride
+        ? new Date(body.dueDateOverride)
+        : undefined,
     });
 
     return {
@@ -270,9 +301,14 @@ export const subconnectService = {
 
   async listPayApplications(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listInternalPayApplicationsQuerySchema.parse(readValidatedQuery(request));
+    const query = listInternalPayApplicationsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    const filters = [eq(payApplications.organizationId, orgId), isNull(payApplications.deletedAt)];
+    const filters = [
+      eq(payApplications.organizationId, orgId),
+      isNull(payApplications.deletedAt),
+    ];
 
     if (query.projectId) {
       filters.push(eq(payApplications.projectId, query.projectId));
@@ -294,7 +330,9 @@ export const subconnectService = {
 
   async getPayApplication(request: Request) {
     const { orgId } = requireContext(request);
-    const params = payApplicationIdParamsSchema.parse(readValidatedParams(request));
+    const params = payApplicationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .select()
@@ -334,7 +372,9 @@ export const subconnectService = {
 
   async reviewPayApplication(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = payApplicationIdParamsSchema.parse(readValidatedParams(request));
+    const params = payApplicationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = reviewPayApplicationSchema.parse(readValidatedBody(request));
 
     const [current] = await db
@@ -361,7 +401,8 @@ export const subconnectService = {
       .update(payApplications)
       .set({
         status: body.status,
-        rejectionReason: body.status === "rejected" ? body.reason ?? null : null,
+        rejectionReason:
+          body.status === "rejected" ? (body.reason ?? null) : null,
         reviewedAt: new Date(),
         reviewerUserId: userId,
         metadata: {
@@ -391,9 +432,14 @@ export const subconnectService = {
 
   async listDailyLogs(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listInternalDailyLogsQuerySchema.parse(readValidatedQuery(request));
+    const query = listInternalDailyLogsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    const filters = [eq(dailyLogs.organizationId, orgId), isNull(dailyLogs.deletedAt)];
+    const filters = [
+      eq(dailyLogs.organizationId, orgId),
+      isNull(dailyLogs.deletedAt),
+    ];
     if (query.projectId) {
       filters.push(eq(dailyLogs.projectId, query.projectId));
     }

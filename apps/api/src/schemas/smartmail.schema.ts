@@ -57,7 +57,9 @@ export const createSmartMailThreadSchema = z.object({
   accountId: z.string().min(1),
   subject: z.string().min(1),
   externalThreadId: z.string().min(1).optional(),
-  linkedEntityType: z.enum(["purchase_order", "invoice", "change_order", "subcontractor"]).optional(),
+  linkedEntityType: z
+    .enum(["purchase_order", "invoice", "change_order", "subcontractor"])
+    .optional(),
   linkedEntityId: z.string().min(1).optional(),
 });
 
@@ -68,7 +70,9 @@ export const createSmartMailMessageSchema = z.object({
   ccEmails: z.array(z.string().email()).default([]),
   subject: z.string().min(1).optional(),
   body: z.string().min(1),
-  linkedEntityType: z.enum(["purchase_order", "invoice", "change_order", "subcontractor"]).optional(),
+  linkedEntityType: z
+    .enum(["purchase_order", "invoice", "change_order", "subcontractor"])
+    .optional(),
   linkedEntityId: z.string().min(1).optional(),
   aiDraft: z.boolean().default(false),
   sendNow: z.boolean().default(true),
@@ -81,15 +85,21 @@ export const createSmartMailDraftSchema = z.object({
   accountId: z.string().min(1),
   prompt: z.string().min(10),
   tone: z.string().min(1).optional(),
-  provider: z.enum(["openai", "anthropic", "gemini", "azure-openai"]).optional(),
+  provider: z
+    .enum(["openai", "anthropic", "gemini", "azure-openai"])
+    .optional(),
   model: z.string().min(1).optional(),
   templateId: z.string().min(1).optional(),
-  linkedEntityType: z.enum(["purchase_order", "invoice", "change_order", "subcontractor"]).optional(),
+  linkedEntityType: z
+    .enum(["purchase_order", "invoice", "change_order", "subcontractor"])
+    .optional(),
   linkedEntityId: z.string().min(1).optional(),
 });
 
 export const updateSmartMailMessageLinkSchema = z.object({
-  linkedEntityType: z.enum(["purchase_order", "invoice", "change_order", "subcontractor"]).optional(),
+  linkedEntityType: z
+    .enum(["purchase_order", "invoice", "change_order", "subcontractor"])
+    .optional(),
   linkedEntityId: z.string().min(1).optional(),
   clear: z.boolean().default(false),
 });

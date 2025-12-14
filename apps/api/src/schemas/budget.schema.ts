@@ -25,30 +25,36 @@ export const createBudgetCostCodeSchema = z.object({
   alertThresholdBps: z.number().int().min(0).max(10000).default(500),
 });
 
-export const updateBudgetCostCodeSchema = z.object({
-  name: z.string().min(2).optional(),
-  budgetCents: z.number().int().min(0).optional(),
-  committedCents: z.number().int().min(0).optional(),
-  actualCents: z.number().int().min(0).optional(),
-  billedCents: z.number().int().min(0).optional(),
-  alertThresholdBps: z.number().int().min(0).max(10000).optional(),
-}).superRefine((value, context) => {
-  if (
-    value.name === undefined &&
-    value.budgetCents === undefined &&
-    value.committedCents === undefined &&
-    value.actualCents === undefined &&
-    value.billedCents === undefined &&
-    value.alertThresholdBps === undefined
-  ) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "At least one field must be provided",
-    });
-  }
-});
+export const updateBudgetCostCodeSchema = z
+  .object({
+    name: z.string().min(2).optional(),
+    budgetCents: z.number().int().min(0).optional(),
+    committedCents: z.number().int().min(0).optional(),
+    actualCents: z.number().int().min(0).optional(),
+    billedCents: z.number().int().min(0).optional(),
+    alertThresholdBps: z.number().int().min(0).max(10000).optional(),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.name === undefined &&
+      value.budgetCents === undefined &&
+      value.committedCents === undefined &&
+      value.actualCents === undefined &&
+      value.billedCents === undefined &&
+      value.alertThresholdBps === undefined
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one field must be provided",
+      });
+    }
+  });
 
-export const budgetCostEntryTypeSchema = z.enum(["committed", "actual", "billed"]);
+export const budgetCostEntryTypeSchema = z.enum([
+  "committed",
+  "actual",
+  "billed",
+]);
 export const budgetCostEntrySourceTypeSchema = z.enum([
   "change_order",
   "purchase_order",
@@ -83,7 +89,12 @@ export const createBudgetCostEntrySchema = z
       });
     }
 
-    if (["change_order", "purchase_order", "invoice"].includes(value.sourceType) && !value.sourceId) {
+    if (
+      ["change_order", "purchase_order", "invoice"].includes(
+        value.sourceType,
+      ) &&
+      !value.sourceId
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "sourceId is required for linked system sources",
@@ -91,7 +102,11 @@ export const createBudgetCostEntrySchema = z
       });
     }
 
-    if (value.sourceType === "payment_application" && !value.sourceId && !value.sourceRef) {
+    if (
+      value.sourceType === "payment_application" &&
+      !value.sourceId &&
+      !value.sourceRef
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "payment_application entries require sourceId or sourceRef",

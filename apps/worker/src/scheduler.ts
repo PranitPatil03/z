@@ -67,13 +67,24 @@ export function startScheduler(logger: pino.Logger) {
   const tasks: SchedulerTask[] = [
     {
       name: "compliance-expiry",
-      intervalMs: getIntervalMs("SCHEDULER_COMPLIANCE_INTERVAL_MS", 60 * 60 * 1000),
+      intervalMs: getIntervalMs(
+        "SCHEDULER_COMPLIANCE_INTERVAL_MS",
+        60 * 60 * 1000,
+      ),
       run: async () => {
         const now = new Date();
-        const expiringWindowDays = Number(process.env.SCHEDULER_COMPLIANCE_EXPIRING_DAYS ?? "14");
-        const reminderIntervalHours = Number(process.env.SCHEDULER_COMPLIANCE_REMINDER_INTERVAL_HOURS ?? "24");
-        const escalationIntervalHours = Number(process.env.SCHEDULER_COMPLIANCE_ESCALATION_INTERVAL_HOURS ?? "24");
-        const expiringCutoff = new Date(now.getTime() + expiringWindowDays * 24 * 60 * 60 * 1000);
+        const expiringWindowDays = Number(
+          process.env.SCHEDULER_COMPLIANCE_EXPIRING_DAYS ?? "14",
+        );
+        const reminderIntervalHours = Number(
+          process.env.SCHEDULER_COMPLIANCE_REMINDER_INTERVAL_HOURS ?? "24",
+        );
+        const escalationIntervalHours = Number(
+          process.env.SCHEDULER_COMPLIANCE_ESCALATION_INTERVAL_HOURS ?? "24",
+        );
+        const expiringCutoff = new Date(
+          now.getTime() + expiringWindowDays * 24 * 60 * 60 * 1000,
+        );
 
         const candidates = await db
           .select({
@@ -106,7 +117,13 @@ export function startScheduler(logger: pino.Logger) {
           };
         }
 
-        const subcontractorIds = Array.from(new Set(candidates.map((row) => row.subcontractorId).filter((id): id is string => Boolean(id))));
+        const subcontractorIds = Array.from(
+          new Set(
+            candidates
+              .map((row) => row.subcontractorId)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
         const subcontractorRows = subcontractorIds.length
           ? await db
               .select({
@@ -115,9 +132,16 @@ export function startScheduler(logger: pino.Logger) {
                 name: subcontractors.name,
               })
               .from(subcontractors)
-              .where(and(inArray(subcontractors.id, subcontractorIds), isNull(subcontractors.deletedAt)))
+              .where(
+                and(
+                  inArray(subcontractors.id, subcontractorIds),
+                  isNull(subcontractors.deletedAt),
+                ),
+              )
           : [];
-        const subcontractorById = new Map(subcontractorRows.map((row) => [row.id, row]));
+        const subcontractorById = new Map(
+          subcontractorRows.map((row) => [row.id, row]),
+        );
 
         const reminderIntervalMs = reminderIntervalHours * 60 * 60 * 1000;
         const escalationIntervalMs = escalationIntervalHours * 60 * 60 * 1000;
@@ -140,7 +164,9 @@ export function startScheduler(logger: pino.Logger) {
 
           if (isOverdue) {
             const shouldEscalate =
-              !item.escalationSentAt || now.getTime() - item.escalationSentAt.getTime() >= escalationIntervalMs;
+              !item.escalationSentAt ||
+              now.getTime() - item.escalationSentAt.getTime() >=
+                escalationIntervalMs;
 
             await db
               .update(complianceItems)
@@ -161,9 +187,7 @@ export function startScheduler(logger: pino.Logger) {
                 await sendNotificationEmail({
                   toEmail: subcontractor.email,
                   subject: "Foreman Compliance Escalation",
-                  body:
-                    `Compliance requirement ${item.complianceType} is overdue for your project scope. ` +
-                    `Please upload evidence immediately to avoid payment delays.`,
+                  body: `Compliance requirement ${item.complianceType} is overdue for your project scope. Please upload evidence immediately to avoid payment delays.`,
                 });
                 escalationsSent += 1;
               }
@@ -172,8 +196,11 @@ export function startScheduler(logger: pino.Logger) {
             continue;
           }
 
-          const shouldRemind = !item.reminderSentAt || now.getTime() - item.reminderSentAt.getTime() >= reminderIntervalMs;
-          const nextStatus = item.status === "pending" ? "expiring" : item.status;
+          const shouldRemind =
+            !item.reminderSentAt ||
+            now.getTime() - item.reminderSentAt.getTime() >= reminderIntervalMs;
+          const nextStatus =
+            item.status === "pending" ? "expiring" : item.status;
 
           await db
             .update(complianceItems)
@@ -194,9 +221,7 @@ export function startScheduler(logger: pino.Logger) {
               await sendNotificationEmail({
                 toEmail: subcontractor.email,
                 subject: "Foreman Compliance Reminder",
-                body:
-                  `Compliance requirement ${item.complianceType} is approaching its due date. ` +
-                  `Upload your documentation in the SubConnect portal to stay compliant.`,
+                body: `Compliance requirement ${item.complianceType} is approaching its due date. Upload your documentation in the SubConnect portal to stay compliant.`,
               });
               remindersSent += 1;
             }
@@ -214,7 +239,10 @@ export function startScheduler(logger: pino.Logger) {
     },
     {
       name: "usage-cycle-rollover",
-      intervalMs: getIntervalMs("SCHEDULER_USAGE_INTERVAL_MS", 6 * 60 * 60 * 1000),
+      intervalMs: getIntervalMs(
+        "SCHEDULER_USAGE_INTERVAL_MS",
+        6 * 60 * 60 * 1000,
+      ),
       run: async () => {
         const now = new Date();
         const nextCycleEnd = new Date(now);
@@ -241,7 +269,10 @@ export function startScheduler(logger: pino.Logger) {
     },
     {
       name: "smartmail-auto-sync",
-      intervalMs: getIntervalMs("SCHEDULER_SMARTMAIL_INTERVAL_MS", 15 * 60 * 1000),
+      intervalMs: getIntervalMs(
+        "SCHEDULER_SMARTMAIL_INTERVAL_MS",
+        15 * 60 * 1000,
+      ),
       run: async () => {
         const key = getEncryptionKey();
         if (!key) {
@@ -255,8 +286,14 @@ export function startScheduler(logger: pino.Logger) {
         }
 
         const now = new Date();
-        const maxResults = getPositiveInt("SMARTMAIL_DEFAULT_SYNC_MAX_RESULTS", 25);
-        const lookbackMinutes = getPositiveInt("SMARTMAIL_SYNC_LOOKBACK_MINUTES", 30);
+        const maxResults = getPositiveInt(
+          "SMARTMAIL_DEFAULT_SYNC_MAX_RESULTS",
+          25,
+        );
+        const lookbackMinutes = getPositiveInt(
+          "SMARTMAIL_SYNC_LOOKBACK_MINUTES",
+          30,
+        );
 
         const accounts = await db
           .select()
@@ -302,7 +339,9 @@ export function startScheduler(logger: pino.Logger) {
                   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
                   outlookClientId: process.env.OUTLOOK_CLIENT_ID,
                   outlookClientSecret: process.env.OUTLOOK_CLIENT_SECRET,
-                  redirectUri: process.env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
+                  redirectUri:
+                    process.env.OAUTH_REDIRECT_URI ||
+                    "http://localhost:3001/auth/oauth/callback",
                 },
               );
 
@@ -324,7 +363,9 @@ export function startScheduler(logger: pino.Logger) {
             }
 
             const since = account.lastSyncAt
-              ? new Date(account.lastSyncAt.getTime() - lookbackMinutes * 60_000)
+              ? new Date(
+                  account.lastSyncAt.getTime() - lookbackMinutes * 60_000,
+                )
               : undefined;
 
             const rows = await fetchProviderMessages({
@@ -347,17 +388,31 @@ export function startScheduler(logger: pino.Logger) {
                   subject: row.subject,
                   externalThreadId: row.externalThreadId,
                   participants: Array.from(
-                    new Set([row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(Boolean)),
+                    new Set(
+                      [row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(
+                        Boolean,
+                      ),
+                    ),
                   ),
                   lastMessageAt: row.sentAt,
                 })
                 .onConflictDoUpdate({
-                  target: [smartMailThreads.organizationId, smartMailThreads.accountId, smartMailThreads.externalThreadId],
+                  target: [
+                    smartMailThreads.organizationId,
+                    smartMailThreads.accountId,
+                    smartMailThreads.externalThreadId,
+                  ],
                   set: {
                     projectId: account.defaultProjectId,
                     subject: row.subject,
                     participants: Array.from(
-                      new Set([row.fromEmail, ...row.toEmails, ...row.ccEmails].filter(Boolean)),
+                      new Set(
+                        [
+                          row.fromEmail,
+                          ...row.toEmails,
+                          ...row.ccEmails,
+                        ].filter(Boolean),
+                      ),
                     ),
                     lastMessageAt: row.sentAt,
                     updatedAt: new Date(),
@@ -384,7 +439,10 @@ export function startScheduler(logger: pino.Logger) {
                   sentAt: row.sentAt,
                 })
                 .onConflictDoUpdate({
-                  target: [smartMailMessages.organizationId, smartMailMessages.externalMessageId],
+                  target: [
+                    smartMailMessages.organizationId,
+                    smartMailMessages.externalMessageId,
+                  ],
                   set: {
                     threadId: thread.id,
                     projectId: account.defaultProjectId,
@@ -403,7 +461,10 @@ export function startScheduler(logger: pino.Logger) {
                 });
 
               upsertedMessages += 1;
-              if (!latestCursor || row.sentAt.getTime() > latestCursor.getTime()) {
+              if (
+                !latestCursor ||
+                row.sentAt.getTime() > latestCursor.getTime()
+              ) {
                 latestCursor = row.sentAt;
               }
             }
@@ -416,7 +477,9 @@ export function startScheduler(logger: pino.Logger) {
               .set({
                 status: "connected",
                 lastSyncAt: new Date(),
-                syncCursor: latestCursor ? latestCursor.toISOString() : account.syncCursor,
+                syncCursor: latestCursor
+                  ? latestCursor.toISOString()
+                  : account.syncCursor,
                 lastSyncStatus: "ok",
                 lastSyncError: null,
                 updatedAt: new Date(),
@@ -430,7 +493,8 @@ export function startScheduler(logger: pino.Logger) {
               .set({
                 status: "error",
                 lastSyncStatus: "failed",
-                lastSyncError: error instanceof Error ? error.message : "Unknown sync error",
+                lastSyncError:
+                  error instanceof Error ? error.message : "Unknown sync error",
                 updatedAt: new Date(),
               })
               .where(eq(smartMailAccounts.id, account.id));
@@ -449,7 +513,10 @@ export function startScheduler(logger: pino.Logger) {
     },
     {
       name: "change-order-sla-check",
-      intervalMs: getIntervalMs("SCHEDULER_CHANGE_ORDER_INTERVAL_MS", 30 * 60 * 1000),
+      intervalMs: getIntervalMs(
+        "SCHEDULER_CHANGE_ORDER_INTERVAL_MS",
+        30 * 60 * 1000,
+      ),
       run: async () => {
         const now = new Date();
         const overdue = await db
@@ -549,7 +616,10 @@ export function startScheduler(logger: pino.Logger) {
 
   logger.info(
     {
-      tasks: tasks.map((task) => ({ name: task.name, intervalMs: task.intervalMs })),
+      tasks: tasks.map((task) => ({
+        name: task.name,
+        intervalMs: task.intervalMs,
+      })),
     },
     "scheduler started",
   );

@@ -4,7 +4,12 @@ import { AppError } from "../lib/errors";
 import { logger } from "../lib/logger";
 import { parseZodError } from "../lib/validate";
 
-export function errorHandler(error: unknown, _request: Request, response: Response, _next: NextFunction) {
+export function errorHandler(
+  error: unknown,
+  _request: Request,
+  response: Response,
+  _next: NextFunction,
+) {
   if (error instanceof AppError) {
     response.status(error.statusCode).json({
       error: {
@@ -38,7 +43,10 @@ export function errorHandler(error: unknown, _request: Request, response: Respon
     return;
   }
 
-  logger.error({ err: error, requestId: _request.headers["x-request-id"] }, "Unhandled server error");
+  logger.error(
+    { err: error, requestId: _request.headers["x-request-id"] },
+    "Unhandled server error",
+  );
   response.status(500).json({
     error: {
       code: "INTERNAL_SERVER_ERROR",

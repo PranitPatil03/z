@@ -1,5 +1,5 @@
-import type { NextFunction, Request, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
+import type { NextFunction, Request, Response } from "express";
 import { auth } from "../auth";
 import { unauthorized } from "../lib/errors";
 
@@ -20,7 +20,11 @@ export interface AuthenticatedRequest extends Request {
   authContext?: RequestAuthContext;
 }
 
-export async function requireAuth(request: Request, _response: Response, next: NextFunction) {
+export async function requireAuth(
+  request: Request,
+  _response: Response,
+  next: NextFunction,
+) {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(request.headers),
   });

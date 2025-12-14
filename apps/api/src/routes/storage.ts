@@ -20,8 +20,16 @@ export const storageRouter: import("express").Router = Router();
 
 storageRouter.use(requireAuth);
 
-storageRouter.get("/", validateQuery(listFileAssetsQuerySchema), asyncHandler(listFileAssetsController));
-storageRouter.post("/upload-session", validateBody(createUploadSessionSchema), asyncHandler(createUploadSessionController));
+storageRouter.get(
+  "/",
+  validateQuery(listFileAssetsQuerySchema),
+  asyncHandler(listFileAssetsController),
+);
+storageRouter.post(
+  "/upload-session",
+  validateBody(createUploadSessionSchema),
+  asyncHandler(createUploadSessionController),
+);
 storageRouter.post(
   "/:fileAssetId/complete",
   validateParams(fileAssetIdParamsSchema),
