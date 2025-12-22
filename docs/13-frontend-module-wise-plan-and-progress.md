@@ -1,6 +1,6 @@
 # Frontend Module-Wise Plan and Progress Tracker
 
-**Last Updated:** April 7, 2026
+**Last Updated:** April 10, 2026
 
 This document is the execution tracker for frontend delivery using the existing backend contract.
 
@@ -15,16 +15,16 @@ This document is the execution tracker for frontend delivery using the existing 
 
 ## 2. Module Progress Board
 
-- [ ] M0: Frontend Foundation and App Shell
-- [ ] M1: Identity, Session, and Route Protection
-- [ ] M2: Organization and Project Workspace
-- [ ] M3: Notifications, Activity Feed, and Command Center
-- [ ] M4: Procurement and AP Core (RFQ, PO, Receipts, Invoices, Match)
-- [ ] M5: Change Orders Workflow
-- [ ] M6: Budget Controls and Variance Views
-- [ ] M7: SiteSnap, Storage, and AI Job UX
-- [ ] M8: SubConnect Internal Operations
-- [ ] M9: Subcontractor Portal Experience
+- [x] M0: Frontend Foundation and App Shell
+- [x] M1: Identity, Session, and Route Protection
+- [x] M2: Organization and Project Workspace
+- [x] M3: Notifications, Activity Feed, and Command Center
+- [x] M4: Procurement and AP Core (RFQ, PO, Receipts, Invoices, Match)
+- [x] M5: Change Orders Workflow
+- [x] M6: Budget Controls and Variance Views
+- [x] M7: SiteSnap, Storage, and AI Job UX
+- [x] M8: SubConnect Internal Operations
+- [x] M9: Subcontractor Portal Experience
 - [ ] M10: SmartMail and Integrations UX
 - [ ] M11: Billing, Plans, and Stripe Ops UX
 - [ ] M12: QA Hardening, Accessibility, and Release Gates
@@ -50,14 +50,14 @@ Goal:
 - Establish apps/web with production-ready baseline architecture and developer workflow.
 
 Progress checklist:
-- [ ] Create apps/web scaffold with TypeScript.
-- [ ] Add routing skeleton (public, internal, portal route groups).
-- [ ] Add query client provider and request utilities.
-- [ ] Add global app state provider for session and org context.
-- [ ] Add shared page-state primitives (loading, empty, error).
-- [ ] Add environment config handling for API base URL.
-- [ ] Add frontend lint, typecheck, and test scripts.
-- [ ] Add CI task wiring for frontend checks.
+- [x] Create apps/web scaffold with TypeScript.
+- [x] Add routing skeleton (public, internal, portal route groups).
+- [x] Add query client provider and request utilities.
+- [x] Add global app state provider for session and org context.
+- [x] Add shared page-state primitives (loading, empty, error).
+- [x] Add environment config handling for API base URL.
+- [x] Add frontend lint, typecheck, and test scripts.
+- [x] Add CI task wiring for frontend checks.
 
 Done when:
 - Local app bootstraps cleanly.
@@ -82,14 +82,14 @@ Goal:
 - Implement internal session auth and portal token auth with correct transport behavior.
 
 Progress checklist:
-- [ ] Build internal session initialization flow.
-- [ ] Implement credentials include transport for internal routes.
-- [ ] Build portal login and token persistence flow.
-- [ ] Implement bearer transport for protected portal routes.
-- [ ] Add route guards for unauthenticated users.
-- [ ] Add role-aware guard wrappers for restricted actions.
-- [ ] Add auth error handling and re-login UX.
-- [ ] Add auth integration tests for internal and portal flows.
+- [x] Build internal session initialization flow.
+- [x] Implement credentials include transport for internal routes.
+- [x] Build portal login and token persistence flow.
+- [x] Implement bearer transport for protected portal routes.
+- [x] Add route guards for unauthenticated users.
+- [x] Add role-aware guard wrappers for restricted actions.
+- [x] Add auth error handling and re-login UX.
+- [x] Add auth integration tests for internal and portal flows.
 
 Done when:
 - Internal users and portal users can authenticate and navigate protected routes reliably.
@@ -110,14 +110,14 @@ Goal:
 - Deliver core workspace shell tied to active organization and project context.
 
 Progress checklist:
-- [ ] Build organization selector and active organization state handling.
-- [ ] Build project list and project detail screens.
-- [ ] Build project member list/create/update/remove screens.
-- [ ] Add create and update forms with validation UX.
-- [ ] Add empty-state and permission-state UX for restricted users.
-- [ ] Add optimistic updates only for safe operations.
-- [ ] Add fallback refetch paths for failed mutations.
-- [ ] Add module tests for core workspace flows.
+- [x] Build organization selector and active organization state handling.
+- [x] Build project list and project detail screens.
+- [x] Build project member list/create/update/remove screens.
+- [x] Add create and update forms with validation UX.
+- [x] Add empty-state and permission-state UX for restricted users.
+- [x] Add optimistic updates only for safe operations.
+- [x] Add fallback refetch paths for failed mutations.
+- [x] Add module tests for core workspace flows.
 
 Done when:
 - User can fully manage project workspace based on permissions.
@@ -142,14 +142,14 @@ Goal:
 - Deliver operational visibility surfaces for day-to-day execution and portfolio monitoring.
 
 Progress checklist:
-- [ ] Build notification center list and unread counter UI.
-- [ ] Build notification preference settings UI.
-- [ ] Build activity feed list with filters and pagination.
-- [ ] Build entity timeline drill-down view.
-- [ ] Build command center overview, health, portfolio, trends views.
-- [ ] Build audit log list with filters and export-ready table structure.
-- [ ] Add retry and stale-state controls for dashboard data.
-- [ ] Add module tests for filter and summary behavior.
+- [x] Build notification center list and unread counter UI.
+- [x] Build notification preference settings UI.
+- [x] Build activity feed list with filters and pagination.
+- [x] Build entity timeline drill-down view.
+- [x] Build command center overview, health, portfolio, trends views.
+- [x] Build audit log list with filters and export-ready table structure.
+- [x] Add retry and stale-state controls for dashboard data.
+- [x] Add module tests for filter and summary behavior.
 
 Done when:
 - Operations and leadership users can monitor activity and health without API-level troubleshooting.
@@ -176,14 +176,14 @@ Goal:
 - Deliver financial workflow UI from sourcing through payable controls.
 
 Progress checklist:
-- [ ] Build RFQ list, detail, create, update, archive screens.
-- [ ] Build purchase order list, detail, create, update, archive screens.
-- [ ] Build receipts list, detail, create, update, archive screens.
-- [ ] Build invoices list, detail, create, update, archive screens.
-- [ ] Build 3-way match run list, run create, run detail screens.
-- [ ] Build status chips and lifecycle transitions with confirmations.
-- [ ] Build exception and override UX with explicit reason handling.
-- [ ] Add module tests for end-to-end financial happy and failure paths.
+- [x] Build RFQ list, detail, create, update, archive screens.
+- [x] Build purchase order list, detail, create, update, archive screens.
+- [x] Build receipts list, detail, create, update, archive screens.
+- [x] Build invoices list, detail, create, update, archive screens.
+- [x] Build 3-way match run list, run create, run detail screens.
+- [x] Build status chips and lifecycle transitions with confirmations.
+- [x] Build exception and override UX with explicit reason handling.
+- [x] Add module tests for end-to-end financial happy and failure paths.
 
 Done when:
 - End users can complete procurement and AP cycles with visible status and error recovery.
@@ -202,14 +202,14 @@ Goal:
 - Deliver full change order lifecycle UI with approval workflow clarity.
 
 Progress checklist:
-- [ ] Build change order list and detail screens.
-- [ ] Build create and update forms for draft stage.
-- [ ] Build submit-for-approval action UX.
-- [ ] Build approve and reject decision UX with role checks.
-- [ ] Build attachments list/add/remove UX.
-- [ ] Build status timeline and decision history panel.
-- [ ] Build SLA and due-date warning indicators.
-- [ ] Add module tests for lifecycle transitions.
+- [x] Build change order list and detail screens.
+- [x] Build create and update forms for draft stage.
+- [x] Build submit-for-approval action UX.
+- [x] Build approve and reject decision UX with role checks.
+- [x] Build attachments list/add/remove UX.
+- [x] Build status timeline and decision history panel.
+- [x] Build SLA and due-date warning indicators.
+- [x] Add module tests for lifecycle transitions.
 
 Done when:
 - Change order lifecycle is manageable through UI with clear role-aware actions.
@@ -228,14 +228,14 @@ Goal:
 - Deliver cost-code level control surfaces and variance intelligence UX.
 
 Progress checklist:
-- [ ] Build budget cost code list/create/update views.
-- [ ] Build cost entry list/create views.
-- [ ] Build variance view with filter and drilldown UX.
-- [ ] Build reconciliation view.
-- [ ] Build narrative queue trigger and status feedback UX.
-- [ ] Build alert dedup action UX with safeguards.
-- [ ] Build project budget settings view.
-- [ ] Add module tests for calculations and user actions.
+- [x] Build budget cost code list/create/update views.
+- [x] Build cost entry list/create views.
+- [x] Build variance view with filter and drilldown UX.
+- [x] Build reconciliation view.
+- [x] Build narrative queue trigger and status feedback UX.
+- [x] Build alert dedup action UX with safeguards.
+- [x] Build project budget settings view.
+- [x] Add module tests for calculations and user actions.
 
 Done when:
 - Users can monitor and operate budget controls from UI without manual API calls.
@@ -258,17 +258,20 @@ Goal:
 - Deliver AI-assisted field workflow UX with reliable async state handling.
 
 Progress checklist:
-- [ ] Build site snap list, detail, create, update, archive views.
-- [ ] Build observation create/update/delete UX.
-- [ ] Build analyze, reanalyze, and review actions with status indicators.
-- [ ] Build upload session workflow for file handling.
-- [ ] Build download URL and file lifecycle UX.
-- [ ] Build AI job polling component for long-running tasks.
-- [ ] Build failure and retry UX for async operations.
-- [ ] Add module tests for async and upload flows.
+- [x] Build site snap list, detail, create, and update views.
+- [x] Build observation create/update/delete UX.
+- [x] Build analyze, reanalyze, and review actions with status indicators.
+- [x] Build upload session workflow for file handling.
+- [x] Build download URL and file lifecycle UX.
+- [x] Build AI job polling component for long-running tasks.
+- [x] Build failure and retry UX for async operations.
+- [x] Add module tests for async and upload flows.
 
 Done when:
 - Field AI workflows are operational with deterministic loading and retry behavior.
+
+Implementation note:
+- Site snap-level archive route is not exposed in current backend contracts. File lifecycle archive is implemented through `/storage/:fileAssetId`.
 
 ---
 
@@ -288,17 +291,20 @@ Goal:
 - Deliver internal subcontractor operations, invite lifecycle, and compliance administration.
 
 Progress checklist:
-- [ ] Build subcontractor list, detail, create, update views.
-- [ ] Build subcontractor invite lifecycle UI.
-- [ ] Build compliance template management views.
-- [ ] Build prequalification score and review views.
-- [ ] Build internal pay application review views.
-- [ ] Build internal daily log review views.
-- [ ] Build compliance item review and insurance extraction UX.
-- [ ] Add module tests for internal operations and review decisions.
+- [x] Build subcontractor list, detail, create, update views.
+- [x] Build subcontractor invite lifecycle UI.
+- [x] Build compliance template management views.
+- [x] Build prequalification score and review views.
+- [x] Build internal pay application review views.
+- [x] Build internal daily log review views.
+- [x] Build compliance item review and insurance extraction UX.
+- [x] Add module tests for internal operations and review decisions.
 
 Done when:
 - Internal operations team can run SubConnect workflows from frontend reliably.
+
+Implementation note:
+- Consolidated internal operations are delivered at `/app/subconnect`, wired to typed clients for `/subcontractors`, `/subconnect`, and `/compliance` with passing lint/typecheck/tests.
 
 ---
 
@@ -314,17 +320,20 @@ Goal:
 - Deliver external subcontractor self-service portal flows.
 
 Progress checklist:
-- [ ] Build portal register, login, invitation acceptance screens.
-- [ ] Build password reset request and confirm screens.
-- [ ] Build portal profile and overview screens.
-- [ ] Build portal compliance read and upload views.
-- [ ] Build portal pay application list/create/detail views.
-- [ ] Build portal daily log list/create/detail views.
-- [ ] Build token expiry and session recovery UX.
-- [ ] Add portal-specific tests across auth and workflow flows.
+- [x] Build portal register, login, invitation acceptance screens.
+- [x] Build password reset request and confirm screens.
+- [x] Build portal profile and overview screens.
+- [x] Build portal compliance read and upload views.
+- [x] Build portal pay application list/create/detail views.
+- [x] Build portal daily log list/create/detail views.
+- [x] Build token expiry and session recovery UX.
+- [x] Add portal-specific tests across auth and workflow flows.
 
 Done when:
 - Subcontractor users can complete full portal lifecycle without internal app access.
+
+Implementation note:
+- Portal lifecycle is delivered across `/portal/register`, `/portal/login`, `/portal/invitations/accept`, `/portal/forgot-password`, `/portal/reset-password`, and protected `/portal/*` workflow routes for overview/profile/compliance/pay-applications/daily-logs with passing lint/typecheck/tests.
 
 ---
 

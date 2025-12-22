@@ -3,7 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { members, projectMembers } from "@foreman/db";
 import { db } from "../database";
 import { getAuthContext } from "./require-auth";
-import { unauthorized, badRequest } from "../lib/errors";
+import { unauthorized, badRequest, forbidden } from "../lib/errors";
+import { hasPermission } from "../services/permission";
 
 /**
  * Organization-level roles (from Better Auth org plugin).
@@ -131,6 +132,91 @@ export function requireProjectRole(...allowedRoles: (ProjectRole | OrgRole)[]) {
         throw unauthorized(
           `This action requires one of these project roles: ${allowedRoles.join(", ")}`,
         );
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+interface PermissionGuardOptions {
+  projectIdParam?: string;
+  allowAdminBypass?: boolean;
+}
+
+function resolveProjectIdFromRequest(request: Request, projectIdParam = "projectId") {
+  const fromParams = request.params?.[projectIdParam];
+  const fromQuery = request.query?.[projectIdParam];
+  const fromBody = request.body?.[projectIdParam];
+
+  if (typeof fromParams === "string" && fromParams.length > 0) {
+    return fromParams;
+  }
+
+  if (typeof fromQuery === "string" && fromQuery.length > 0) {
+    return fromQuery;
+  }
+
+  if (typeof fromBody === "string" && fromBody.length > 0) {
+    return fromBody;
+  }
+
+  return undefined;
+}
+
+/**
+ * Permission-based authorization middleware.
+ *
+ * Usage:
+ * requirePermission("invoice.approve")
+ * requirePermission("change_order.decision", { projectIdParam: "projectId" })
+ */
+export function requirePermission(permissionKey: string, options: PermissionGuardOptions = {}) {
+  return async (request: Request, _response: Response, next: NextFunction) => {
+    try {
+      const { user, session } = getAuthContext(request);
+
+      if (!session.activeOrganizationId) {
+        throw badRequest("An active organization is required");
+      }
+
+      const [membership] = await db
+        .select({ role: members.role })
+        .from(members)
+        .where(
+          and(
+            eq(members.organizationId, session.activeOrganizationId),
+            eq(members.userId, user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!membership) {
+        throw unauthorized("You are not a member of this organization");
+      }
+
+      if (membership.role === "owner") {
+        next();
+        return;
+      }
+
+      if (membership.role === "admin" && options.allowAdminBypass) {
+        next();
+        return;
+      }
+
+      const projectId = resolveProjectIdFromRequest(request, options.projectIdParam);
+      const allowed = await hasPermission({
+        organizationId: session.activeOrganizationId,
+        userId: user.id,
+        permissionKey,
+        projectId,
+      });
+
+      if (!allowed) {
+        throw forbidden(`Missing permission: ${permissionKey}`);
       }
 
       next();

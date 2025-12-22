@@ -17,6 +17,7 @@ import {
   notificationsRouter,
   organizationsRouter,
   oauthRouter,
+  permissionsRouter,
   projectsRouter,
   purchaseOrdersRouter,
   receiptsRouter,
@@ -34,6 +35,7 @@ import { errorHandler } from "./middleware/error-handler";
 import { requestId } from "./middleware/request-id";
 import { standardLimiter, authLimiter, aiLimiter, billingLimiter } from "./middleware/rate-limit";
 import { env } from "./config/env";
+import { logger } from "./lib/logger";
 import { buildOpenApiDocument, renderOpenApiHtml, type ApiRouterMount } from "./lib/openapi";
 
 export const app: Express = express();
@@ -69,6 +71,11 @@ const openApiRouterMounts: ApiRouterMount[] = [
     path: "/organizations",
     router: organizationsRouter,
     tag: "Organizations",
+  },
+  {
+    path: "/permissions",
+    router: permissionsRouter,
+    tag: "Permissions",
   },
   {
     path: "/projects",
@@ -182,7 +189,53 @@ const openApiDocument = buildOpenApiDocument({
 app.use(requestId);
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-app.use(pinoHttp({ quietReqLogger: true }));
+app.use(
+  pinoHttp({
+    logger,
+    quietReqLogger: true,
+    autoLogging: {
+      ignore: (request) =>
+        request.url === "/health" || request.url === "/health/ready",
+    },
+    customLogLevel: (_request, response, error) => {
+      if (error || response.statusCode >= 500) {
+        return "error";
+      }
+
+      if (response.statusCode >= 400) {
+        return "warn";
+      }
+
+      return "info";
+    },
+    customSuccessMessage: (request, response) =>
+      `${request.method} ${request.originalUrl ?? request.url} -> ${response.statusCode}`,
+    customErrorMessage: (request, response, error) =>
+      `${request.method} ${request.originalUrl ?? request.url} -> ${response.statusCode} (${error.message})`,
+    serializers: {
+      req: (request) => {
+        const requestIdHeader = request.headers["x-request-id"];
+
+        return {
+          id: Array.isArray(requestIdHeader) ? requestIdHeader[0] : requestIdHeader,
+          method: request.method,
+          url: request.originalUrl ?? request.url,
+          remoteAddress: request.remoteAddress,
+          userAgent: request.headers["user-agent"],
+        };
+      },
+      res: (response) => ({
+        statusCode: response.statusCode,
+      }),
+    },
+    customAttributeKeys: {
+      req: "request",
+      res: "response",
+      err: "error",
+      responseTime: "durationMs",
+    },
+  }),
+);
 app.use("/auth", authLimiter, authRouter);
 
 // Raw body for Stripe webhooks (before JSON parser)
@@ -199,6 +252,7 @@ app.use("/portal", authLimiter, portalRouter);
 app.use("/activity-feed", activityFeedRouter);
 app.use("/ai", aiLimiter, aiRouter);
 app.use("/organizations", organizationsRouter);
+app.use("/permissions", permissionsRouter);
 app.use("/projects", projectsRouter);
 app.use("/rfqs", rfqsRouter);
 app.use("/purchase-orders", purchaseOrdersRouter);

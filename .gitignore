@@ -11,3 +11,4 @@ apps/*/build
 packages/*/build
 apps/*/.next
 apps/*/tsconfig.tsbuildinfo
+.claude

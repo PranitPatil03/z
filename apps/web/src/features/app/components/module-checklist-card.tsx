@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import type { ModuleDefinition } from "@/config/module-registry";
 import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
+
 import Link from "next/link";
 
 interface ModuleChecklistCardProps {
@@ -33,20 +34,26 @@ export function ModuleChecklistCard({ module }: ModuleChecklistCardProps) {
         <CardTitle className="text-base">{module.title}</CardTitle>
         <CardDescription>{module.subtitle}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {module.checklist.slice(0, 3).map((item, index) => (
-          <div
-            key={item}
-            className="flex items-start gap-2 text-sm text-muted-foreground"
-          >
-            {index === 0 && module.progress > 0 ? (
-              <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" />
-            ) : (
-              <Circle className="mt-0.5 h-4 w-4" />
-            )}
-            <span>{item}</span>
+      <CardContent>
+        <div className="flex items-center gap-2">
+          {module.progress > 0 ? (
+            <CheckCircle2 className="h-4 w-4 text-success" />
+          ) : (
+            <Circle className="h-4 w-4 text-muted-foreground" />
+          )}
+          <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${module.progress}%` }}
+            />
           </div>
-        ))}
+          <span className="text-xs text-muted-foreground">
+            {module.progress}%
+          </span>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground capitalize">
+          Group: {module.group}
+        </p>
       </CardContent>
       <CardFooter className="mt-auto justify-between gap-2">
         <span className="text-xs text-muted-foreground">
