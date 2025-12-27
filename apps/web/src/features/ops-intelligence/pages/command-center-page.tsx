@@ -2,16 +2,24 @@
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import { summarizePortfolioProjects } from "@/features/ops-intelligence/lib/ops-intelligence-utils";
+import { ApiRequestError } from "@/lib/api/http-client";
 import {
   type ActivityFeedItem,
   activityFeedApi,
   commandCenterApi,
 } from "@/lib/api/modules/notifications-api";
 import { queryKeys } from "@/lib/api/query-keys";
+import { authClient } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -22,12 +30,13 @@ import {
   Database,
   FileText,
   FolderOpen,
-  HeartPulse,
-  LineChart,
+  LayoutGrid,
+  Loader2,
+  List,
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const ACTIVITY_SKELETON_KEYS = [
   "activity-skeleton-1",
@@ -36,6 +45,18 @@ const ACTIVITY_SKELETON_KEYS = [
   "activity-skeleton-4",
   "activity-skeleton-5",
 ];
+
+type SessionWithActiveOrganization = {
+  activeOrganizationId?: string;
+};
+
+function shouldRetryQuery(failureCount: number, error: unknown) {
+  if (error instanceof ApiRequestError && error.status >= 400 && error.status < 500) {
+    return false;
+  }
+
+  return failureCount < 2;
+}
 
 function ActionBadge({ action }: { action: string }) {
   const map: Record<string, string> = {
@@ -81,22 +102,42 @@ function ActivityRow({ item }: { item: ActivityFeedItem }) {
 }
 
 export function CommandCenterPage() {
-  const activeOrganizationId = useSessionStore(
+  const { data: sessionData } = authClient.useSession();
+  const sessionResolved = typeof sessionData !== "undefined";
+  const activeOrganizationIdFromSession =
+    sessionData?.session && "activeOrganizationId" in sessionData.session
+      ? ((sessionData.session as SessionWithActiveOrganization)
+          .activeOrganizationId ?? null)
+      : null;
+  const storedActiveOrganizationId = useSessionStore(
     (state) => state.activeOrganizationId,
   );
+  const activeOrganizationId =
+    sessionResolved && sessionData?.user
+      ? activeOrganizationIdFromSession
+      : activeOrganizationIdFromSession ?? storedActiveOrganizationId;
   const hasActiveOrganization = Boolean(activeOrganizationId);
+  const portfolioLimit = 50;
 
   const [windowDays, setWindowDays] = useState(30);
-  const [limit, setLimit] = useState(12);
-  const [interval, setInterval] = useState<"day" | "week">("day");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [portfolioView, setPortfolioView] = useState<"cards" | "list">(
+    "cards",
+  );
 
   const portfolioQuery = useQuery({
-    queryKey: queryKeys.commandCenter.portfolio({ limit, windowDays }),
-    queryFn: () => commandCenterApi.portfolio({ limit, windowDays }),
+    queryKey: queryKeys.commandCenter.portfolio({
+      limit: portfolioLimit,
+      windowDays,
+    }),
+    queryFn: () =>
+      commandCenterApi.portfolio({
+        limit: portfolioLimit,
+        windowDays,
+      }),
     enabled: hasActiveOrganization,
     staleTime: 30_000,
-    retry: 2,
+    retry: shouldRetryQuery,
   });
 
   const projectId =
@@ -107,32 +148,7 @@ export function CommandCenterPage() {
     queryFn: () => commandCenterApi.overview(projectId, windowDays),
     enabled: hasActiveOrganization && Boolean(projectId),
     staleTime: 30_000,
-    retry: 2,
-  });
-
-  const healthQuery = useQuery({
-    queryKey: queryKeys.commandCenter.health(projectId, windowDays),
-    queryFn: () => commandCenterApi.health(projectId, windowDays),
-    enabled: hasActiveOrganization && Boolean(projectId),
-    staleTime: 30_000,
-    retry: 2,
-  });
-
-  const trendsQuery = useQuery({
-    queryKey: queryKeys.commandCenter.trends({
-      projectId,
-      windowDays,
-      interval,
-    }),
-    queryFn: () =>
-      commandCenterApi.trends({
-        projectId,
-        windowDays,
-        interval,
-      }),
-    enabled: hasActiveOrganization && Boolean(projectId),
-    staleTime: 30_000,
-    retry: 2,
+    retry: shouldRetryQuery,
   });
 
   const feedQuery = useQuery({
@@ -145,7 +161,7 @@ export function CommandCenterPage() {
       }),
     enabled: hasActiveOrganization,
     staleTime: 15_000,
-    retry: 2,
+    retry: shouldRetryQuery,
   });
 
   const { isLoading } = portfolioQuery;
@@ -156,48 +172,30 @@ export function CommandCenterPage() {
   const anyError =
     portfolioQuery.isError ||
     overviewQuery.isError ||
-    healthQuery.isError ||
-    trendsQuery.isError ||
     feedQuery.isError;
 
-  const isStale =
-    portfolioQuery.isStale ||
-    overviewQuery.isStale ||
-    healthQuery.isStale ||
-    trendsQuery.isStale ||
-    feedQuery.isStale;
-
-  const updatedAt = useMemo(() => {
-    const timestamps = [
-      portfolioQuery.dataUpdatedAt,
-      overviewQuery.dataUpdatedAt,
-      healthQuery.dataUpdatedAt,
-      trendsQuery.dataUpdatedAt,
-      feedQuery.dataUpdatedAt,
-    ].filter((value) => value > 0);
-
-    if (timestamps.length === 0) {
-      return null;
+  const refetchAll = async () => {
+    const refetchTasks: Array<Promise<unknown>> = [
+      portfolioQuery.refetch(),
+      feedQuery.refetch(),
+    ];
+    if (projectId) {
+      refetchTasks.push(overviewQuery.refetch());
     }
 
-    return Math.max(...timestamps);
-  }, [
-    feedQuery.dataUpdatedAt,
-    healthQuery.dataUpdatedAt,
-    overviewQuery.dataUpdatedAt,
-    portfolioQuery.dataUpdatedAt,
-    trendsQuery.dataUpdatedAt,
-  ]);
-
-  const refetchAll = async () => {
-    await Promise.all([
-      portfolioQuery.refetch(),
-      overviewQuery.refetch(),
-      healthQuery.refetch(),
-      trendsQuery.refetch(),
-      feedQuery.refetch(),
-    ]);
+    await Promise.all(refetchTasks);
   };
+
+  if (!sessionResolved || !sessionData?.user) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2
+          className="h-5 w-5 animate-spin text-muted-foreground"
+          aria-label="Loading"
+        />
+      </div>
+    );
+  }
 
   if (!hasActiveOrganization) {
     return (
@@ -221,18 +219,42 @@ export function CommandCenterPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            void refetchAll();
-          }}
-        >
-          <RefreshCw className="mr-1.5 h-4 w-4" />
-          Refresh
-        </Button>
-        {anyError && (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-card p-3">
+        <div className="w-full sm:w-64 lg:w-72">
+          <Select
+            value={projectId}
+            onValueChange={setSelectedProjectId}
+            disabled={
+              portfolioQuery.isLoading ||
+              (portfolio?.projects.length ?? 0) === 0
+            }
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select project" />
+            </SelectTrigger>
+            <SelectContent>
+              {(portfolio?.projects ?? []).map((project) => (
+                <SelectItem key={project.projectId} value={project.projectId}>
+                  {project.projectCode} - {project.projectName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-40">
+          <Select value={String(windowDays)} onValueChange={(value) => setWindowDays(Number(value))}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Window" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="14">14 days</SelectItem>
+              <SelectItem value="30">30 days</SelectItem>
+              <SelectItem value="60">60 days</SelectItem>
+              <SelectItem value="90">90 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -240,77 +262,27 @@ export function CommandCenterPage() {
               void refetchAll();
             }}
           >
-            Retry failed
+            <RefreshCw className="mr-1.5 h-4 w-4" />
+            Refresh
           </Button>
-        )}
-        <Button asChild size="sm" variant="outline">
-          <Link href="/activity-feed">Activity feed</Link>
-        </Button>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/audit-log">Audit log</Link>
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
-        <div className="w-56">
-          <Select
-            value={projectId}
-            onChange={(event) => setSelectedProjectId(event.target.value)}
-            placeholder="Select project"
-            disabled={
-              portfolioQuery.isLoading ||
-              (portfolio?.projects.length ?? 0) === 0
-            }
-          >
-            {(portfolio?.projects ?? []).map((project) => (
-              <option key={project.projectId} value={project.projectId}>
-                {project.projectCode} - {project.projectName}
-              </option>
-            ))}
-          </Select>
+          {anyError && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void refetchAll();
+              }}
+            >
+              Retry failed
+            </Button>
+          )}
+          <Button asChild size="sm" variant="outline">
+            <Link href="/activity-feed">Activity feed</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/audit-log">Audit log</Link>
+          </Button>
         </div>
-        <div className="w-40">
-          <Select
-            value={String(windowDays)}
-            onChange={(event) => setWindowDays(Number(event.target.value))}
-          >
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-            <option value="60">60 days</option>
-            <option value="90">90 days</option>
-          </Select>
-        </div>
-        <div className="w-32">
-          <Select
-            value={interval}
-            onChange={(event) =>
-              setInterval(event.target.value as "day" | "week")
-            }
-          >
-            <option value="day">Daily</option>
-            <option value="week">Weekly</option>
-          </Select>
-        </div>
-        <div className="w-40">
-          <Select
-            value={String(limit)}
-            onChange={(event) => setLimit(Number(event.target.value))}
-          >
-            <option value="8">Top 8 projects</option>
-            <option value="12">Top 12 projects</option>
-            <option value="20">Top 20 projects</option>
-          </Select>
-        </div>
-        <p className="ml-auto text-xs text-muted-foreground">
-          {updatedAt
-            ? `Last updated ${new Date(updatedAt).toLocaleTimeString()}`
-            : "No data loaded yet"}
-        </p>
-        {isStale && (
-          <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-            Data may be stale
-          </p>
-        )}
       </div>
 
       {/* Stats grid */}
@@ -341,112 +313,21 @@ export function CommandCenterPage() {
           isLoading={isLoading}
         />
         <StatCard
+          title="Avg health score"
+          value={isLoading ? "—" : (portfolio?.averageHealthScore ?? 0)}
+          subtitle={`${portfolio?.watchProjects ?? 0} watch`}
+          icon={BarChart3}
+          isLoading={isLoading}
+        />
+        <StatCard
           title="High-risk alerts"
           value={isLoading ? "—" : summary.highRiskBudgetAlerts}
-          icon={BarChart3}
+          icon={AlertTriangle}
           isLoading={isLoading}
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <HeartPulse className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Health</h2>
-          </div>
-          {healthQuery.isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-            </div>
-          ) : healthQuery.data ? (
-            <div className="space-y-3 text-sm">
-              <p className="text-foreground">
-                Score:{" "}
-                <span className="font-semibold">{healthQuery.data.score}</span>{" "}
-                ({healthQuery.data.status})
-              </p>
-              <div className="space-y-2">
-                {healthQuery.data.factors.slice(0, 4).map((factor) => (
-                  <div
-                    key={factor.key}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-muted-foreground">
-                      {factor.label}
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {factor.impactBps > 0 ? "+" : ""}
-                      {factor.impactBps} bps
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              icon={HeartPulse}
-              title="No health data"
-              description="Select a project to view health metrics."
-              className="rounded-none border-0"
-            />
-          )}
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <LineChart className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Trends</h2>
-          </div>
-          {trendsQuery.isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-            </div>
-          ) : trendsQuery.data ? (
-            <div className="space-y-2 text-sm">
-              <p className="text-muted-foreground">
-                Direction:{" "}
-                <span className="font-medium text-foreground">
-                  {trendsQuery.data.summary.trendDirection}
-                </span>
-              </p>
-              <p className="text-muted-foreground">
-                Risk pressure delta:{" "}
-                <span className="font-medium text-foreground">
-                  {trendsQuery.data.summary.pressureDelta}
-                </span>
-              </p>
-              <div className="space-y-1 pt-1">
-                {trendsQuery.data.series.slice(-4).map((point) => (
-                  <div
-                    key={point.period}
-                    className="flex items-center justify-between"
-                  >
-                    <span className="text-muted-foreground">
-                      {point.period}
-                    </span>
-                    <span className="font-medium text-foreground">
-                      pressure {point.riskPressureScore}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              icon={LineChart}
-              title="No trend data"
-              description="Select a project to view trend metrics."
-              className="rounded-none border-0"
-            />
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl bg-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <Database className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">
@@ -462,19 +343,19 @@ export function CommandCenterPage() {
           </div>
         ) : overviewQuery.data ? (
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-lg bg-muted/40 p-3">
               <p className="text-xs text-muted-foreground">Budget burn</p>
               <p className="mt-1 font-semibold text-foreground">
                 {overviewQuery.data.summary.budgetBurnBps / 100}%
               </p>
             </div>
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-lg bg-muted/40 p-3">
               <p className="text-xs text-muted-foreground">Open COs</p>
               <p className="mt-1 font-semibold text-foreground">
                 {overviewQuery.data.summary.openChangeOrders}
               </p>
             </div>
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-lg bg-muted/40 p-3">
               <p className="text-xs text-muted-foreground">
                 Overdue compliance
               </p>
@@ -482,7 +363,7 @@ export function CommandCenterPage() {
                 {overviewQuery.data.summary.overdueComplianceItems}
               </p>
             </div>
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-lg bg-muted/40 p-3">
               <p className="text-xs text-muted-foreground">Match success</p>
               <p className="mt-1 font-semibold text-foreground">
                 {overviewQuery.data.summary.matchSuccessRateBps / 100}%
@@ -499,10 +380,36 @@ export function CommandCenterPage() {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Portfolio health
-        </h2>
+      <div className="rounded-xl bg-card p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">
+            Portfolio health
+          </h2>
+          <div className="inline-flex items-center rounded-md border border-border bg-muted/30 p-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={portfolioView === "cards" ? "secondary" : "ghost"}
+              className="h-8 px-2"
+              onClick={() => setPortfolioView("cards")}
+              aria-label="Card view"
+              title="Card view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={portfolioView === "list" ? "secondary" : "ghost"}
+              className="h-8 px-2"
+              onClick={() => setPortfolioView("list")}
+              aria-label="List view"
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         {portfolioQuery.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-4 w-full" />
@@ -517,33 +424,76 @@ export function CommandCenterPage() {
             className="rounded-none border-0"
           />
         ) : (
-          <div className="space-y-2">
-            {(portfolio?.projects ?? []).map((project) => (
-              <button
-                type="button"
-                key={project.projectId}
-                onClick={() => setSelectedProjectId(project.projectId)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left hover:bg-muted/40"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {project.projectCode} - {project.projectName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+          portfolioView === "cards" ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {(portfolio?.projects ?? []).map((project) => (
+                <button
+                  type="button"
+                  key={project.projectId}
+                  onClick={() => setSelectedProjectId(project.projectId)}
+                  className={`rounded-xl p-4 text-left transition ${
+                    project.projectId === projectId
+                      ? "bg-primary/10 ring-1 ring-primary/40"
+                      : "bg-muted/40 hover:bg-muted/60"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {project.projectCode}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {project.projectName}
+                      </p>
+                    </div>
+                    <p className="text-lg font-semibold text-foreground">
+                      {project.health.score}
+                    </p>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground">
                     Status: {project.health.status}
                   </p>
-                </div>
-                <p className="text-sm font-semibold text-foreground">
-                  {project.health.score}
-                </p>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(portfolio?.projects ?? []).map((project) => (
+                <button
+                  type="button"
+                  key={project.projectId}
+                  onClick={() => setSelectedProjectId(project.projectId)}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
+                    project.projectId === projectId
+                      ? "bg-primary/10 ring-1 ring-primary/40"
+                      : "bg-muted/40 hover:bg-muted/60"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {project.projectCode}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {project.projectName}
+                    </p>
+                  </div>
+                  <div className="ml-3 text-right">
+                    <p className="text-sm font-semibold text-foreground">
+                      {project.health.score}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {project.health.status}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )
         )}
       </div>
 
       {/* Activity feed */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="w-full rounded-xl border border-border bg-card">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold text-foreground">
             Recent activity

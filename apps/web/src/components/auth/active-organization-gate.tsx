@@ -48,18 +48,21 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
   );
 
   const sessionResolved = typeof data !== "undefined";
+  const sessionHasUser = Boolean(data?.user);
   const isProtectedPath = isInternalProtectedPath(pathname);
   const isSetupPath = pathname === SETUP_PATH;
   const sessionActiveOrganizationId = getSessionActiveOrganizationId(
     data?.session,
   );
   const activeOrganizationId =
-    sessionActiveOrganizationId ?? storedActiveOrganizationId;
+    sessionResolved && sessionHasUser
+      ? sessionActiveOrganizationId
+      : sessionActiveOrganizationId ?? storedActiveOrganizationId;
 
   const organizationsQuery = useQuery({
     queryKey: queryKeys.organizations.list(),
     queryFn: () => organizationsApi.list(),
-    enabled: Boolean(sessionResolved && data?.user && !activeOrganizationId),
+    enabled: Boolean(sessionResolved && sessionHasUser && !activeOrganizationId),
     retry: 1,
     staleTime: 60_000,
   });
@@ -73,15 +76,26 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
   });
 
   useEffect(() => {
+    if (!sessionResolved || !sessionHasUser) {
+      setActiveOrganizationId(null);
+      return;
+    }
+
     if (!sessionActiveOrganizationId) {
+      setActiveOrganizationId(null);
       return;
     }
 
     setActiveOrganizationId(sessionActiveOrganizationId);
-  }, [sessionActiveOrganizationId, setActiveOrganizationId]);
+  }, [
+    sessionActiveOrganizationId,
+    sessionHasUser,
+    sessionResolved,
+    setActiveOrganizationId,
+  ]);
 
   useEffect(() => {
-    if (!sessionResolved || !data?.user || activeOrganizationId || isSetupPath) {
+    if (!sessionResolved || !sessionHasUser || activeOrganizationId || isSetupPath) {
       return;
     }
 
@@ -105,7 +119,7 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
   }, [
     activeOrganizationId,
     activateOrganizationMutation,
-    data?.user,
+    sessionHasUser,
     isSetupPath,
     organizationsQuery.data,
     organizationsQuery.isLoading,
@@ -120,15 +134,26 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
   if (!sessionResolved) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading workspace
-        </div>
+        <Loader2
+          className="h-5 w-5 animate-spin text-muted-foreground"
+          aria-label="Loading"
+        />
       </div>
     );
   }
 
-  if (!data?.user || activeOrganizationId || isSetupPath) {
+  if (!data?.user) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2
+          className="h-5 w-5 animate-spin text-muted-foreground"
+          aria-label="Loading"
+        />
+      </div>
+    );
+  }
+
+  if (sessionActiveOrganizationId || isSetupPath) {
     return <>{children}</>;
   }
 

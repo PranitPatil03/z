@@ -2,6 +2,7 @@
 
 import { organizationsApi } from "@/lib/api/modules/organizations-api";
 import { authClient } from "@/lib/auth-client";
+import { isInternalProtectedPath } from "@/lib/auth/route-guards";
 import { useSessionStore } from "@/store/session-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
@@ -15,10 +16,8 @@ export function SessionBootstrap() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data } = authClient.useSession();
+  const sessionResolved = typeof data !== "undefined";
   const portalToken = useSessionStore((state) => state.portalToken);
-  const storedActiveOrganizationId = useSessionStore(
-    (state) => state.activeOrganizationId,
-  );
   const setAuthMode = useSessionStore((state) => state.setAuthMode);
   const setActiveOrganizationId = useSessionStore(
     (state) => state.setActiveOrganizationId,
@@ -30,29 +29,50 @@ export function SessionBootstrap() {
       ? ((data.session as SessionWithActiveOrganization).activeOrganizationId ??
         null)
       : null;
+  const isInternalProtectedRoute = isInternalProtectedPath(pathname);
 
   const nextAuthMode =
     pathname.startsWith("/portal") && portalToken ? "portal" : "internal";
 
   useEffect(() => {
     setAuthMode(nextAuthMode);
+
+    if (!sessionResolved) {
+      return;
+    }
+
     if (!data?.user) {
+      // During protected-route refreshes, keep the last org context while auth
+      // revalidates to avoid flashing "Organization required" placeholders.
+      if (isInternalProtectedRoute) {
+        return;
+      }
+
       setActiveOrganizationId(null);
       return;
     }
 
     if (activeOrganizationId) {
       setActiveOrganizationId(activeOrganizationId);
+      return;
     }
+
+    setActiveOrganizationId(null);
   }, [
     data?.user,
     activeOrganizationId,
+    isInternalProtectedRoute,
     nextAuthMode,
+    sessionResolved,
     setActiveOrganizationId,
     setAuthMode,
   ]);
 
   useEffect(() => {
+    if (!sessionResolved) {
+      return;
+    }
+
     if (!data?.user) {
       autoActivationAttemptedRef.current = false;
       return;
@@ -60,8 +80,7 @@ export function SessionBootstrap() {
 
     if (
       nextAuthMode !== "internal" ||
-      activeOrganizationId ||
-      storedActiveOrganizationId
+      activeOrganizationId
     ) {
       return;
     }
@@ -104,8 +123,8 @@ export function SessionBootstrap() {
     activeOrganizationId,
     nextAuthMode,
     queryClient,
+    sessionResolved,
     setActiveOrganizationId,
-    storedActiveOrganizationId,
   ]);
 
   return null;

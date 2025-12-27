@@ -3,16 +3,179 @@
 import { OrganizationSwitcher } from "@/components/navigation/organization-switcher";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { moduleRegistry } from "@/config/module-registry";
+import { moduleMap, moduleRegistry } from "@/config/module-registry";
 import { authClient } from "@/lib/auth-client";
+import { useHeaderStore } from "@/store/header-store";
 import { Activity, Bell, LogOut } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
+
+interface HeaderMeta {
+  title: string;
+  subtitle: string;
+}
+
+const PATH_HEADER_OVERRIDES: Array<{
+  test: (pathname: string) => boolean;
+  meta: HeaderMeta;
+}> = [
+  {
+    test: (pathname) => pathname.startsWith("/notifications/preferences"),
+    meta: {
+      title: "Notification Preferences",
+      subtitle: "Control alert channels, cadence, and notification rules.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/projects/"),
+    meta: {
+      title: "Project Details",
+      subtitle: "Review project scope, members, documents, and activity.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/change-orders/"),
+    meta: {
+      title: "Change Order Details",
+      subtitle: "Track approvals, scope impacts, and timeline changes.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/invoices/"),
+    meta: {
+      title: "Invoice Details",
+      subtitle: "Inspect invoice line items, status, and payment history.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/purchase-orders/"),
+    meta: {
+      title: "Purchase Order Details",
+      subtitle: "Review commitments, vendor data, and fulfillment progress.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/rfqs/"),
+    meta: {
+      title: "RFQ Details",
+      subtitle: "Compare quotes, deadlines, and package requirements.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/receipts/"),
+    meta: {
+      title: "Receipt Details",
+      subtitle: "Validate deliveries, quantities, and receipt status.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/match-runs/"),
+    meta: {
+      title: "Match Run Details",
+      subtitle: "Resolve invoice, PO, and receipt matching exceptions.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/site-snaps/"),
+    meta: {
+      title: "Site Snap Details",
+      subtitle: "Review field captures, observations, and issue context.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/smartmail/") && pathname !== "/smartmail",
+    meta: {
+      title: "SmartMail Thread",
+      subtitle: "Read thread context and coordinate next actions.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/organization-setup"),
+    meta: {
+      title: "Organization Setup",
+      subtitle: "Create or switch the active organization for this workspace.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/account-settings"),
+    meta: {
+      title: "Account Settings",
+      subtitle: "Manage your profile, appearance preferences, and billing access.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/integrations"),
+    meta: {
+      title: "Integrations",
+      subtitle: "Connect external systems and manage integration health.",
+    },
+  },
+  {
+    test: (pathname) => pathname.startsWith("/command-center"),
+    meta: {
+      title: "Command Center",
+      subtitle: "Monitor portfolio metrics, risk, and activity in real time.",
+    },
+  },
+];
+
+function resolveHeaderMeta(pathname: string): HeaderMeta {
+  if (pathname.startsWith("/module/")) {
+    const moduleKey = pathname.split("/")[2] ?? "";
+    const moduleDefinition = moduleMap.get(moduleKey);
+
+    if (moduleDefinition) {
+      return {
+        title: moduleDefinition.title,
+        subtitle: moduleDefinition.subtitle,
+      };
+    }
+
+    return {
+      title: "Module Workspace",
+      subtitle: "Detailed module context and operational execution view.",
+    };
+  }
+
+  const override = PATH_HEADER_OVERRIDES.find((item) => item.test(pathname));
+  if (override) {
+    return override.meta;
+  }
+
+  const exactModuleMatch = moduleRegistry.find(
+    (module) => module.routePath === pathname,
+  );
+  if (exactModuleMatch) {
+    return {
+      title: exactModuleMatch.title,
+      subtitle: exactModuleMatch.subtitle,
+    };
+  }
+
+  const nestedModuleMatch = moduleRegistry
+    .filter((module) => pathname.startsWith(`${module.routePath}/`))
+    .sort((a, b) => b.routePath.length - a.routePath.length)[0];
+
+  if (nestedModuleMatch) {
+    return {
+      title: nestedModuleMatch.title,
+      subtitle: nestedModuleMatch.subtitle,
+    };
+  }
+
+  return {
+    title: "Workspace",
+    subtitle: "Operational overview across active modules.",
+  };
+}
 
 export function TopHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
+  const routePathOverride = useHeaderStore((state) => state.routePathOverride);
+  const titleOverride = useHeaderStore((state) => state.titleOverride);
+  const subtitleOverride = useHeaderStore((state) => state.subtitleOverride);
 
   const user = session?.user;
   const initials = user?.name
@@ -30,71 +193,24 @@ export function TopHeader() {
     router.refresh();
   }
 
-  const headerMeta = useMemo(() => {
-    const exactModuleMatch = moduleRegistry.find(
-      (module) => module.routePath === pathname,
-    );
-    if (exactModuleMatch) {
-      return {
-        title: exactModuleMatch.title,
-        subtitle: exactModuleMatch.subtitle,
-      };
-    }
-
-    const nestedModuleMatch = moduleRegistry
-      .filter((module) => pathname.startsWith(`${module.routePath}/`))
-      .sort((a, b) => b.routePath.length - a.routePath.length)[0];
-
-    if (nestedModuleMatch) {
-      return {
-        title: nestedModuleMatch.title,
-        subtitle: nestedModuleMatch.subtitle,
-      };
-    }
-
-    if (pathname.startsWith("/organization-setup")) {
-      return {
-        title: "Organization Setup",
-        subtitle: "Create or switch the active organization for this workspace.",
-      };
-    }
-
-    if (pathname.startsWith("/account-settings")) {
-      return {
-        title: "Account Settings",
-        subtitle: "Manage your profile, appearance preferences, and billing access.",
-      };
-    }
-
-    if (pathname.startsWith("/integrations")) {
-      return {
-        title: "Integrations",
-        subtitle: "Connect external systems and manage integration health.",
-      };
-    }
-
-    if (pathname.startsWith("/command-center")) {
-      return {
-        title: "Command Center",
-        subtitle: "Monitor portfolio metrics, risk, and activity in real time.",
-      };
-    }
-
-    return {
-      title: "Workspace",
-      subtitle: "Operational overview across active modules.",
-    };
-  }, [pathname]);
+  const headerMeta = useMemo(() => resolveHeaderMeta(pathname), [pathname]);
+  const hasMatchingOverride = routePathOverride === pathname;
+  const resolvedTitle =
+    hasMatchingOverride && titleOverride ? titleOverride : headerMeta.title;
+  const resolvedSubtitle =
+    hasMatchingOverride && subtitleOverride !== null
+      ? subtitleOverride
+      : headerMeta.subtitle;
 
   return (
     <header className="shell-main-surface-soft sticky top-0 z-20 backdrop-blur-xl">
       <div className="flex min-h-[64px] items-center gap-3 px-4 py-2 lg:px-6">
         <div className="min-w-0">
           <h1 className="truncate text-lg font-semibold text-foreground lg:text-2xl">
-            {headerMeta.title}
+            {resolvedTitle}
           </h1>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground lg:text-sm">
-            {headerMeta.subtitle}
+            <p className="mt-0.5 truncate text-sm text-muted-foreground lg:text-base">
+            {resolvedSubtitle}
           </p>
         </div>
 

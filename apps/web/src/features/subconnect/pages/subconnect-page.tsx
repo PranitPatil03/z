@@ -3,9 +3,17 @@
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Select as RadixSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { Select } from "@/components/ui/select";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -29,10 +37,12 @@ import {
   type PayApplication,
   type PayApplicationDetail,
   type PayApplicationStatus,
+  type PortalInvitation,
   type Subcontractor,
   type SubcontractorStatus,
   subconnectApi,
 } from "@/lib/api/modules/subconnect-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -45,6 +55,8 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -79,6 +91,15 @@ function formatPercentBps(value: number) {
 }
 
 type SubconnectWorkspaceMode = "onboarding" | "operations";
+type LifecycleModal = "none" | "create" | "edit" | "invite";
+
+interface SubconnectPageProps {
+  defaultWorkspaceMode?: SubconnectWorkspaceMode;
+  lockWorkspaceMode?: boolean;
+  lifecycleOnly?: boolean;
+  initialSelectedSubcontractorId?: string;
+  lockInvitationScopeToSelected?: boolean;
+}
 
 const SUBCONNECT_WORKSPACE_MODE_LABEL: Record<SubconnectWorkspaceMode, string> =
   {
@@ -116,20 +137,37 @@ const SUBCONNECT_WORKSPACE_GUIDE: Record<
   },
 };
 
-export function SubconnectPage() {
+export function SubconnectPage({
+  defaultWorkspaceMode = "onboarding",
+  lockWorkspaceMode = false,
+  lifecycleOnly = false,
+  initialSelectedSubcontractorId,
+  lockInvitationScopeToSelected = false,
+}: SubconnectPageProps = {}) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [projectId, setProjectId] = useState("");
   const [statusFilter, setStatusFilter] = useState<SubcontractorStatus | "">(
     "",
   );
-  const [selectedSubcontractorId, setSelectedSubcontractorId] = useState("");
+  const [selectedSubcontractorId, setSelectedSubcontractorId] = useState(
+    initialSelectedSubcontractorId ?? "",
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [selectedComplianceItemId, setSelectedComplianceItemId] = useState("");
   const [selectedPayApplicationId, setSelectedPayApplicationId] = useState("");
   const [selectedDailyLogId, setSelectedDailyLogId] = useState("");
   const [workspaceMode, setWorkspaceMode] =
-    useState<SubconnectWorkspaceMode>("onboarding");
+    useState<SubconnectWorkspaceMode>(defaultWorkspaceMode);
+  const [activeLifecycleModal, setActiveLifecycleModal] =
+    useState<LifecycleModal>("none");
+  const [invitationStatusFilter, setInvitationStatusFilter] = useState<
+    PortalInvitation["status"] | "all"
+  >("all");
+  const [invitationScopeFilter, setInvitationScopeFilter] = useState<
+    "all" | "selected"
+  >(lockInvitationScopeToSelected ? "selected" : "all");
 
   const [createSubcontractorForm, setCreateSubcontractorForm] = useState({
     projectId: "",
@@ -223,6 +261,11 @@ export function SubconnectPage() {
 
   const normalizedProjectId = projectId.trim();
 
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
   const subcontractorsQuery = useQuery({
     queryKey: queryKeys.subcontractors.list({
       projectId: normalizedProjectId || undefined,
@@ -240,19 +283,36 @@ export function SubconnectPage() {
   const invitationsQuery = useQuery({
     queryKey: queryKeys.subconnect.invitations({
       projectId: normalizedProjectId || undefined,
+      subcontractorId:
+        invitationScopeFilter === "selected" && selectedSubcontractorId
+          ? selectedSubcontractorId
+          : undefined,
+      status:
+        invitationStatusFilter === "all"
+          ? undefined
+          : invitationStatusFilter,
       limit: 50,
     }),
     queryFn: () =>
       subconnectApi.listInvitations({
         projectId: normalizedProjectId || undefined,
+        subcontractorId:
+          invitationScopeFilter === "selected" && selectedSubcontractorId
+            ? selectedSubcontractorId
+            : undefined,
+        status:
+          invitationStatusFilter === "all"
+            ? undefined
+            : invitationStatusFilter,
         limit: 50,
       }),
+      enabled: lifecycleOnly,
   });
 
   const templatesQuery = useQuery({
     queryKey: queryKeys.subconnect.complianceTemplates(normalizedProjectId),
     queryFn: () => subconnectApi.listComplianceTemplates(normalizedProjectId),
-    enabled: normalizedProjectId.length > 0,
+    enabled: false,
   });
 
   const complianceItemsQuery = useQuery({
@@ -263,12 +323,13 @@ export function SubconnectPage() {
       subconnectApi.listComplianceItems({
         projectId: normalizedProjectId || undefined,
       }),
+    enabled: false,
   });
 
   const prequalificationQuery = useQuery({
     queryKey: queryKeys.subconnect.prequalification(selectedSubcontractorId),
     queryFn: () => getLatestScoreSafe(selectedSubcontractorId),
-    enabled: selectedSubcontractorId.length > 0,
+    enabled: false,
     retry: false,
   });
 
@@ -282,6 +343,7 @@ export function SubconnectPage() {
         projectId: normalizedProjectId || undefined,
         limit: 100,
       }),
+    enabled: false,
   });
 
   const payApplicationDetailQuery = useQuery({
@@ -302,6 +364,7 @@ export function SubconnectPage() {
         projectId: normalizedProjectId || undefined,
         limit: 100,
       }),
+    enabled: false,
   });
 
   const dailyLogDetailQuery = useQuery({
@@ -336,17 +399,70 @@ export function SubconnectPage() {
 
   const selectedPayApplication = payApplicationDetailQuery.data ?? null;
   const selectedDailyLog = dailyLogDetailQuery.data ?? null;
+  const projectOptions = projectsQuery.data ?? [];
 
   useEffect(() => {
-    const first = subcontractorsQuery.data?.[0];
-    if (!first) {
+    if (!lockWorkspaceMode) {
       return;
     }
 
-    if (selectedSubcontractorId.length === 0) {
-      setSelectedSubcontractorId(first.id);
+    setWorkspaceMode(defaultWorkspaceMode);
+  }, [defaultWorkspaceMode, lockWorkspaceMode]);
+
+  useEffect(() => {
+    if (!lockInvitationScopeToSelected) {
+      return;
     }
-  }, [selectedSubcontractorId.length, subcontractorsQuery.data]);
+
+    setInvitationScopeFilter("selected");
+  }, [lockInvitationScopeToSelected]);
+
+  useEffect(() => {
+    if (!initialSelectedSubcontractorId) {
+      return;
+    }
+
+    setSelectedSubcontractorId(initialSelectedSubcontractorId);
+  }, [initialSelectedSubcontractorId]);
+
+  useEffect(() => {
+    if (!lifecycleOnly) {
+      return;
+    }
+
+    const rows = subcontractorsQuery.data ?? [];
+    if (rows.length === 0) {
+      return;
+    }
+
+    if (initialSelectedSubcontractorId) {
+      const hasInitialSelection = rows.some(
+        (item) => item.id === initialSelectedSubcontractorId,
+      );
+      if (
+        hasInitialSelection &&
+        selectedSubcontractorId !== initialSelectedSubcontractorId
+      ) {
+        setSelectedSubcontractorId(initialSelectedSubcontractorId);
+      }
+      return;
+    }
+
+    const hasSelected = rows.some((item) => item.id === selectedSubcontractorId);
+    if (hasSelected) {
+      return;
+    }
+
+    const nextSelected = rows[0]?.id;
+
+    if (nextSelected) {
+      setSelectedSubcontractorId(nextSelected);
+    }
+  }, [
+    initialSelectedSubcontractorId,
+    selectedSubcontractorId,
+    subcontractorsQuery.data,
+  ]);
 
   useEffect(() => {
     if (!selectedSubcontractor) {
@@ -462,6 +578,7 @@ export function SubconnectPage() {
     onSuccess: (record) => {
       toast.success("Subcontractor created");
       setSelectedSubcontractorId(record.id);
+      setActiveLifecycleModal("none");
       setCreateSubcontractorForm((current) => ({
         ...current,
         name: "",
@@ -493,6 +610,7 @@ export function SubconnectPage() {
     },
     onSuccess: () => {
       toast.success("Subcontractor updated");
+      setActiveLifecycleModal("none");
       refreshM8();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -526,6 +644,7 @@ export function SubconnectPage() {
     onSuccess: (result) => {
       toast.success("Portal invitation created");
       setLastInviteResult(result);
+      setActiveLifecycleModal("none");
       refreshM8();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -831,16 +950,17 @@ export function SubconnectPage() {
     },
   ];
 
-  const invitationColumns: DataTableColumn<
-    InviteSubcontractorPortalResult["invitation"]
-  >[] = [
+  const invitationColumns: DataTableColumn<PortalInvitation>[] = [
     {
       key: "email",
       header: "Invite",
       render: (row) => (
         <div>
           <p className="font-medium text-foreground">{row.email}</p>
-          <p className="text-xs text-muted-foreground">{row.subcontractorId}</p>
+          <p className="text-xs text-muted-foreground">
+            Subcontractor: {row.subcontractorId}
+          </p>
+          <p className="text-xs text-muted-foreground">Project: {row.projectId}</p>
         </div>
       ),
     },
@@ -851,9 +971,29 @@ export function SubconnectPage() {
       render: (row) => <StatusBadge status={row.status} />,
     },
     {
+      key: "invitedAt",
+      header: "Invited",
+      width: "190px",
+      render: (row) => (
+        <span className="text-xs text-muted-foreground">
+          {formatDateTime(row.invitedAt)}
+        </span>
+      ),
+    },
+    {
+      key: "acceptedAt",
+      header: "Accepted",
+      width: "190px",
+      render: (row) => (
+        <span className="text-xs text-muted-foreground">
+          {row.acceptedAt ? formatDateTime(row.acceptedAt) : "Not accepted"}
+        </span>
+      ),
+    },
+    {
       key: "expires",
       header: "Expires",
-      width: "200px",
+      width: "190px",
       render: (row) => (
         <span className="text-xs text-muted-foreground">
           {formatDateTime(row.expiresAt)}
@@ -1019,19 +1159,84 @@ export function SubconnectPage() {
   const complianceRows = complianceItemsQuery.data ?? [];
   const payRows = payApplicationsQuery.data ?? [];
   const dailyRows = dailyLogsQuery.data ?? [];
+  const isFocusedSubcontractorPage =
+    lifecycleOnly && Boolean(initialSelectedSubcontractorId);
+  const focusedSubcontractorLabel =
+    selectedSubcontractor?.name ??
+    initialSelectedSubcontractorId ??
+    "Subcontractor";
+  const focusedSubcontractorNotFound =
+    isFocusedSubcontractorPage &&
+    subcontractorsQuery.isSuccess &&
+    !selectedSubcontractor;
 
-  const showOnboarding = workspaceMode === "onboarding";
-  const showOperations = workspaceMode === "operations";
+  const showOnboarding = lifecycleOnly || workspaceMode === "onboarding";
+  const showOperations = false;
   const showCompliance = showOperations;
   const showFinancial = showOperations;
+
+  function openCreateSubcontractorModal() {
+    setCreateSubcontractorForm((current) => ({
+      ...current,
+      projectId: normalizedProjectId || current.projectId,
+    }));
+    setActiveLifecycleModal("create");
+  }
+
+  function openEditSubcontractorModal() {
+    if (!selectedSubcontractor) {
+      toast.error("Select a subcontractor first");
+      return;
+    }
+
+    setActiveLifecycleModal("edit");
+  }
+
+  function openInviteLifecycleModal() {
+    if (!selectedSubcontractor) {
+      toast.error("Select a subcontractor first");
+      return;
+    }
+
+    setActiveLifecycleModal("invite");
+  }
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title="SubConnect Internal Operations"
-        description="Operate subcontractor onboarding, compliance, and financial/work-log reviews from one screen."
+        title={
+          isFocusedSubcontractorPage
+            ? `Subcontractors > ${focusedSubcontractorLabel}`
+            : lifecycleOnly
+            ? "Subcontractor Info and Invites"
+            : "SubConnect Internal Operations"
+        }
+        description={
+          isFocusedSubcontractorPage
+            ? "Complete profile and lifecycle actions for this subcontractor."
+            : lifecycleOnly
+            ? "Focused lifecycle workspace for subcontractor details, portal invites, and invitation history."
+            : "Operate subcontractor onboarding, compliance, and financial/work-log reviews from one screen."
+        }
         action={
           <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={
+                  isFocusedSubcontractorPage
+                    ? "/subconnect/subcontractors"
+                    : lifecycleOnly
+                      ? "/subconnect"
+                      : "/subconnect/subcontractors"
+                }
+              >
+                {isFocusedSubcontractorPage
+                  ? "Back to subcontractors"
+                  : lifecycleOnly
+                    ? "Open full operations"
+                    : "Subcontractors page"}
+              </Link>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1049,336 +1254,670 @@ export function SubconnectPage() {
         }
       />
 
-      <section className="rounded-xl border border-border bg-card p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Workflow sections
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              SubConnect operations are split into two focused sections so teams
-              can stay in onboarding or operations review.
-            </p>
-          </div>
-          <div>
-            <Label htmlFor="subconnect-workflow-focus">Focus mode</Label>
-            <Select
-              id="subconnect-workflow-focus"
-              value={workspaceMode}
-              onChange={(event) =>
-                setWorkspaceMode(event.target.value as SubconnectWorkspaceMode)
-              }
-            >
-              {(
-                Object.keys(
-                  SUBCONNECT_WORKSPACE_MODE_LABEL,
-                ) as SubconnectWorkspaceMode[]
-              ).map((mode) => (
-                <option key={mode} value={mode}>
-                  {SUBCONNECT_WORKSPACE_MODE_LABEL[mode]}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
-        <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
-          <p className="text-sm font-medium text-foreground">
-            {SUBCONNECT_WORKSPACE_GUIDE[workspaceMode].title}
-          </p>
+      {!lifecycleOnly && (
+        <section className="rounded-xl bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            Subcontractor directory
+          </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {SUBCONNECT_WORKSPACE_GUIDE[workspaceMode].description}
+            Showing subcontractors across all projects. Click a subcontractor
+            row to open full details, invite lifecycle actions, and invitation
+            history.
           </p>
-          <div className="mt-2 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
-            {SUBCONNECT_WORKSPACE_GUIDE[workspaceMode].steps.map((step) => (
-              <p
-                key={step}
-                className="rounded-md border border-border bg-background/80 px-3 py-2"
+        </section>
+      )}
+
+      {!isFocusedSubcontractorPage && (
+        <div className="flex flex-wrap items-end gap-3">
+          {lifecycleOnly && (
+            <div className="w-full sm:w-56">
+              <RadixSelect
+                value={projectId || "all"}
+                onValueChange={(value) => {
+                  const nextProjectId = value === "all" ? "" : value;
+                  setProjectId(nextProjectId);
+                  setCreateSubcontractorForm((current) => ({
+                    ...current,
+                    projectId: nextProjectId,
+                  }));
+                }}
               >
-                {step}
-              </p>
-            ))}
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="All projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All projects</SelectItem>
+                  {projectId &&
+                    !projectOptions.some((project) => project.id === projectId) && (
+                      <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                    )}
+                  {projectOptions.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.code} - {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </RadixSelect>
+            </div>
+          )}
+          <div className="w-full sm:w-56">
+            <RadixSelect
+              value={statusFilter || "all"}
+              onValueChange={(value) => {
+                setStatusFilter(
+                  value === "all" ? "" : (value as SubcontractorStatus),
+                );
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </RadixSelect>
           </div>
+          <Button
+            size="sm"
+            className="h-10 px-3 text-xs"
+            variant="outline"
+            onClick={() => {
+              setStatusFilter("");
+              setProjectId("");
+            }}
+          >
+            Reset filters
+          </Button>
         </div>
-      </section>
+      )}
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Input
-          placeholder="Project ID filter"
-          value={projectId}
-          onChange={(event) => {
-            setProjectId(event.target.value);
-            setCreateSubcontractorForm((current) => ({
-              ...current,
-              projectId: event.target.value,
-            }));
-          }}
-        />
-        <Select
-          value={statusFilter}
-          onChange={(event) =>
-            setStatusFilter(event.target.value as SubcontractorStatus | "")
-          }
-          placeholder="All statuses"
-        >
-          <option value="active">active</option>
-          <option value="inactive">inactive</option>
-          <option value="blocked">blocked</option>
-        </Select>
-        <Button
-          variant="outline"
-          onClick={() => {
-            setStatusFilter("");
-            setProjectId("");
-          }}
-        >
-          Reset filters
-        </Button>
-      </div>
+      {!isFocusedSubcontractorPage && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Subcontractors"
+            value={subcontractorRows.length}
+            subtitle={`${subcontractorRows.filter((item) => item.portalEnabled).length} portal enabled`}
+            icon={Users}
+            isLoading={subcontractorsQuery.isLoading}
+          />
+          <StatCard
+            title="Active"
+            value={subcontractorRows.filter((item) => item.status === "active").length}
+            subtitle="Current active subcontractors"
+            icon={Shield}
+            isLoading={subcontractorsQuery.isLoading}
+          />
+        </div>
+      )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Subcontractors"
-          value={subcontractorRows.length}
-          subtitle={`${subcontractorRows.filter((item) => item.portalEnabled).length} portal enabled`}
-          icon={Users}
-          isLoading={subcontractorsQuery.isLoading}
-        />
-        <StatCard
-          title="Invitations"
-          value={invitationRows.length}
-          subtitle={`${invitationRows.filter((item) => item.status === "pending").length} pending`}
-          icon={UserPlus}
-          isLoading={invitationsQuery.isLoading}
-        />
-        <StatCard
-          title="Compliance Items"
-          value={complianceRows.length}
-          subtitle={`${complianceRows.filter((item) => item.status === "pending").length} pending`}
-          icon={Shield}
-          isLoading={complianceItemsQuery.isLoading}
-        />
-        <StatCard
-          title="Pay + Logs"
-          value={payRows.length + dailyRows.length}
-          subtitle={`${payRows.length} pay apps • ${dailyRows.length} logs`}
-          icon={ClipboardCheck}
-          isLoading={payApplicationsQuery.isLoading || dailyLogsQuery.isLoading}
-        />
-      </div>
-
-      {showOnboarding && (
-        <section className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-3 lg:col-span-2">
+      {showOnboarding && !isFocusedSubcontractorPage && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-foreground">
               Subcontractors
             </h2>
-            <DataTable
-              columns={subcontractorColumns}
-              data={subcontractorRows}
-              isLoading={subcontractorsQuery.isLoading}
-              rowKey={(row) => row.id}
-              onRowClick={(row) => setSelectedSubcontractorId(row.id)}
-              emptyState={
-                <EmptyState
-                  icon={Users}
-                  title="No subcontractors"
-                  description="Create a subcontractor to start SubConnect workflows."
-                />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={openCreateSubcontractorModal}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Create subcontractor
+              </Button>
+              {lifecycleOnly && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={openEditSubcontractorModal}
+                    disabled={!selectedSubcontractor}
+                  >
+                    Edit selected
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={openInviteLifecycleModal}
+                    disabled={!selectedSubcontractor}
+                  >
+                    <UserPlus className="mr-1.5 h-4 w-4" />
+                    Invite lifecycle
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {lifecycleOnly ? (
+            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              {selectedSubcontractor ? (
+                <span>
+                  Selected subcontractor: <span className="font-medium text-foreground">{selectedSubcontractor.name}</span> ({selectedSubcontractor.trade})
+                </span>
+              ) : (
+                <span>No subcontractor selected. Click a row to select one.</span>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              Click a subcontractor row to open its dedicated info and invite page.
+            </div>
+          )}
+
+          <DataTable
+            columns={subcontractorColumns}
+            data={subcontractorRows}
+            isLoading={subcontractorsQuery.isLoading}
+            rowKey={(row) => row.id}
+            onRowClick={(row) => {
+              if (lifecycleOnly) {
+                setSelectedSubcontractorId(row.id);
+                return;
+              }
+
+              router.push(`/subconnect/subcontractors/${row.id}`);
+            }}
+            emptyState={
+              <EmptyState
+                icon={Users}
+                title="No subcontractors"
+                description="Create a subcontractor to start SubConnect workflows."
+              />
+            }
+          />
+        </section>
+      )}
+
+      {showOnboarding && lifecycleOnly && (
+        <section className="space-y-4">
+          <div className="space-y-3 rounded-xl bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-foreground">
+                Subcontractor information
+              </h2>
+              {selectedSubcontractor && (
+                <StatusBadge status={selectedSubcontractor.status} />
+              )}
+            </div>
+
+            {!selectedSubcontractor ? (
+              <EmptyState
+                title={
+                  focusedSubcontractorNotFound
+                    ? "Subcontractor not found"
+                    : "No subcontractor selected"
+                }
+                description={
+                  focusedSubcontractorNotFound
+                    ? `No subcontractor found for ${initialSelectedSubcontractorId}.`
+                    : "Pick a row from the subcontractors table."
+                }
+                className="rounded-lg"
+              />
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <p className="text-sm font-medium text-foreground">
+                    {selectedSubcontractor.name}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ID: {selectedSubcontractor.id}
+                  </p>
+
+                  <div className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                    <p>
+                      Organization:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.organizationId}
+                      </span>
+                    </p>
+                    <p>
+                      Project:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.projectId ?? "-"}
+                      </span>
+                    </p>
+                    <p>
+                      Trade:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.trade}
+                      </span>
+                    </p>
+                    <p>
+                      Email:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.email ?? "-"}
+                      </span>
+                    </p>
+                    <p>
+                      Phone:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.phone ?? "-"}
+                      </span>
+                    </p>
+                    <p>
+                      Portal access:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.portalEnabled ? "Enabled" : "Disabled"}
+                      </span>
+                    </p>
+                    <p>
+                      Created:{" "}
+                      <span className="text-foreground">
+                        {formatDateTime(selectedSubcontractor.createdAt)}
+                      </span>
+                    </p>
+                    <p>
+                      Updated:{" "}
+                      <span className="text-foreground">
+                        {formatDateTime(selectedSubcontractor.updatedAt)}
+                      </span>
+                    </p>
+                    <p>
+                      Deleted:{" "}
+                      <span className="text-foreground">
+                        {selectedSubcontractor.deletedAt
+                          ? formatDateTime(selectedSubcontractor.deletedAt)
+                          : "-"}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="mt-3 rounded-md border border-border/60 bg-card px-3 py-2">
+                    <p className="text-xs font-medium text-foreground">Metadata</p>
+                    <pre className="mt-1 overflow-x-auto text-xs text-muted-foreground">
+                      {JSON.stringify(selectedSubcontractor.metadata ?? {}, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={openEditSubcontractorModal}
+                  >
+                    Edit subcontractor
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={openInviteLifecycleModal}
+                    disabled={!selectedSubcontractor}
+                  >
+                    <UserPlus className="mr-1.5 h-4 w-4" />
+                    Invite lifecycle
+                  </Button>
+                </div>
+
+                {lastInviteResult && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                    <p>
+                      Invite URL:{" "}
+                      <a
+                        href={lastInviteResult.inviteAcceptUrl}
+                        className="text-primary underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open invite link
+                      </a>
+                    </p>
+                    <p>Token: {lastInviteResult.inviteToken}</p>
+                    <p>
+                      Email queued: {lastInviteResult.inviteEmailQueued ? "yes" : "no"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      <FormDrawer
+        open={activeLifecycleModal === "create"}
+        onClose={() => setActiveLifecycleModal("none")}
+        title="Create subcontractor"
+        description="Add a subcontractor profile to begin the lifecycle workflow."
+        width="lg"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setActiveLifecycleModal("none")}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createSubcontractorMutation.mutate()}
+              disabled={
+                createSubcontractorMutation.isPending ||
+                createSubcontractorForm.name.trim().length < 2 ||
+                createSubcontractorForm.trade.trim().length < 2
+              }
+            >
+              {createSubcontractorMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Create subcontractor
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="subconnect-create-project-id">Project ID</Label>
+            <RadixSelect
+              value={createSubcontractorForm.projectId || "none"}
+              onValueChange={(value) =>
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  projectId: value === "none" ? "" : value,
+                }))
+              }
+            >
+              <SelectTrigger id="subconnect-create-project-id" className="h-10">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Not assigned</SelectItem>
+                {createSubcontractorForm.projectId &&
+                  !projectOptions.some(
+                    (project) => project.id === createSubcontractorForm.projectId,
+                  ) && (
+                    <SelectItem value={createSubcontractorForm.projectId}>
+                      Current: {createSubcontractorForm.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </RadixSelect>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="subconnect-create-name">Name</Label>
+            <Input
+              id="subconnect-create-name"
+              placeholder="Subcontractor name"
+              value={createSubcontractorForm.name}
+              onChange={(event) =>
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
               }
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="subconnect-create-email">Email</Label>
+            <Input
+              id="subconnect-create-email"
+              placeholder="contact@vendor.com"
+              value={createSubcontractorForm.email}
+              onChange={(event) =>
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="subconnect-create-phone">Phone</Label>
+            <Input
+              id="subconnect-create-phone"
+              placeholder="Phone number"
+              value={createSubcontractorForm.phone}
+              onChange={(event) =>
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  phone: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="subconnect-create-trade">Trade</Label>
+            <Input
+              id="subconnect-create-trade"
+              placeholder="Trade"
+              value={createSubcontractorForm.trade}
+              onChange={(event) =>
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  trade: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label htmlFor="subconnect-create-metadata">Metadata JSON</Label>
+            <textarea
+              id="subconnect-create-metadata"
+              className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+              placeholder='Optional JSON object, e.g. {"crewSize": 8}'
+              value={createSubcontractorForm.metadataText}
+              onChange={(event) =>
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  metadataText: event.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      </FormDrawer>
 
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-            <h3 className="text-sm font-semibold text-foreground">
-              Create subcontractor
-            </h3>
-            <div className="space-y-2">
-              <Input
-                placeholder="Project ID"
-                value={createSubcontractorForm.projectId}
-                onChange={(event) =>
-                  setCreateSubcontractorForm((current) => ({
+      <FormDrawer
+        open={activeLifecycleModal === "edit"}
+        onClose={() => setActiveLifecycleModal("none")}
+        title="Edit subcontractor"
+        description="Update profile details for the selected subcontractor."
+        width="lg"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setActiveLifecycleModal("none")}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => updateSubcontractorMutation.mutate()}
+              disabled={
+                updateSubcontractorMutation.isPending ||
+                selectedSubcontractorId.length === 0
+              }
+            >
+              {updateSubcontractorMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save subcontractor
+            </Button>
+          </div>
+        }
+      >
+        {!selectedSubcontractor ? (
+          <EmptyState
+            title="No subcontractor selected"
+            description="Select a subcontractor row first."
+            className="rounded-lg"
+          />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-edit-project-id">Project ID</Label>
+              <RadixSelect
+                value={editSubcontractorForm.projectId || "none"}
+                onValueChange={(value) =>
+                  setEditSubcontractorForm((current) => ({
                     ...current,
-                    projectId: event.target.value,
+                    projectId: value === "none" ? "" : value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="subconnect-edit-project-id" className="h-10">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not assigned</SelectItem>
+                  {editSubcontractorForm.projectId &&
+                    !projectOptions.some(
+                      (project) => project.id === editSubcontractorForm.projectId,
+                    ) && (
+                      <SelectItem value={editSubcontractorForm.projectId}>
+                        Current: {editSubcontractorForm.projectId}
+                      </SelectItem>
+                    )}
+                  {projectOptions.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.code} - {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </RadixSelect>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-edit-name">Name</Label>
               <Input
-                placeholder="Name"
-                value={createSubcontractorForm.name}
+                id="subconnect-edit-name"
+                placeholder="Subcontractor name"
+                value={editSubcontractorForm.name}
                 onChange={(event) =>
-                  setCreateSubcontractorForm((current) => ({
+                  setEditSubcontractorForm((current) => ({
                     ...current,
                     name: event.target.value,
                   }))
                 }
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-edit-email">Email</Label>
               <Input
-                placeholder="Email"
-                value={createSubcontractorForm.email}
+                id="subconnect-edit-email"
+                placeholder="contact@vendor.com"
+                value={editSubcontractorForm.email}
                 onChange={(event) =>
-                  setCreateSubcontractorForm((current) => ({
+                  setEditSubcontractorForm((current) => ({
                     ...current,
                     email: event.target.value,
                   }))
                 }
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-edit-phone">Phone</Label>
               <Input
-                placeholder="Phone"
-                value={createSubcontractorForm.phone}
+                id="subconnect-edit-phone"
+                placeholder="Phone number"
+                value={editSubcontractorForm.phone}
                 onChange={(event) =>
-                  setCreateSubcontractorForm((current) => ({
+                  setEditSubcontractorForm((current) => ({
                     ...current,
                     phone: event.target.value,
                   }))
                 }
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-edit-trade">Trade</Label>
               <Input
+                id="subconnect-edit-trade"
                 placeholder="Trade"
-                value={createSubcontractorForm.trade}
+                value={editSubcontractorForm.trade}
                 onChange={(event) =>
-                  setCreateSubcontractorForm((current) => ({
+                  setEditSubcontractorForm((current) => ({
                     ...current,
                     trade: event.target.value,
                   }))
                 }
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-edit-status">Status</Label>
+              <RadixSelect
+                value={editSubcontractorForm.status}
+                onValueChange={(value) =>
+                  setEditSubcontractorForm((current) => ({
+                    ...current,
+                    status: value as SubcontractorStatus,
+                  }))
+                }
+              >
+                <SelectTrigger id="subconnect-edit-status" className="h-10">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </RadixSelect>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="subconnect-edit-metadata">Metadata JSON</Label>
               <textarea
+                id="subconnect-edit-metadata"
                 className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                placeholder='Metadata JSON (optional), e.g. {"crewSize": 8}'
-                value={createSubcontractorForm.metadataText}
+                placeholder="Optional JSON object"
+                value={editSubcontractorForm.metadataText}
                 onChange={(event) =>
-                  setCreateSubcontractorForm((current) => ({
+                  setEditSubcontractorForm((current) => ({
                     ...current,
                     metadataText: event.target.value,
                   }))
                 }
               />
-              <Button
-                className="w-full"
-                onClick={() => createSubcontractorMutation.mutate()}
-                disabled={createSubcontractorMutation.isPending}
-              >
-                {createSubcontractorMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Create subcontractor
-              </Button>
             </div>
           </div>
-        </section>
-      )}
+        )}
+      </FormDrawer>
 
-      {showOnboarding && (
-        <section className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-base font-semibold text-foreground">
-              Selected subcontractor detail
-            </h2>
-            {!selectedSubcontractor ? (
-              <EmptyState
-                title="No subcontractor selected"
-                description="Pick a row from the subcontractors table."
-                className="rounded-lg"
-              />
-            ) : (
-              <div className="space-y-2">
-                <Input
-                  placeholder="Project ID"
-                  value={editSubcontractorForm.projectId}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      projectId: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Name"
-                  value={editSubcontractorForm.name}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Email"
-                  value={editSubcontractorForm.email}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Phone"
-                  value={editSubcontractorForm.phone}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      phone: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Trade"
-                  value={editSubcontractorForm.trade}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      trade: event.target.value,
-                    }))
-                  }
-                />
-                <Select
-                  value={editSubcontractorForm.status}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      status: event.target.value as SubcontractorStatus,
-                    }))
-                  }
-                >
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                  <option value="blocked">blocked</option>
-                </Select>
-                <textarea
-                  className="flex min-h-[84px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                  placeholder="Metadata JSON (optional)"
-                  value={editSubcontractorForm.metadataText}
-                  onChange={(event) =>
-                    setEditSubcontractorForm((current) => ({
-                      ...current,
-                      metadataText: event.target.value,
-                    }))
-                  }
-                />
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => updateSubcontractorMutation.mutate()}
-                    disabled={updateSubcontractorMutation.isPending}
-                  >
-                    {updateSubcontractorMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Save subcontractor
-                  </Button>
-                </div>
-              </div>
-            )}
+      <FormDrawer
+        open={activeLifecycleModal === "invite"}
+        onClose={() => setActiveLifecycleModal("none")}
+        title="Invite lifecycle"
+        description="Send portal access to the selected subcontractor."
+        width="lg"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setActiveLifecycleModal("none")}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => inviteMutation.mutate()}
+              disabled={
+                inviteMutation.isPending ||
+                selectedSubcontractorId.length === 0
+              }
+            >
+              {inviteMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Send portal invite
+            </Button>
           </div>
-
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-base font-semibold text-foreground">
-              Invite lifecycle
-            </h2>
-            <div className="space-y-2">
+        }
+      >
+        {!selectedSubcontractor ? (
+          <EmptyState
+            title="No subcontractor selected"
+            description="Select a subcontractor row first."
+            className="rounded-lg"
+          />
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground md:col-span-2">
+              Sending invite for{" "}
+              <span className="font-medium text-foreground">
+                {selectedSubcontractor.name}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-invite-email">Invite email</Label>
               <Input
-                placeholder="Invite email"
+                id="subconnect-invite-email"
+                placeholder="invite@vendor.com"
                 value={inviteForm.email}
                 onChange={(event) =>
                   setInviteForm((current) => ({
@@ -1387,18 +1926,46 @@ export function SubconnectPage() {
                   }))
                 }
               />
-              <Input
-                placeholder="Project ID"
-                value={inviteForm.projectId}
-                onChange={(event) =>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-invite-project-id">Project ID</Label>
+              <RadixSelect
+                value={inviteForm.projectId || "none"}
+                onValueChange={(value) =>
                   setInviteForm((current) => ({
                     ...current,
-                    projectId: event.target.value,
+                    projectId: value === "none" ? "" : value,
                   }))
                 }
-              />
+              >
+                <SelectTrigger id="subconnect-invite-project-id" className="h-10">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Use subcontractor project</SelectItem>
+                  {inviteForm.projectId &&
+                    !projectOptions.some(
+                      (project) => project.id === inviteForm.projectId,
+                    ) && (
+                      <SelectItem value={inviteForm.projectId}>
+                        Current: {inviteForm.projectId}
+                      </SelectItem>
+                    )}
+                  {projectOptions.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.code} - {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </RadixSelect>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-invite-password">
+                Temporary password
+              </Label>
               <Input
-                placeholder="Temporary password (optional)"
+                id="subconnect-invite-password"
+                placeholder="Optional temporary password"
                 value={inviteForm.temporaryPassword}
                 onChange={(event) =>
                   setInviteForm((current) => ({
@@ -1407,7 +1974,11 @@ export function SubconnectPage() {
                   }))
                 }
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subconnect-invite-scope">Assigned scope</Label>
               <Input
+                id="subconnect-invite-scope"
                 placeholder="Assigned scope"
                 value={inviteForm.assignedScope}
                 onChange={(event) =>
@@ -1417,8 +1988,12 @@ export function SubconnectPage() {
                   }))
                 }
               />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="subconnect-invite-milestones">Milestones</Label>
               <Input
-                placeholder="Milestones (comma-separated)"
+                id="subconnect-invite-milestones"
+                placeholder="Comma-separated milestones"
                 value={inviteForm.milestonesText}
                 onChange={(event) =>
                   setInviteForm((current) => ({
@@ -1427,52 +2002,95 @@ export function SubconnectPage() {
                   }))
                 }
               />
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={inviteForm.sendInviteEmail}
-                  onChange={(event) =>
-                    setInviteForm((current) => ({
-                      ...current,
-                      sendInviteEmail: event.target.checked,
-                    }))
-                  }
-                />
-                Send invite email
-              </label>
-              <Button
-                className="w-full"
-                onClick={() => inviteMutation.mutate()}
-                disabled={
-                  inviteMutation.isPending ||
-                  selectedSubcontractorId.length === 0
-                }
-              >
-                {inviteMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Send portal invite
-              </Button>
             </div>
-            {lastInviteResult && (
-              <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                <p>Invite URL: {lastInviteResult.inviteAcceptUrl}</p>
-                <p>Token: {lastInviteResult.inviteToken}</p>
-                <p>
-                  Email queued:{" "}
-                  {lastInviteResult.inviteEmailQueued ? "yes" : "no"}
-                </p>
-              </div>
-            )}
+            <label className="flex items-center gap-2 text-sm text-foreground md:col-span-2">
+              <input
+                type="checkbox"
+                checked={inviteForm.sendInviteEmail}
+                onChange={(event) =>
+                  setInviteForm((current) => ({
+                    ...current,
+                    sendInviteEmail: event.target.checked,
+                  }))
+                }
+              />
+              Send invite email
+            </label>
           </div>
-        </section>
-      )}
+        )}
+      </FormDrawer>
 
-      {showOnboarding && (
+      {showOnboarding && lifecycleOnly && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">
             Invitation history
           </h2>
+          <div className="flex flex-wrap items-end gap-3">
+            {!lockInvitationScopeToSelected && (
+              <div className="w-full sm:w-52">
+                <RadixSelect
+                  value={invitationScopeFilter}
+                  onValueChange={(value) => {
+                    setInvitationScopeFilter(value as "all" | "selected");
+                  }}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Invitation scope" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All subcontractors</SelectItem>
+                    <SelectItem
+                      value="selected"
+                      disabled={selectedSubcontractorId.length === 0}
+                    >
+                      Selected subcontractor only
+                    </SelectItem>
+                  </SelectContent>
+                </RadixSelect>
+              </div>
+            )}
+            <div className="w-full sm:w-44">
+              <RadixSelect
+                value={invitationStatusFilter}
+                onValueChange={(value) => {
+                  setInvitationStatusFilter(
+                    value as PortalInvitation["status"] | "all",
+                  );
+                }}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="revoked">Revoked</SelectItem>
+                </SelectContent>
+              </RadixSelect>
+            </div>
+            <Button
+              size="sm"
+              className="h-10 px-3 text-xs"
+              variant="outline"
+              onClick={() => {
+                setInvitationScopeFilter(
+                  lockInvitationScopeToSelected ? "selected" : "all",
+                );
+                setInvitationStatusFilter("all");
+              }}
+            >
+              Reset
+            </Button>
+          </div>
+
+          {invitationsQuery.isError && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              Failed to load invitation history. {(invitationsQuery.error as Error).message}
+            </p>
+          )}
+
           <DataTable
             columns={invitationColumns}
             data={invitationRows}
@@ -1491,13 +2109,13 @@ export function SubconnectPage() {
 
       {showCompliance && (
         <section className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-3 rounded-xl bg-card p-4">
             <h2 className="text-base font-semibold text-foreground">
               Compliance templates
             </h2>
             {!normalizedProjectId && (
               <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Enter a project ID to manage templates.
+                Select a project to manage templates.
               </p>
             )}
             <div className="space-y-2">
@@ -1635,7 +2253,7 @@ export function SubconnectPage() {
               }
             />
 
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl bg-card p-4">
               <h3 className="text-sm font-semibold text-foreground">
                 Prequalification score
               </h3>
@@ -1785,7 +2403,7 @@ export function SubconnectPage() {
             <h2 className="text-base font-semibold text-foreground">
               Compliance item review and extraction
             </h2>
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl bg-card p-4">
               <h3 className="mb-2 text-sm font-semibold text-foreground">
                 Create compliance item
               </h3>
@@ -1876,7 +2494,7 @@ export function SubconnectPage() {
             />
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-3 rounded-xl bg-card p-4">
             <h3 className="text-sm font-semibold text-foreground">
               Review selected compliance item
             </h3>
@@ -2073,7 +2691,7 @@ export function SubconnectPage() {
             />
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-3 rounded-xl bg-card p-4">
             <h3 className="text-sm font-semibold text-foreground">
               Selected pay application
             </h3>
@@ -2184,7 +2802,7 @@ export function SubconnectPage() {
             />
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-3 rounded-xl bg-card p-4">
             <h3 className="text-sm font-semibold text-foreground">
               Selected daily log
             </h3>

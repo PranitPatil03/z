@@ -153,6 +153,21 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
     className:
       "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700",
   },
+  accepted: {
+    label: "Accepted",
+    className:
+      "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800",
+  },
+  expired: {
+    label: "Expired",
+    className:
+      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800",
+  },
+  revoked: {
+    label: "Revoked",
+    className:
+      "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-500 dark:border-slate-700",
+  },
   complete: {
     label: "Complete",
     className:
