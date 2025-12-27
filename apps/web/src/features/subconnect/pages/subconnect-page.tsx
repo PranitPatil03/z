@@ -1219,53 +1219,23 @@ export function SubconnectPage({
             : "Operate subcontractor onboarding, compliance, and financial/work-log reviews from one screen."
         }
         action={
-          <div className="flex items-center gap-2">
+          isFocusedSubcontractorPage || lifecycleOnly ? (
             <Button asChild variant="outline" size="sm">
               <Link
                 href={
                   isFocusedSubcontractorPage
                     ? "/subconnect/subcontractors"
-                    : lifecycleOnly
-                      ? "/subconnect"
-                      : "/subconnect/subcontractors"
+                    : "/subconnect"
                 }
               >
                 {isFocusedSubcontractorPage
                   ? "Back to subcontractors"
-                  : lifecycleOnly
-                    ? "Open full operations"
-                    : "Subcontractors page"}
+                  : "Open full operations"}
               </Link>
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshM8}
-              disabled={
-                subcontractorsQuery.isFetching ||
-                invitationsQuery.isFetching ||
-                complianceItemsQuery.isFetching
-              }
-            >
-              <RefreshCw className="mr-1.5 h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
+          ) : undefined
         }
       />
-
-      {!lifecycleOnly && (
-        <section className="rounded-xl bg-card p-4">
-          <h2 className="text-sm font-semibold text-foreground">
-            Subcontractor directory
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Showing subcontractors across all projects. Click a subcontractor
-            row to open full details, invite lifecycle actions, and invitation
-            history.
-          </p>
-        </section>
-      )}
 
       {!isFocusedSubcontractorPage && (
         <div className="flex flex-wrap items-end gap-3">
@@ -1331,6 +1301,20 @@ export function SubconnectPage({
           >
             Reset filters
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 px-3 text-xs"
+            onClick={refreshM8}
+            disabled={
+              subcontractorsQuery.isFetching ||
+              invitationsQuery.isFetching ||
+              complianceItemsQuery.isFetching
+            }
+          >
+            <RefreshCw className="mr-1.5 h-4 w-4" />
+            Refresh
+          </Button>
         </div>
       )}
 
@@ -1339,15 +1323,8 @@ export function SubconnectPage({
           <StatCard
             title="Subcontractors"
             value={subcontractorRows.length}
-            subtitle={`${subcontractorRows.filter((item) => item.portalEnabled).length} portal enabled`}
+            subtitle={`${subcontractorRows.filter((item) => item.status === "active").length} active • ${subcontractorRows.filter((item) => item.portalEnabled).length} portal enabled`}
             icon={Users}
-            isLoading={subcontractorsQuery.isLoading}
-          />
-          <StatCard
-            title="Active"
-            value={subcontractorRows.filter((item) => item.status === "active").length}
-            subtitle="Current active subcontractors"
-            icon={Shield}
             isLoading={subcontractorsQuery.isLoading}
           />
         </div>
@@ -1388,7 +1365,7 @@ export function SubconnectPage({
             </div>
           </div>
 
-          {lifecycleOnly ? (
+          {lifecycleOnly && (
             <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
               {selectedSubcontractor ? (
                 <span>
@@ -1397,10 +1374,6 @@ export function SubconnectPage({
               ) : (
                 <span>No subcontractor selected. Click a row to select one.</span>
               )}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-              Click a subcontractor row to open its dedicated info and invite page.
             </div>
           )}
 

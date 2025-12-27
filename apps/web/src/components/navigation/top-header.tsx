@@ -117,6 +117,22 @@ const PATH_HEADER_OVERRIDES: Array<{
       subtitle: "Monitor portfolio metrics, risk, and activity in real time.",
     },
   },
+  {
+    test: (pathname) =>
+      pathname.startsWith("/subconnect/subcontractors/") &&
+      pathname !== "/subconnect/subcontractors",
+    meta: {
+      title: "Subcontractor Detail",
+      subtitle: "Profile, portal invites, and invitation history.",
+    },
+  },
+  {
+    test: (pathname) => pathname === "/subconnect/subcontractors",
+    meta: {
+      title: "SubConnect Ops",
+      subtitle: "Subcontractor onboarding and compliance operations.",
+    },
+  },
 ];
 
 function resolveHeaderMeta(pathname: string): HeaderMeta {

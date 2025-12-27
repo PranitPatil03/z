@@ -1,19 +1,13 @@
-import { SubconnectPage } from "@/features/subconnect/pages/subconnect-page";
+import { SubcontractorDetailPage } from "@/features/subconnect/pages/subcontractor-detail-page";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     subcontractorId: string;
-  };
+  }>;
 }
 
-export default function Page({ params }: PageProps) {
-  return (
-    <SubconnectPage
-      defaultWorkspaceMode="onboarding"
-      lockWorkspaceMode
-      lifecycleOnly
-      lockInvitationScopeToSelected
-      initialSelectedSubcontractorId={params.subcontractorId}
-    />
-  );
+export default async function Page({ params }: PageProps) {
+  const { subcontractorId } = await params;
+
+  return <SubcontractorDetailPage subcontractorId={subcontractorId} />;
 }

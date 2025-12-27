@@ -39,6 +39,17 @@ export function MembersPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
+  const normalizedEmail = email.trim();
+
+  function openInviteDrawer() {
+    setEmail("");
+    setRole("member");
+    setDrawerOpen(true);
+  }
+
+  function closeInviteDrawer() {
+    setDrawerOpen(false);
+  }
 
   const sessionOrgId =
     session?.session && "activeOrganizationId" in session.session
@@ -57,14 +68,16 @@ export function MembersPage() {
   const members = data ?? [];
 
   const inviteMutation = useMutation({
-    mutationFn: () => organizationsApi.inviteMember(orgId, { email, role }),
+    mutationFn: () =>
+      organizationsApi.inviteMember(orgId, { email: normalizedEmail, role }),
     onSuccess: () => {
-      toast.success(`Invite sent to ${email}`);
+      toast.success(`Invite sent to ${normalizedEmail}`);
       qc.invalidateQueries({
         queryKey: queryKeys.organizations.members(orgId),
       });
       setDrawerOpen(false);
       setEmail("");
+      setRole("member");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -125,7 +138,7 @@ export function MembersPage() {
         description="Manage who has access to this organization."
         action={
           <PermissionGuard permissionKey="organization.invitation.manage">
-            <Button size="sm" onClick={() => setDrawerOpen(true)}>
+            <Button size="sm" onClick={openInviteDrawer}>
               <Plus className="mr-1.5 h-4 w-4" />
               Invite member
             </Button>
@@ -145,7 +158,7 @@ export function MembersPage() {
             description="Invite team members to collaborate."
             action={{
               label: "Invite member",
-              onClick: () => setDrawerOpen(true),
+              onClick: openInviteDrawer,
             }}
           />
         }
@@ -153,17 +166,18 @@ export function MembersPage() {
 
       <FormDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={closeInviteDrawer}
         title="Invite member"
         description="Send an email invitation to join this organization."
+        width="sm"
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDrawerOpen(false)}>
+            <Button variant="outline" onClick={closeInviteDrawer}>
               Cancel
             </Button>
             <Button
               onClick={() => inviteMutation.mutate()}
-              disabled={inviteMutation.isPending || !email}
+              disabled={inviteMutation.isPending || !normalizedEmail}
             >
               {inviteMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -173,10 +187,15 @@ export function MembersPage() {
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
+          <div className="rounded-lg border border-border/70 bg-muted/30 p-3 text-xs text-muted-foreground">
+            Invitations are sent immediately and grant access based on the role
+            selected below.
+          </div>
           <div className="space-y-1.5">
-            <Label>Email address *</Label>
+            <Label htmlFor="invite-member-email">Email address *</Label>
             <Input
+              id="invite-member-email"
               type="email"
               placeholder="colleague@company.com"
               value={email}
@@ -184,14 +203,19 @@ export function MembersPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Role</Label>
+            <Label htmlFor="invite-member-role">Role</Label>
             <Select
+              id="invite-member-role"
               value={role}
               onChange={(e) => setRole(e.target.value as "admin" | "member")}
             >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Members can collaborate on day-to-day work. Admins can also manage
+              organization settings.
+            </p>
           </div>
         </div>
       </FormDrawer>
