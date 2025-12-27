@@ -333,7 +333,7 @@ export function SiteSnapPage() {
           data={listQuery.data ?? []}
           isLoading={listQuery.isLoading}
           rowKey={(row) => row.id}
-          onRowClick={(row) => router.push(`/app/site-snaps/${row.id}`)}
+          onRowClick={(row) => router.push(`/site-snaps/${row.id}`)}
           emptyState={
             <EmptyState
               icon={Camera}

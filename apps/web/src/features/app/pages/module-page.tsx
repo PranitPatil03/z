@@ -29,7 +29,7 @@ export function ModulePage({ moduleKey }: ModulePageProps) {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href="/app">
+            <Link href="/dashboard">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to dashboard
             </Link>
@@ -46,7 +46,7 @@ export function ModulePage({ moduleKey }: ModulePageProps) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <Button asChild variant="ghost" className="mb-2 px-0">
-            <Link href="/app">
+            <Link href="/dashboard">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to dashboard
             </Link>

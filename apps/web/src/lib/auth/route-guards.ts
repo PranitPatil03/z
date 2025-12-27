@@ -21,6 +21,31 @@ const PORTAL_PUBLIC_PATHS = [
   "/portal/reset-password",
 ];
 
+const INTERNAL_PROTECTED_PATHS = [
+  "/dashboard",
+  "/activity-feed",
+  "/audit-log",
+  "/notifications",
+  "/projects",
+  "/members",
+  "/change-orders",
+  "/invoices",
+  "/purchase-orders",
+  "/rfqs",
+  "/receipts",
+  "/match-runs",
+  "/budgets",
+  "/site-snaps",
+  "/subconnect",
+  "/smartmail",
+  "/billing",
+  "/organization-setup",
+  "/account-settings",
+  "/module",
+  "/command-center",
+  "/integrations",
+];
+
 function matchesPath(pathname: string, path: string, allowNested: boolean) {
   if (pathname === path) {
     return true;
@@ -54,7 +79,9 @@ export function isPortalPublicPath(pathname: string) {
 }
 
 export function isInternalProtectedPath(pathname: string) {
-  return pathname.startsWith("/app");
+  return INTERNAL_PROTECTED_PATHS.some((path) =>
+    matchesPath(pathname, path, true),
+  );
 }
 
 export function isPortalProtectedPath(pathname: string) {

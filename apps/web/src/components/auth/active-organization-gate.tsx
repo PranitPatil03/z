@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { organizationsApi } from "@/lib/api/modules/organizations-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { authClient } from "@/lib/auth-client";
+import { isInternalProtectedPath } from "@/lib/auth/route-guards";
 import { useSessionStore } from "@/store/session-store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Loader2 } from "lucide-react";
@@ -12,7 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type PropsWithChildren, useEffect } from "react";
 import { toast } from "sonner";
 
-const SETUP_PATH = "/app/organization-setup";
+const SETUP_PATH = "/organization-setup";
 
 type SessionWithActiveOrganization = {
   activeOrganizationId?: string;
@@ -47,7 +48,7 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
   );
 
   const sessionResolved = typeof data !== "undefined";
-  const isProtectedPath = pathname.startsWith("/app");
+  const isProtectedPath = isInternalProtectedPath(pathname);
   const isSetupPath = pathname === SETUP_PATH;
   const sessionActiveOrganizationId = getSessionActiveOrganizationId(
     data?.session,

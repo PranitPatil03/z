@@ -32,7 +32,7 @@ export default function SignupPage() {
       name,
       email,
       password,
-      callbackURL: "/app/organization-setup",
+      callbackURL: "/organization-setup",
     });
 
     if (error) {
@@ -42,14 +42,14 @@ export default function SignupPage() {
     }
 
     toast.success("Account created. Set up your organization to continue.");
-    router.push("/app/organization-setup");
+    router.push("/organization-setup");
     router.refresh();
   }
 
   async function handleGoogleSignUp() {
     setGoogleLoading(true);
 
-    const callbackURL = buildAbsoluteCallbackUrl("/app/organization-setup");
+    const callbackURL = buildAbsoluteCallbackUrl("/organization-setup");
     const errorCallbackURL = buildAbsoluteCallbackUrl("/signup");
 
     const { error } = await authClient.signIn.social({

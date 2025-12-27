@@ -44,10 +44,10 @@ export function SidebarNav() {
               )}
               <div className="space-y-0.5">
                 {items.map((module) => {
-                  const isDashboardModule = module.routePath === "/app";
+                  const isDashboardModule = module.routePath === "/dashboard";
                   const isActive =
                     isDashboardModule
-                      ? pathname === "/app" || pathname.startsWith("/app/dashboard")
+                      ? pathname === "/dashboard"
                       : pathname.startsWith(module.routePath);
                   const Icon = module.icon;
 

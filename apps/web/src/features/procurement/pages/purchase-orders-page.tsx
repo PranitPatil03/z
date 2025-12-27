@@ -120,7 +120,7 @@ export function PurchaseOrdersPage() {
         data={data ?? []}
         isLoading={isLoading}
         rowKey={(r) => r.id}
-        onRowClick={(row) => router.push(`/app/purchase-orders/${row.id}`)}
+        onRowClick={(row) => router.push(`/purchase-orders/${row.id}`)}
         emptyState={
           <EmptyState
             icon={ShoppingCart}

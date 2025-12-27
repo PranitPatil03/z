@@ -174,7 +174,7 @@ export function InvoicesPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         rowKey={(r) => r.id}
-        onRowClick={(row) => router.push(`/app/invoices/${row.id}`)}
+        onRowClick={(row) => router.push(`/invoices/${row.id}`)}
         emptyState={
           <EmptyState
             icon={FileText}

@@ -196,7 +196,7 @@ export function PurchaseOrderDetailPage({
           description="The purchase order was not found."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/purchase-orders">
+              <Link href="/purchase-orders">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to POs
               </Link>
@@ -219,7 +219,7 @@ export function PurchaseOrderDetailPage({
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/purchase-orders">
+              <Link href="/purchase-orders">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
               </Link>

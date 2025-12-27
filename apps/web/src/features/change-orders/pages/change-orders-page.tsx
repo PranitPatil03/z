@@ -331,7 +331,7 @@ export function ChangeOrdersPage() {
           data={rows}
           isLoading={listQuery.isLoading}
           rowKey={(row) => row.id}
-          onRowClick={(row) => router.push(`/app/change-orders/${row.id}`)}
+          onRowClick={(row) => router.push(`/change-orders/${row.id}`)}
           emptyState={
             <EmptyState
               icon={Workflow}

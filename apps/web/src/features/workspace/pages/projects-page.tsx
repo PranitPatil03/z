@@ -245,7 +245,7 @@ export function ProjectsPage() {
         data={rows}
         isLoading={projectsQuery.isLoading}
         rowKey={(r) => r.id}
-        onRowClick={(row) => router.push(`/app/projects/${row.id}`)}
+        onRowClick={(row) => router.push(`/projects/${row.id}`)}
         emptyState={
           <EmptyState
             icon={FolderOpen}

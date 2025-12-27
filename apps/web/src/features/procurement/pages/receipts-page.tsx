@@ -135,7 +135,7 @@ export function ReceiptsPage() {
         data={query.data ?? []}
         isLoading={query.isLoading}
         rowKey={(row) => row.id}
-        onRowClick={(row) => router.push(`/app/receipts/${row.id}`)}
+        onRowClick={(row) => router.push(`/receipts/${row.id}`)}
         emptyState={
           <EmptyState
             icon={ClipboardCheck}

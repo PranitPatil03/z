@@ -165,7 +165,7 @@ export function ReceiptDetailPage({ receiptId }: ReceiptDetailPageProps) {
           description="The receipt was not found."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/receipts">
+              <Link href="/receipts">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to receipts
               </Link>
@@ -188,7 +188,7 @@ export function ReceiptDetailPage({ receiptId }: ReceiptDetailPageProps) {
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/receipts">
+              <Link href="/receipts">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
               </Link>

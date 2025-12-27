@@ -272,7 +272,7 @@ export function SidebarAccountMenu({
 
           <div className="border-t border-border">
             <Link
-              href="/app/organization-setup"
+              href="/organization-setup"
               className="flex items-center gap-2 px-4 py-3 text-sm text-foreground transition hover:bg-muted/50"
             >
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -290,7 +290,7 @@ export function SidebarAccountMenu({
               Create Organization
             </button>
             <Link
-              href="/app/account-settings"
+              href="/account-settings"
               className="flex items-center gap-2 px-4 py-3 text-sm text-foreground transition hover:bg-muted/50"
             >
               <Settings className="h-4 w-4 text-muted-foreground" />

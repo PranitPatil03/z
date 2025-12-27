@@ -135,7 +135,7 @@ export function MatchRunsPage() {
         data={query.data ?? []}
         isLoading={query.isLoading}
         rowKey={(row) => row.id}
-        onRowClick={(row) => router.push(`/app/match-runs/${row.id}`)}
+        onRowClick={(row) => router.push(`/match-runs/${row.id}`)}
         emptyState={
           <EmptyState
             icon={GitCompareArrows}

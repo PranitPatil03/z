@@ -485,7 +485,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
           description="You do not have permission to view this project."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/projects">
+              <Link href="/projects">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to projects
               </Link>
@@ -517,7 +517,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
           description="The project was not found or you no longer have access."
         />
         <Button asChild variant="outline" size="sm">
-          <Link href="/app/projects">
+          <Link href="/projects">
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Back to projects
           </Link>
@@ -534,7 +534,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/projects">
+              <Link href="/projects">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
               </Link>

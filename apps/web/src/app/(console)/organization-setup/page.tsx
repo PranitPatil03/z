@@ -57,7 +57,7 @@ export default function OrganizationSetupPage() {
       setActiveOrganizationId(organization.id);
       await queryClient.invalidateQueries();
       toast.success(`Switched to ${organization.name}`);
-      router.replace("/app");
+      router.replace("/dashboard");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -89,7 +89,7 @@ export default function OrganizationSetupPage() {
       setActiveOrganizationId(organization.id);
       await queryClient.invalidateQueries();
       toast.success(`Organization ${organization.name} is ready`);
-      router.replace("/app");
+      router.replace("/dashboard");
     },
     onError: (error: Error) => {
       toast.error(error.message);
