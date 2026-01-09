@@ -17,6 +17,10 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "anvil",
   description: "AI-native construction operations workspace",
+  icons: {
+    icon: "/images/favicon.ico",
+    shortcut: "/images/favicon.ico",
+  },
 };
 
 const themeBootstrapScript = `(() => {

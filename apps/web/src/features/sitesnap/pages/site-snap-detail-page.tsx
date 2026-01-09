@@ -80,6 +80,14 @@ function formatBytes(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function decodeRouteSegment(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
@@ -356,7 +364,7 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
     [jobUiState.canRetry, snap?.analysisState],
   );
 
-  const breadcrumbLabel = siteSnapId;
+  const breadcrumbLabel = snap?.id ?? decodeRouteSegment(siteSnapId);
 
   if (detailQuery.isLoading) {
     return (
@@ -370,7 +378,7 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           <span className="max-w-[240px] truncate font-medium text-foreground">
-            {siteSnapId}
+            {breadcrumbLabel}
           </span>
         </nav>
         <PageHeader title="Site snap" description="Loading site snap..." />
@@ -390,7 +398,7 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           <span className="max-w-[240px] truncate font-medium text-foreground">
-            {siteSnapId}
+            {breadcrumbLabel}
           </span>
         </nav>
         <PageHeader

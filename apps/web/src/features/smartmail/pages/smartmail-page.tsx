@@ -757,7 +757,7 @@ export function SmartMailPage() {
             {SMARTMAIL_WORKSPACE_GUIDE[workspaceMode].steps.map((step) => (
               <p
                 key={step}
-                className="rounded-md border border-border bg-background/80 px-3 py-2"
+                className="rounded-md bg-background/80 px-3 py-2"
               >
                 {step}
               </p>
@@ -1012,7 +1012,7 @@ export function SmartMailPage() {
         <section className="space-y-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-foreground">Accounts</h2>
           <DataTable
-            className="w-full [&_table]:w-full [&_table]:table-fixed"
+            className="w-full border-none [&_table]:w-full [&_table]:table-fixed"
             columns={accountColumns}
             data={accounts ?? []}
             rowKey={(row) => row.id}
@@ -1210,7 +1210,7 @@ export function SmartMailPage() {
             <Skeleton className="h-28 w-full rounded-xl" />
           ) : (
             <DataTable
-              className="w-full [&_table]:w-full [&_table]:table-fixed"
+              className="w-full border-none [&_table]:w-full [&_table]:table-fixed"
               columns={templateColumns}
               data={templates ?? []}
               rowKey={(row) => row.id}
@@ -1242,7 +1242,7 @@ export function SmartMailPage() {
             <Skeleton className="h-28 w-full rounded-xl" />
           ) : (
             <DataTable
-              className="w-full [&_table]:w-full [&_table]:table-fixed"
+              className="w-full border-none [&_table]:w-full [&_table]:table-fixed"
               columns={threadColumns}
               data={threads ?? []}
               rowKey={(row) => row.id}
