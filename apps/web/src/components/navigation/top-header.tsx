@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { moduleMap, moduleRegistry } from "@/config/module-registry";
 import { authClient } from "@/lib/auth-client";
 import { useHeaderStore } from "@/store/header-store";
-import { Activity, Bell, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
 
@@ -231,28 +231,6 @@ export function TopHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 border-border/80 bg-background/70 text-muted-foreground hover:bg-background hover:text-foreground"
-            title="Activity feed"
-            aria-label="Activity feed"
-            onClick={() => router.push("/activity-feed")}
-          >
-            <Activity className="h-4 w-4" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 border-border/80 bg-background/70 text-muted-foreground hover:bg-background hover:text-foreground"
-            title="Notifications"
-            aria-label="Notifications"
-            onClick={() => router.push("/notifications")}
-          >
-            <Bell className="h-4 w-4" />
-          </Button>
-
           <OrganizationSwitcher
             alwaysShow
             className="min-w-[150px] lg:hidden"

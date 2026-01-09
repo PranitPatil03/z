@@ -101,9 +101,12 @@ function ActivityRow({ item }: { item: ActivityFeedItem }) {
   );
 }
 
+const LAST_PROJECT_KEY = "dashboard:lastProjectId";
+
 export function CommandCenterPage() {
+  // The ActiveOrganizationGate already blocks rendering until session + org is
+  // ready, so we only need the store here — no extra session round-trip.
   const { data: sessionData } = authClient.useSession();
-  const sessionResolved = typeof sessionData !== "undefined";
   const activeOrganizationIdFromSession =
     sessionData?.session && "activeOrganizationId" in sessionData.session
       ? ((sessionData.session as SessionWithActiveOrganization)
@@ -112,15 +115,20 @@ export function CommandCenterPage() {
   const storedActiveOrganizationId = useSessionStore(
     (state) => state.activeOrganizationId,
   );
+  // Use stored org ID as fallback so the gate unblocking via the store is
+  // enough to consider the org active (session may still be re-syncing).
   const activeOrganizationId =
-    sessionResolved && sessionData?.user
-      ? activeOrganizationIdFromSession
-      : activeOrganizationIdFromSession ?? storedActiveOrganizationId;
+    activeOrganizationIdFromSession ?? storedActiveOrganizationId;
   const hasActiveOrganization = Boolean(activeOrganizationId);
   const portfolioLimit = 50;
 
   const [windowDays, setWindowDays] = useState(30);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  // Initialise from localStorage so the overview query can fire in parallel
+  // with the portfolio query instead of waiting for it to finish first.
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(LAST_PROJECT_KEY) ?? "";
+  });
   const [portfolioView, setPortfolioView] = useState<"cards" | "list">(
     "cards",
   );
@@ -136,18 +144,32 @@ export function CommandCenterPage() {
         windowDays,
       }),
     enabled: hasActiveOrganization,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     retry: shouldRetryQuery,
   });
 
-  const projectId =
-    selectedProjectId || portfolioQuery.data?.projects[0]?.projectId || "";
+  // When portfolio loads, fall back to the first project if the stored one is
+  // no longer valid (e.g. project was deleted or user switched org).
+  const firstPortfolioProjectId =
+    portfolioQuery.data?.projects[0]?.projectId ?? "";
+  const portfolioProjectIds = new Set(
+    (portfolioQuery.data?.projects ?? []).map((p) => p.projectId),
+  );
+  const storedProjectIsValid =
+    selectedProjectId.length > 0 &&
+    (portfolioQuery.isLoading || portfolioProjectIds.has(selectedProjectId));
+
+  const projectId = storedProjectIsValid
+    ? selectedProjectId
+    : firstPortfolioProjectId;
 
   const overviewQuery = useQuery({
     queryKey: queryKeys.commandCenter.overview(projectId, windowDays),
     queryFn: () => commandCenterApi.overview(projectId, windowDays),
     enabled: hasActiveOrganization && Boolean(projectId),
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     retry: shouldRetryQuery,
   });
 
@@ -160,7 +182,8 @@ export function CommandCenterPage() {
         projectId: projectId || undefined,
       }),
     enabled: hasActiveOrganization,
-    staleTime: 15_000,
+    staleTime: 60_000,
+    gcTime: 10 * 60 * 1000,
     retry: shouldRetryQuery,
   });
 
@@ -174,6 +197,13 @@ export function CommandCenterPage() {
     overviewQuery.isError ||
     feedQuery.isError;
 
+  function handleProjectChange(id: string) {
+    setSelectedProjectId(id);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LAST_PROJECT_KEY, id);
+    }
+  }
+
   const refetchAll = async () => {
     const refetchTasks: Array<Promise<unknown>> = [
       portfolioQuery.refetch(),
@@ -186,17 +216,8 @@ export function CommandCenterPage() {
     await Promise.all(refetchTasks);
   };
 
-  if (!sessionResolved || !sessionData?.user) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2
-          className="h-5 w-5 animate-spin text-muted-foreground"
-          aria-label="Loading"
-        />
-      </div>
-    );
-  }
-
+  // Safety-net: gate should have blocked rendering until org is ready,
+  // but guard anyway in case the page is accessed without the gate.
   if (!hasActiveOrganization) {
     return (
       <div className="space-y-6">
@@ -223,7 +244,7 @@ export function CommandCenterPage() {
         <div className="w-full sm:w-64 lg:w-72">
           <Select
             value={projectId}
-            onValueChange={setSelectedProjectId}
+            onValueChange={handleProjectChange}
             disabled={
               portfolioQuery.isLoading ||
               (portfolio?.projects.length ?? 0) === 0
@@ -328,62 +349,9 @@ export function CommandCenterPage() {
       </div>
 
       <div className="rounded-xl bg-card p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Database className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">
-            Selected project overview
-          </h2>
-        </div>
-        {overviewQuery.isLoading ? (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : overviewQuery.data ? (
-          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">Budget burn</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {overviewQuery.data.summary.budgetBurnBps / 100}%
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">Open COs</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {overviewQuery.data.summary.openChangeOrders}
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">
-                Overdue compliance
-              </p>
-              <p className="mt-1 font-semibold text-foreground">
-                {overviewQuery.data.summary.overdueComplianceItems}
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/40 p-3">
-              <p className="text-xs text-muted-foreground">Match success</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {overviewQuery.data.summary.matchSuccessRateBps / 100}%
-              </p>
-            </div>
-          </div>
-        ) : (
-          <EmptyState
-            icon={Database}
-            title="No overview"
-            description="Select a project to view aggregated metrics."
-            className="rounded-none border-0"
-          />
-        )}
-      </div>
-
-      <div className="rounded-xl bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">
-            Portfolio health
+            Projects Progress
           </h2>
           <div className="inline-flex items-center rounded-md border border-border bg-muted/30 p-0.5">
             <Button
@@ -489,6 +457,59 @@ export function CommandCenterPage() {
               ))}
             </div>
           )
+        )}
+      </div>
+
+      <div className="rounded-xl bg-card p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Database className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">
+            Selected project overview
+          </h2>
+        </div>
+        {overviewQuery.isLoading ? (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : overviewQuery.data ? (
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Budget burn</p>
+              <p className="mt-1 font-semibold text-foreground">
+                {overviewQuery.data.summary.budgetBurnBps / 100}%
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Open COs</p>
+              <p className="mt-1 font-semibold text-foreground">
+                {overviewQuery.data.summary.openChangeOrders}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">
+                Overdue compliance
+              </p>
+              <p className="mt-1 font-semibold text-foreground">
+                {overviewQuery.data.summary.overdueComplianceItems}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Match success</p>
+              <p className="mt-1 font-semibold text-foreground">
+                {overviewQuery.data.summary.matchSuccessRateBps / 100}%
+              </p>
+            </div>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Database}
+            title="No overview"
+            description="Select a project to view aggregated metrics."
+            className="rounded-none border-0"
+          />
         )}
       </div>
 
