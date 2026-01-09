@@ -24,6 +24,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronRight,
   Download,
   Loader2,
   RefreshCw,
@@ -339,14 +340,39 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
     jobState: jobQuery.data?.state,
   });
 
+  const shouldReanalyze =
+    snap?.status === "reviewed" ||
+    snap?.analysisState === "completed" ||
+    snap?.analysisState === "queued" ||
+    snap?.analysisState === "running";
+
+  const analysisLabel =
+    snap?.status === "reviewed" && jobUiState.label === "Reviewed"
+      ? "Completed and reviewed"
+      : jobUiState.label;
+
   const canRetryAnalysis = useMemo(
     () => jobUiState.canRetry || snap?.analysisState === "queue_unavailable",
     [jobUiState.canRetry, snap?.analysisState],
   );
 
+  const breadcrumbLabel = siteSnapId;
+
   if (detailQuery.isLoading) {
     return (
       <div className="space-y-6">
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link
+            href="/site-snaps"
+            className="transition-colors hover:text-foreground"
+          >
+            Site snaps
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+          <span className="max-w-[240px] truncate font-medium text-foreground">
+            {siteSnapId}
+          </span>
+        </nav>
         <PageHeader title="Site snap" description="Loading site snap..." />
       </div>
     );
@@ -355,6 +381,18 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
   if (!snap) {
     return (
       <div className="space-y-6">
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link
+            href="/site-snaps"
+            className="transition-colors hover:text-foreground"
+          >
+            Site snaps
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+          <span className="max-w-[240px] truncate font-medium text-foreground">
+            {siteSnapId}
+          </span>
+        </nav>
         <PageHeader
           title="Site snap"
           description="The site snap was not found."
@@ -376,13 +414,26 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link
+          href="/site-snaps"
+          className="transition-colors hover:text-foreground"
+        >
+          Site snaps
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <span className="max-w-[240px] truncate font-medium text-foreground">
+          {breadcrumbLabel}
+        </span>
+      </nav>
+
       <PageHeader
         title="Site snap detail"
         description={`Zone ${snap.locationZone} • ${formatDateTime(snap.createdAt)}`}
         action={
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <Button asChild variant="outline" size="sm" className="shrink-0 whitespace-nowrap">
               <Link href="/site-snaps">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
@@ -391,18 +442,18 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                analyzeMutation.mutate(snap.status === "analyzing")
-              }
+              className="shrink-0 whitespace-nowrap"
+              onClick={() => analyzeMutation.mutate(Boolean(shouldReanalyze))}
               disabled={analyzeMutation.isPending}
             >
               <RefreshCw className="mr-1.5 h-4 w-4" />
-              {snap.status === "analyzing" ? "Reanalyze" : "Analyze"}
+              {shouldReanalyze ? "Reanalyze" : "Analyze"}
             </Button>
             {snap.status !== "reviewed" && (
               <Button
                 variant="outline"
                 size="sm"
+                className="shrink-0 whitespace-nowrap"
                 onClick={() => reviewMutation.mutate()}
                 disabled={reviewMutation.isPending}
               >
@@ -435,7 +486,7 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
               jobUiState.tone === "normal" && "text-foreground",
             )}
           >
-            {jobUiState.label}
+            {analysisLabel}
           </p>
           {jobQuery.data?.failedReason && (
             <p className="mt-1 text-xs text-destructive">
