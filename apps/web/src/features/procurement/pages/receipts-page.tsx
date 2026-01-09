@@ -7,13 +7,21 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { type Receipt, receiptsApi } from "@/lib/api/modules/receipts-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 function formatCents(cents: number) {
@@ -45,6 +53,29 @@ export function ReceiptsPage() {
     notes: "",
   });
 
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
+  useEffect(() => {
+    if (form.projectId || projectOptions.length === 0) {
+      return;
+    }
+
+    const defaultProjectId = projectOptions[0]?.id ?? "";
+    if (!defaultProjectId) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+    }));
+  }, [form.projectId, projectOptions]);
+
   const query = useQuery({
     queryKey: queryKeys.receipts.list(),
     queryFn: () => receiptsApi.list(),
@@ -68,7 +99,7 @@ export function ReceiptsPage() {
       toast.success("Receipt created");
       setDrawerOpen(false);
       setForm({
-        projectId: "",
+        projectId: form.projectId,
         purchaseOrderId: "",
         receiptNumber: "",
         receivedAmount: "",
@@ -123,7 +154,16 @@ export function ReceiptsPage() {
         title="Receipts"
         description="Track goods/service receipt confirmations against purchase orders."
         action={
-          <Button size="sm" onClick={() => setDrawerOpen(true)}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setDrawerOpen(true);
+              setForm((current) => ({
+                ...current,
+                projectId: current.projectId || projectOptions[0]?.id || "",
+              }));
+            }}
+          >
             <Plus className="mr-1.5 h-4 w-4" />
             New receipt
           </Button>
@@ -179,16 +219,38 @@ export function ReceiptsPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Project ID *</Label>
-            <Input
-              value={form.projectId}
-              onChange={(event) =>
+            <Select
+              value={form.projectId || undefined}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  projectId: event.target.value,
+                  projectId: value,
                 }))
               }
-              placeholder="project-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.projectId &&
+                  !projectOptions.some((project) => project.id === form.projectId) && (
+                    <SelectItem value={form.projectId}>
+                      Current: {form.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>PO ID</Label>

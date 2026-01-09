@@ -8,8 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
+import {
+  Select as RadixSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type OAuthProvider, oauthApi } from "@/lib/api/modules/oauth-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import {
   type CreateSmartMailTemplateInput,
   type SmartMailAccount,
@@ -132,21 +140,23 @@ function AccountCard({
   onSync: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
           <Mail className="h-4 w-4 text-muted-foreground" />
         </div>
-        <div>
-          <p className="text-sm font-medium text-foreground">{account.email}</p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">
+            {account.email}
+          </p>
           <p className="text-xs text-muted-foreground">
             {account.provider} · {account.status} · Last sync{" "}
             {formatDateTime(account.lastSyncAt)}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onSelect}>
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+        <Button variant="ghost" size="sm" className="h-8" onClick={onSelect}>
           Select
         </Button>
         <Button
@@ -208,6 +218,13 @@ export function SmartMailPage() {
   });
 
   const normalizedProjectId = projectId.trim();
+
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
 
   const { data: accounts, isLoading: accountsLoading } = useQuery({
     queryKey: queryKeys.smartmailAccounts.list(),
@@ -516,8 +533,8 @@ export function SmartMailPage() {
       key: "account",
       header: "Account",
       render: (row) => (
-        <div>
-          <p className="font-medium text-foreground">{row.email}</p>
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{row.email}</p>
           <p className="text-xs text-muted-foreground">{row.provider}</p>
         </div>
       ),
@@ -551,6 +568,7 @@ export function SmartMailPage() {
         <Button
           size="sm"
           variant="outline"
+          className="h-8"
           onClick={(event) => {
             event.stopPropagation();
             syncMutation.mutate(row.id);
@@ -568,9 +586,9 @@ export function SmartMailPage() {
       key: "subject",
       header: "Thread",
       render: (row) => (
-        <div>
-          <p className="font-medium text-foreground">{row.subject}</p>
-          <p className="text-xs text-muted-foreground">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{row.subject}</p>
+          <p className="line-clamp-1 text-xs text-muted-foreground">
             {row.participants.join(", ") || "No participants"}
           </p>
         </div>
@@ -581,7 +599,7 @@ export function SmartMailPage() {
       header: "Account",
       width: "260px",
       render: (row) => (
-        <p className="text-xs text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">
           {accountById.get(row.accountId)?.email ?? row.accountId}
         </p>
       ),
@@ -603,8 +621,8 @@ export function SmartMailPage() {
       key: "name",
       header: "Template",
       render: (row) => (
-        <div>
-          <p className="font-medium text-foreground">{row.name}</p>
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{row.name}</p>
           <p className="text-xs text-muted-foreground">{row.type}</p>
         </div>
       ),
@@ -614,7 +632,7 @@ export function SmartMailPage() {
       header: "Scope",
       width: "200px",
       render: (row) => (
-        <p className="text-xs text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">
           {row.projectId ?? "Org shared"}
         </p>
       ),
@@ -637,7 +655,7 @@ export function SmartMailPage() {
         <Button
           size="sm"
           variant="ghost"
-          className="text-destructive"
+          className="h-8 text-destructive"
           onClick={(event) => {
             event.stopPropagation();
             if (window.confirm("Delete this template?")) {
@@ -660,12 +678,12 @@ export function SmartMailPage() {
   const showAccountStrip = showInbox;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="SmartMail"
         description="Connect your inbox and track project-related communications."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               size="sm"
               variant="outline"
@@ -749,15 +767,34 @@ export function SmartMailPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-4">
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-1.5 md:col-span-2">
+        <div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_220px]">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="smartmail-project-id">Project ID</Label>
-            <Input
-              id="smartmail-project-id"
-              placeholder="Required for thread and message workflows"
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
-            />
+            <RadixSelect
+              value={projectId || undefined}
+              onValueChange={(value) => setProjectId(value)}
+            >
+              <SelectTrigger id="smartmail-project-id" className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {projectId &&
+                  !projectOptions.some((project) => project.id === projectId) && (
+                    <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </RadixSelect>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="smartmail-sync-max">Sync max results</Label>
@@ -975,6 +1012,7 @@ export function SmartMailPage() {
         <section className="space-y-3 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-foreground">Accounts</h2>
           <DataTable
+            className="w-full [&_table]:w-full [&_table]:table-fixed"
             columns={accountColumns}
             data={accounts ?? []}
             rowKey={(row) => row.id}
@@ -1054,6 +1092,7 @@ export function SmartMailPage() {
           </div>
           <div className="mt-3 flex justify-end">
             <Button
+              className="w-full sm:w-auto"
               onClick={() => createThreadMutation.mutate()}
               disabled={createThreadMutation.isPending || !normalizedProjectId}
             >
@@ -1152,12 +1191,14 @@ export function SmartMailPage() {
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => createTemplateMutation.mutate()}
               disabled={createTemplateMutation.isPending}
             >
               Create template
             </Button>
             <Button
+              className="w-full sm:w-auto"
               onClick={() => updateTemplateMutation.mutate()}
               disabled={updateTemplateMutation.isPending || !selectedTemplateId}
             >
@@ -1169,6 +1210,7 @@ export function SmartMailPage() {
             <Skeleton className="h-28 w-full rounded-xl" />
           ) : (
             <DataTable
+              className="w-full [&_table]:w-full [&_table]:table-fixed"
               columns={templateColumns}
               data={templates ?? []}
               rowKey={(row) => row.id}
@@ -1192,14 +1234,15 @@ export function SmartMailPage() {
           {normalizedProjectId.length === 0 ? (
             <EmptyState
               icon={Mail}
-              title="Project ID required"
-              description="Enter a project ID to load SmartMail threads."
+              title="Project required"
+              description="Select a project to load SmartMail threads."
               className="border-none"
             />
           ) : threadsLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
           ) : (
             <DataTable
+              className="w-full [&_table]:w-full [&_table]:table-fixed"
               columns={threadColumns}
               data={threads ?? []}
               rowKey={(row) => row.id}

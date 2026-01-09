@@ -7,7 +7,14 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
+import { Select as NativeSelect } from "@/components/ui/select";
+import {
+  Select as RadixSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -23,6 +30,7 @@ import {
   type BudgetEntryType,
   budgetsApi,
 } from "@/lib/api/modules/budgets-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -121,6 +129,13 @@ export function BudgetsPage() {
     BudgetEntrySourceType | ""
   >("");
 
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
   const normalizedProjectId = projectId.trim();
 
   const costCodesQuery = useQuery({
@@ -186,15 +201,33 @@ export function BudgetsPage() {
   }, [settingsQuery.data]);
 
   useEffect(() => {
-    const first = costCodesQuery.data?.[0];
-    if (!first) {
+    if (projectId || projectOptions.length === 0) {
       return;
     }
 
-    if (selectedCostCodeId.length === 0) {
+    const defaultProjectId = projectOptions[0]?.id ?? "";
+    if (!defaultProjectId) {
+      return;
+    }
+
+    setProjectId(defaultProjectId);
+  }, [projectId, projectOptions]);
+
+  useEffect(() => {
+    const first = costCodesQuery.data?.[0];
+    if (!first) {
+      setSelectedCostCodeId("");
+      return;
+    }
+
+    const selectedExists = (costCodesQuery.data ?? []).some(
+      (code) => code.id === selectedCostCodeId,
+    );
+
+    if (!selectedExists) {
       setSelectedCostCodeId(first.id);
     }
-  }, [costCodesQuery.data, selectedCostCodeId.length]);
+  }, [costCodesQuery.data, selectedCostCodeId]);
 
   const selectedCostCode = useMemo(
     () =>
@@ -358,7 +391,9 @@ export function BudgetsPage() {
       key: "name",
       header: "Name",
       render: (row) => (
-        <span className="font-medium text-foreground">{row.name}</span>
+        <span className="block min-w-0 truncate font-medium text-foreground">
+          {row.name}
+        </span>
       ),
     },
     {
@@ -421,9 +456,9 @@ export function BudgetsPage() {
       header: "Source",
       width: "190px",
       render: (row) => (
-        <div>
-          <p className="text-sm text-foreground">{row.sourceType}</p>
-          <p className="text-xs text-muted-foreground">
+        <div className="min-w-0">
+          <p className="truncate text-sm text-foreground">{row.sourceType}</p>
+          <p className="truncate text-xs text-muted-foreground">
             {row.sourceRef || row.sourceId || "manual"}
           </p>
         </div>
@@ -457,27 +492,59 @@ export function BudgetsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="Budgets"
         description="Operate cost-code controls, entries, variance, and reconciliation."
+        action={
+          <Button
+            size="sm"
+            onClick={() => setCreateDrawerOpen(true)}
+            disabled={normalizedProjectId.length === 0}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            New cost code
+          </Button>
+        }
       />
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <Input
-          value={projectId}
-          onChange={(event) => setProjectId(event.target.value)}
-          placeholder="Project ID (required)"
-        />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.2fr)_auto_auto_auto]">
+        <div className="min-w-0">
+          <RadixSelect
+            value={projectId || undefined}
+            onValueChange={(value) => setProjectId(value)}
+          >
+            <SelectTrigger className="h-10">
+              <SelectValue
+                placeholder={
+                  projectsQuery.isLoading ? "Loading projects..." : "Select project"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {projectId &&
+                !projectOptions.some((project) => project.id === projectId) && (
+                  <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                )}
+              {projectOptions.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.code} - {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </RadixSelect>
+        </div>
         <Button
           variant="outline"
+          className="h-10 w-full md:w-auto"
           onClick={() => refreshAll()}
           disabled={normalizedProjectId.length === 0}
         >
-          Refresh
+          Refresh project data
         </Button>
         <Button
           variant="outline"
+          className="h-10 w-full md:w-auto"
           onClick={() => queueNarrativesMutation.mutate()}
           disabled={
             queueNarrativesMutation.isPending ||
@@ -493,6 +560,7 @@ export function BudgetsPage() {
         </Button>
         <Button
           variant="outline"
+          className="h-10 w-full md:w-auto"
           onClick={() => {
             if (window.confirm("Deduplicate alerts for this project?")) {
               deduplicateMutation.mutate();
@@ -515,7 +583,7 @@ export function BudgetsPage() {
         <EmptyState
           icon={BarChart3}
           title="Project scope required"
-          description="Enter a project ID to load budgets from backend."
+          description="Select a project to load budgets from backend."
         />
       ) : (
         <>
@@ -592,18 +660,20 @@ export function BudgetsPage() {
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
+                  className="h-9"
                   onClick={() => setEditDrawerOpen(true)}
                   disabled={!selectedCostCode}
                 >
                   Edit selected
                 </Button>
-                <Button onClick={() => setCreateDrawerOpen(true)}>
+                <Button className="h-9" onClick={() => setCreateDrawerOpen(true)}>
                   <Plus className="mr-1.5 h-4 w-4" />
                   Add cost code
                 </Button>
               </div>
             </div>
             <DataTable
+              className="w-full [&_table]:w-full [&_table]:table-fixed"
               columns={costCodeColumns}
               data={costCodesQuery.data ?? []}
               isLoading={costCodesQuery.isLoading}
@@ -625,8 +695,8 @@ export function BudgetsPage() {
                 Cost entries{" "}
                 {selectedCostCode ? `• ${selectedCostCode.code}` : ""}
               </h2>
-              <div className="flex items-center gap-2">
-                <Select
+              <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
+                <NativeSelect
                   value={entryTypeFilter}
                   onChange={(event) =>
                     setEntryTypeFilter(
@@ -634,15 +704,15 @@ export function BudgetsPage() {
                     )
                   }
                   placeholder="All entry types"
-                  className="w-44"
+                  className="h-10 w-full sm:w-44"
                 >
                   {ENTRY_TYPES.map((entryType) => (
                     <option key={entryType} value={entryType}>
                       {entryType}
                     </option>
                   ))}
-                </Select>
-                <Select
+                </NativeSelect>
+                <NativeSelect
                   value={sourceTypeFilter}
                   onChange={(event) =>
                     setSourceTypeFilter(
@@ -650,16 +720,17 @@ export function BudgetsPage() {
                     )
                   }
                   placeholder="All source types"
-                  className="w-52"
+                  className="h-10 w-full sm:w-52"
                 >
                   {ENTRY_SOURCE_TYPES.map((sourceType) => (
                     <option key={sourceType} value={sourceType}>
                       {sourceType}
                     </option>
                   ))}
-                </Select>
+                </NativeSelect>
                 <Button
                   variant="outline"
+                  className="h-10 w-full sm:w-auto"
                   onClick={() => {
                     setEntryTypeFilter("");
                     setSourceTypeFilter("");
@@ -668,6 +739,7 @@ export function BudgetsPage() {
                   Clear filters
                 </Button>
                 <Button
+                  className="h-10 w-full sm:w-auto"
                   onClick={() => setEntryDrawerOpen(true)}
                   disabled={!selectedCostCode}
                 >
@@ -677,6 +749,7 @@ export function BudgetsPage() {
               </div>
             </div>
             <DataTable
+              className="w-full [&_table]:w-full [&_table]:table-fixed"
               columns={entryColumns}
               data={entriesQuery.data ?? []}
               isLoading={entriesQuery.isLoading}
@@ -733,8 +806,8 @@ export function BudgetsPage() {
                       key={alert.id}
                       className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
                     >
-                      <div>
-                        <p className="text-sm text-foreground">
+                      <div className="min-w-0 pr-2">
+                        <p className="line-clamp-2 text-sm text-foreground">
                           {alert.narrative}
                         </p>
                         <p className="text-xs text-muted-foreground">
@@ -771,11 +844,11 @@ export function BudgetsPage() {
                     key={item.id}
                     className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
                   >
-                    <div>
+                    <div className="min-w-0 pr-2">
                       <p className="text-sm font-medium text-foreground">
                         {item.code} • {item.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-xs text-muted-foreground">
                         Variance{" "}
                         {bpsToPercent(item.metrics.varianceBps).toFixed(2)}% •
                         Entries {item.entryStats.count}
@@ -819,7 +892,7 @@ export function BudgetsPage() {
               {createCostCodeMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Create
+              Create cost code
             </Button>
           </div>
         }
@@ -979,7 +1052,7 @@ export function BudgetsPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Entry type</Label>
-            <Select
+            <NativeSelect
               value={entryForm.entryType}
               onChange={(event) =>
                 setEntryForm((current) => ({
@@ -993,11 +1066,11 @@ export function BudgetsPage() {
                   {entryType}
                 </option>
               ))}
-            </Select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label>Source type</Label>
-            <Select
+            <NativeSelect
               value={entryForm.sourceType}
               onChange={(event) =>
                 setEntryForm((current) => ({
@@ -1011,7 +1084,7 @@ export function BudgetsPage() {
                   {sourceType}
                 </option>
               ))}
-            </Select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label>Amount (USD)</Label>
