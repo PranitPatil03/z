@@ -69,9 +69,13 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
 
   const activateOrganizationMutation = useMutation({
     mutationFn: (organizationId: string) => organizationsApi.setActive(organizationId),
-    onSuccess: async (_result, organizationId) => {
+    onSuccess: (_result, organizationId) => {
+      // Update store immediately — gate uses this to unblock children right away.
+      // Only invalidate the org list; session will re-sync in the background.
+      // Calling invalidateQueries() with no args would nuke the session cache and
+      // cause a second full-page spinner before the dashboard can render.
       setActiveOrganizationId(organizationId);
-      await queryClient.invalidateQueries();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all });
     },
   });
 
@@ -153,17 +157,20 @@ export function ActiveOrganizationGate({ children }: PropsWithChildren) {
     );
   }
 
-  if (sessionActiveOrganizationId || isSetupPath) {
+  // Show children as soon as the org is known — either from the session (normal
+  // path) or from the Zustand store (set optimistically right after activation,
+  // before the session round-trip completes).
+  if (sessionActiveOrganizationId || storedActiveOrganizationId || isSetupPath) {
     return <>{children}</>;
   }
 
   if (organizationsQuery.isLoading || activateOrganizationMutation.isPending) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Preparing your organization
-        </div>
+        <Loader2
+          className="h-5 w-5 animate-spin text-muted-foreground"
+          aria-label="Loading"
+        />
       </div>
     );
   }

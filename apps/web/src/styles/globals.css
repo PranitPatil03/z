@@ -93,6 +93,17 @@
     background-color: hsl(var(--shell-main) / 0.95);
   }
 
+  .sidebar-scroll-region {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .sidebar-scroll-region::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
   .glass-card {
     @apply bg-card/80 backdrop-blur-xl border border-border/60 shadow-lg;
   }

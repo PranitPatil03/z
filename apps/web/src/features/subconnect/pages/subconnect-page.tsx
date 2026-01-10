@@ -97,6 +97,7 @@ interface SubconnectPageProps {
   defaultWorkspaceMode?: SubconnectWorkspaceMode;
   lockWorkspaceMode?: boolean;
   lifecycleOnly?: boolean;
+  listOnly?: boolean;
   initialSelectedSubcontractorId?: string;
   lockInvitationScopeToSelected?: boolean;
 }
@@ -141,6 +142,7 @@ export function SubconnectPage({
   defaultWorkspaceMode = "onboarding",
   lockWorkspaceMode = false,
   lifecycleOnly = false,
+  listOnly = false,
   initialSelectedSubcontractorId,
   lockInvitationScopeToSelected = false,
 }: SubconnectPageProps = {}) {
@@ -160,6 +162,8 @@ export function SubconnectPage({
   const [selectedDailyLogId, setSelectedDailyLogId] = useState("");
   const [workspaceMode, setWorkspaceMode] =
     useState<SubconnectWorkspaceMode>(defaultWorkspaceMode);
+  const operationsEnabled =
+    !lifecycleOnly || Boolean(initialSelectedSubcontractorId);
   const [activeLifecycleModal, setActiveLifecycleModal] =
     useState<LifecycleModal>("none");
   const [invitationStatusFilter, setInvitationStatusFilter] = useState<
@@ -280,6 +284,18 @@ export function SubconnectPage({
       }),
   });
 
+  const effectiveSelectedSubcontractorId =
+    selectedSubcontractorId || initialSelectedSubcontractorId || "";
+  const operationSubcontractorId = initialSelectedSubcontractorId
+    ? effectiveSelectedSubcontractorId || undefined
+    : undefined;
+  const focusedSubcontractorProjectId = initialSelectedSubcontractorId
+    ? ((subcontractorsQuery.data ?? []).find(
+        (item) => item.id === effectiveSelectedSubcontractorId,
+      )?.projectId?.trim() ?? "")
+    : "";
+  const activeProjectId = normalizedProjectId || focusedSubcontractorProjectId;
+
   const invitationsQuery = useQuery({
     queryKey: queryKeys.subconnect.invitations({
       projectId: normalizedProjectId || undefined,
@@ -310,40 +326,50 @@ export function SubconnectPage({
   });
 
   const templatesQuery = useQuery({
-    queryKey: queryKeys.subconnect.complianceTemplates(normalizedProjectId),
-    queryFn: () => subconnectApi.listComplianceTemplates(normalizedProjectId),
-    enabled: false,
+    queryKey: queryKeys.subconnect.complianceTemplates(activeProjectId),
+    queryFn: () => subconnectApi.listComplianceTemplates(activeProjectId),
+    enabled: operationsEnabled && activeProjectId.length > 0,
   });
 
   const complianceItemsQuery = useQuery({
     queryKey: queryKeys.compliance.list({
-      projectId: normalizedProjectId || undefined,
+      projectId: activeProjectId || undefined,
+      subcontractorId: operationSubcontractorId,
     }),
     queryFn: () =>
       subconnectApi.listComplianceItems({
-        projectId: normalizedProjectId || undefined,
+        projectId: activeProjectId || undefined,
+        subcontractorId: operationSubcontractorId,
       }),
-    enabled: false,
+    enabled:
+      operationsEnabled &&
+      (activeProjectId.length > 0 || Boolean(operationSubcontractorId)),
   });
 
   const prequalificationQuery = useQuery({
-    queryKey: queryKeys.subconnect.prequalification(selectedSubcontractorId),
-    queryFn: () => getLatestScoreSafe(selectedSubcontractorId),
-    enabled: false,
+    queryKey: queryKeys.subconnect.prequalification(
+      effectiveSelectedSubcontractorId,
+    ),
+    queryFn: () => getLatestScoreSafe(effectiveSelectedSubcontractorId),
+    enabled: operationsEnabled && effectiveSelectedSubcontractorId.length > 0,
     retry: false,
   });
 
   const payApplicationsQuery = useQuery({
     queryKey: queryKeys.subconnect.payApplications({
-      projectId: normalizedProjectId || undefined,
+      projectId: activeProjectId || undefined,
+      subcontractorId: operationSubcontractorId,
       limit: 100,
     }),
     queryFn: () =>
       subconnectApi.listPayApplications({
-        projectId: normalizedProjectId || undefined,
+        projectId: activeProjectId || undefined,
+        subcontractorId: operationSubcontractorId,
         limit: 100,
       }),
-    enabled: false,
+    enabled:
+      operationsEnabled &&
+      (activeProjectId.length > 0 || Boolean(operationSubcontractorId)),
   });
 
   const payApplicationDetailQuery = useQuery({
@@ -356,15 +382,19 @@ export function SubconnectPage({
 
   const dailyLogsQuery = useQuery({
     queryKey: queryKeys.subconnect.dailyLogs({
-      projectId: normalizedProjectId || undefined,
+      projectId: activeProjectId || undefined,
+      subcontractorId: operationSubcontractorId,
       limit: 100,
     }),
     queryFn: () =>
       subconnectApi.listDailyLogs({
-        projectId: normalizedProjectId || undefined,
+        projectId: activeProjectId || undefined,
+        subcontractorId: operationSubcontractorId,
         limit: 100,
       }),
-    enabled: false,
+    enabled:
+      operationsEnabled &&
+      (activeProjectId.length > 0 || Boolean(operationSubcontractorId)),
   });
 
   const dailyLogDetailQuery = useQuery({
@@ -376,9 +406,9 @@ export function SubconnectPage({
   const selectedSubcontractor = useMemo(
     () =>
       (subcontractorsQuery.data ?? []).find(
-        (item) => item.id === selectedSubcontractorId,
+        (item) => item.id === effectiveSelectedSubcontractorId,
       ) ?? null,
-    [subcontractorsQuery.data, selectedSubcontractorId],
+    [effectiveSelectedSubcontractorId, subcontractorsQuery.data],
   );
 
   const selectedTemplate = useMemo(
@@ -486,9 +516,9 @@ export function SubconnectPage({
       email: selectedSubcontractor.email ?? current.email,
       projectId:
         selectedSubcontractor.projectId ??
-        (normalizedProjectId || current.projectId),
+        (activeProjectId || current.projectId),
     }));
-  }, [normalizedProjectId, selectedSubcontractor]);
+  }, [activeProjectId, selectedSubcontractor]);
 
   useEffect(() => {
     if (!selectedTemplate) {
@@ -652,12 +682,12 @@ export function SubconnectPage({
 
   const createTemplateMutation = useMutation({
     mutationFn: () => {
-      if (!normalizedProjectId) {
+      if (!activeProjectId) {
         throw new Error("Project ID is required for templates");
       }
 
       return subconnectApi.createComplianceTemplate({
-        projectId: normalizedProjectId,
+        projectId: activeProjectId,
         name: templateForm.name.trim(),
         complianceType: templateForm.complianceType.trim(),
         defaultDueDays: Number.parseInt(templateForm.defaultDueDays, 10),
@@ -708,7 +738,7 @@ export function SubconnectPage({
 
   const applyTemplatesMutation = useMutation({
     mutationFn: () => {
-      if (!normalizedProjectId) {
+      if (!activeProjectId) {
         throw new Error("Project ID is required");
       }
       if (!selectedSubcontractorId) {
@@ -716,7 +746,7 @@ export function SubconnectPage({
       }
 
       return subconnectApi.applyComplianceTemplates({
-        projectId: normalizedProjectId,
+        projectId: activeProjectId,
         subcontractorId: selectedSubcontractorId,
         dueDateOverride: toIsoOrUndefined(applyDueDateOverride),
       });
@@ -741,7 +771,7 @@ export function SubconnectPage({
 
       return subconnectApi.upsertPrequalificationScore({
         subcontractorId: selectedSubcontractorId,
-        projectId: normalizedProjectId || undefined,
+        projectId: activeProjectId || undefined,
         overallScoreBps,
         safetyScoreBps: scoreForm.safetyScoreBps
           ? Number.parseInt(scoreForm.safetyScoreBps, 10)
@@ -770,12 +800,12 @@ export function SubconnectPage({
 
   const createComplianceItemMutation = useMutation({
     mutationFn: () => {
-      if (!normalizedProjectId) {
+      if (!activeProjectId) {
         throw new Error("Project ID is required for compliance items");
       }
 
       return subconnectApi.createComplianceItem({
-        projectId: normalizedProjectId,
+        projectId: activeProjectId,
         subcontractorId: selectedSubcontractorId || undefined,
         complianceType: createComplianceForm.complianceType.trim(),
         highRisk: createComplianceForm.highRisk,
@@ -1159,6 +1189,33 @@ export function SubconnectPage({
   const complianceRows = complianceItemsQuery.data ?? [];
   const payRows = payApplicationsQuery.data ?? [];
   const dailyRows = dailyLogsQuery.data ?? [];
+  const activeSubcontractorCount = subcontractorRows.filter(
+    (item) => item.status === "active",
+  ).length;
+  const blockedSubcontractorCount = subcontractorRows.filter(
+    (item) => item.status === "blocked",
+  ).length;
+  const portalEnabledCount = subcontractorRows.filter(
+    (item) => item.portalEnabled,
+  ).length;
+  const complianceOpenCount = complianceRows.filter(
+    (item) => item.status === "pending" || item.status === "expiring",
+  ).length;
+  const complianceEscalatedCount = complianceRows.filter(
+    (item) => item.status === "expired" || item.status === "non_compliant",
+  ).length;
+  const payPendingReviewCount = payRows.filter(
+    (item) => item.status === "submitted" || item.status === "under_review",
+  ).length;
+  const payClosedCount = payRows.filter(
+    (item) => item.status === "approved" || item.status === "paid",
+  ).length;
+  const dailyPendingReviewCount = dailyRows.filter(
+    (item) => item.reviewStatus === "pending",
+  ).length;
+  const dailyReviewedCount = dailyRows.filter(
+    (item) => item.reviewStatus === "reviewed",
+  ).length;
   const isFocusedSubcontractorPage =
     lifecycleOnly && Boolean(initialSelectedSubcontractorId);
   const focusedSubcontractorLabel =
@@ -1171,7 +1228,7 @@ export function SubconnectPage({
     !selectedSubcontractor;
 
   const showOnboarding = lifecycleOnly || workspaceMode === "onboarding";
-  const showOperations = false;
+  const showOperations = operationsEnabled && !listOnly;
   const showCompliance = showOperations;
   const showFinancial = showOperations;
 
@@ -1209,6 +1266,8 @@ export function SubconnectPage({
             ? `Subcontractors > ${focusedSubcontractorLabel}`
             : lifecycleOnly
             ? "Subcontractor Info and Invites"
+            : listOnly
+            ? "SubConnect"
             : "SubConnect Internal Operations"
         }
         description={
@@ -1216,6 +1275,8 @@ export function SubconnectPage({
             ? "Complete profile and lifecycle actions for this subcontractor."
             : lifecycleOnly
             ? "Focused lifecycle workspace for subcontractor details, portal invites, and invitation history."
+            : listOnly
+            ? "Manage subcontractors, track onboarding status, and monitor compliance health."
             : "Operate subcontractor onboarding, compliance, and financial/work-log reviews from one screen."
         }
         action={
@@ -1239,37 +1300,35 @@ export function SubconnectPage({
 
       {!isFocusedSubcontractorPage && (
         <div className="flex flex-wrap items-end gap-3">
-          {lifecycleOnly && (
-            <div className="w-full sm:w-56">
-              <RadixSelect
-                value={projectId || "all"}
-                onValueChange={(value) => {
-                  const nextProjectId = value === "all" ? "" : value;
-                  setProjectId(nextProjectId);
-                  setCreateSubcontractorForm((current) => ({
-                    ...current,
-                    projectId: nextProjectId,
-                  }));
-                }}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="All projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All projects</SelectItem>
-                  {projectId &&
-                    !projectOptions.some((project) => project.id === projectId) && (
-                      <SelectItem value={projectId}>Current: {projectId}</SelectItem>
-                    )}
-                  {projectOptions.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.code} - {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </RadixSelect>
-            </div>
-          )}
+          <div className="w-full sm:w-56">
+            <RadixSelect
+              value={projectId || "all"}
+              onValueChange={(value) => {
+                const nextProjectId = value === "all" ? "" : value;
+                setProjectId(nextProjectId);
+                setCreateSubcontractorForm((current) => ({
+                  ...current,
+                  projectId: nextProjectId,
+                }));
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="All projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All projects</SelectItem>
+                {projectId &&
+                  !projectOptions.some((project) => project.id === projectId) && (
+                    <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </RadixSelect>
+          </div>
           <div className="w-full sm:w-56">
             <RadixSelect
               value={statusFilter || "all"}
@@ -1319,14 +1378,48 @@ export function SubconnectPage({
       )}
 
       {!isFocusedSubcontractorPage && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          className={`grid gap-4 sm:grid-cols-2 ${lifecycleOnly ? "xl:grid-cols-2" : "xl:grid-cols-5"}`}
+        >
           <StatCard
             title="Subcontractors"
             value={subcontractorRows.length}
-            subtitle={`${subcontractorRows.filter((item) => item.status === "active").length} active • ${subcontractorRows.filter((item) => item.portalEnabled).length} portal enabled`}
+            subtitle={`${activeSubcontractorCount} active • ${blockedSubcontractorCount} blocked`}
             icon={Users}
             isLoading={subcontractorsQuery.isLoading}
           />
+          <StatCard
+            title="Portal access"
+            value={portalEnabledCount}
+            subtitle={`${Math.max(subcontractorRows.length - portalEnabledCount, 0)} disabled`}
+            icon={UserPlus}
+            isLoading={subcontractorsQuery.isLoading}
+          />
+          {!lifecycleOnly && !listOnly && (
+            <>
+              <StatCard
+                title="Compliance queue"
+                value={complianceOpenCount}
+                subtitle={`${complianceEscalatedCount} escalated`}
+                icon={Shield}
+                isLoading={complianceItemsQuery.isLoading}
+              />
+              <StatCard
+                title="Pay app reviews"
+                value={payPendingReviewCount}
+                subtitle={`${payClosedCount} approved or paid`}
+                icon={ClipboardCheck}
+                isLoading={payApplicationsQuery.isLoading}
+              />
+              <StatCard
+                title="Daily log reviews"
+                value={dailyPendingReviewCount}
+                subtitle={`${dailyReviewedCount} reviewed`}
+                icon={ClipboardList}
+                isLoading={dailyLogsQuery.isLoading}
+              />
+            </>
+          )}
         </div>
       )}
 
@@ -2086,7 +2179,10 @@ export function SubconnectPage({
             <h2 className="text-base font-semibold text-foreground">
               Compliance templates
             </h2>
-            {!normalizedProjectId && (
+            <p className="text-xs text-muted-foreground">
+              Templates are project-level defaults that are applied to the selected subcontractor.
+            </p>
+            {!activeProjectId && (
               <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 Select a project to manage templates.
               </p>
@@ -2170,7 +2266,7 @@ export function SubconnectPage({
                   onClick={() => createTemplateMutation.mutate()}
                   disabled={
                     createTemplateMutation.isPending ||
-                    normalizedProjectId.length === 0
+                    activeProjectId.length === 0
                   }
                 >
                   Create template
@@ -2202,7 +2298,7 @@ export function SubconnectPage({
                 disabled={
                   applyTemplatesMutation.isPending ||
                   selectedSubcontractorId.length === 0 ||
-                  normalizedProjectId.length === 0
+                  activeProjectId.length === 0
                 }
               >
                 Apply templates
@@ -2443,7 +2539,7 @@ export function SubconnectPage({
                   onClick={() => createComplianceItemMutation.mutate()}
                   disabled={
                     createComplianceItemMutation.isPending ||
-                    normalizedProjectId.length === 0
+                    activeProjectId.length === 0
                   }
                 >
                   Create compliance item
