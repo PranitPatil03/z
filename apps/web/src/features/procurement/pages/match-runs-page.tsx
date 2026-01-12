@@ -7,14 +7,28 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { invoicesApi } from "@/lib/api/modules/invoices-api";
 import { type MatchRun, matchRunsApi } from "@/lib/api/modules/match-runs-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
+import { purchaseOrdersApi } from "@/lib/api/modules/purchase-orders-api";
+import { receiptsApi } from "@/lib/api/modules/receipts-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitCompareArrows, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+const NO_PO_VALUE = "__no_po__";
+const NO_RECEIPT_VALUE = "__no_receipt__";
 
 function formatCents(cents: number) {
   const absolute = Math.abs(cents);
@@ -47,6 +61,79 @@ export function MatchRunsPage() {
     toleranceBps: "0",
   });
 
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
+  function openCreateMatchRunDrawer() {
+    const defaultProjectId = form.projectId || projectOptions[0]?.id || "";
+
+    setDrawerOpen(true);
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+      invoiceId: "",
+      purchaseOrderId: "",
+      receiptId: "",
+      toleranceBps: "0",
+    }));
+  }
+
+  useEffect(() => {
+    if (form.projectId || projectOptions.length === 0) {
+      return;
+    }
+
+    const defaultProjectId = projectOptions[0]?.id ?? "";
+    if (!defaultProjectId) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+    }));
+  }, [form.projectId, projectOptions]);
+
+  const invoicesQuery = useQuery({
+    queryKey: queryKeys.invoices.list({ projectId: form.projectId || undefined }),
+    queryFn: () => invoicesApi.list({ projectId: form.projectId || undefined }),
+    enabled: form.projectId.length > 0,
+  });
+
+  const purchaseOrdersQuery = useQuery({
+    queryKey: queryKeys.purchaseOrders.list({
+      projectId: form.projectId || undefined,
+    }),
+    queryFn: () =>
+      purchaseOrdersApi.list({ projectId: form.projectId || undefined }),
+    enabled: form.projectId.length > 0,
+  });
+
+  const receiptsQuery = useQuery({
+    queryKey: queryKeys.receipts.list({ projectId: form.projectId || undefined }),
+    queryFn: () => receiptsApi.list({ projectId: form.projectId || undefined }),
+    enabled: form.projectId.length > 0,
+  });
+
+  const invoiceOptions = invoicesQuery.data?.data ?? [];
+  const purchaseOrderOptions = purchaseOrdersQuery.data ?? [];
+  const receiptOptions = receiptsQuery.data ?? [];
+
+  useEffect(() => {
+    if (!form.projectId || form.invoiceId || invoiceOptions.length === 0) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      invoiceId: invoiceOptions[0]?.id ?? "",
+    }));
+  }, [form.projectId, form.invoiceId, invoiceOptions]);
+
   const query = useQuery({
     queryKey: queryKeys.matchRuns.list(),
     queryFn: () => matchRunsApi.list(),
@@ -65,7 +152,7 @@ export function MatchRunsPage() {
       toast.success("Match run created");
       setDrawerOpen(false);
       setForm({
-        projectId: "",
+        projectId: form.projectId,
         invoiceId: "",
         purchaseOrderId: "",
         receiptId: "",
@@ -123,7 +210,7 @@ export function MatchRunsPage() {
         title="Match Runs"
         description="Run and review 3-way matching outcomes for AP controls."
         action={
-          <Button size="sm" onClick={() => setDrawerOpen(true)}>
+          <Button size="sm" onClick={openCreateMatchRunDrawer}>
             <Plus className="mr-1.5 h-4 w-4" />
             New match run
           </Button>
@@ -143,7 +230,7 @@ export function MatchRunsPage() {
             description="Create a match run to compare invoice, PO, and receipt values."
             action={{
               label: "New match run",
-              onClick: () => setDrawerOpen(true),
+              onClick: openCreateMatchRunDrawer,
             }}
           />
         }
@@ -176,55 +263,155 @@ export function MatchRunsPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Project ID *</Label>
-            <Input
-              value={form.projectId}
-              onChange={(event) =>
+            <Select
+              value={form.projectId || undefined}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  projectId: event.target.value,
+                  projectId: value,
+                  invoiceId: "",
+                  purchaseOrderId: "",
+                  receiptId: "",
                 }))
               }
-              placeholder="project-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.projectId &&
+                  !projectOptions.some((project) => project.id === form.projectId) && (
+                    <SelectItem value={form.projectId}>
+                      Current: {form.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Invoice ID *</Label>
-            <Input
-              value={form.invoiceId}
-              onChange={(event) =>
+            <Select
+              value={form.invoiceId || undefined}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  invoiceId: event.target.value,
+                  invoiceId: value,
                 }))
               }
-              placeholder="invoice-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    invoicesQuery.isLoading
+                      ? "Loading invoices..."
+                      : "Select invoice"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.invoiceId &&
+                  !invoiceOptions.some((invoice) => invoice.id === form.invoiceId) && (
+                    <SelectItem value={form.invoiceId}>
+                      Current: {form.invoiceId}
+                    </SelectItem>
+                  )}
+                {invoiceOptions.map((invoice) => (
+                  <SelectItem key={invoice.id} value={invoice.id}>
+                    {invoice.invoiceNumber} - {invoice.vendorName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!invoicesQuery.isLoading && form.projectId && invoiceOptions.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No invoices found for the selected project.
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>PO ID</Label>
-            <Input
-              value={form.purchaseOrderId}
-              onChange={(event) =>
+            <Select
+              value={form.purchaseOrderId || NO_PO_VALUE}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  purchaseOrderId: event.target.value,
+                  purchaseOrderId: value === NO_PO_VALUE ? "" : value,
                 }))
               }
-              placeholder="purchase-order-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    purchaseOrdersQuery.isLoading
+                      ? "Loading purchase orders..."
+                      : "Select PO"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_PO_VALUE}>No PO</SelectItem>
+                {form.purchaseOrderId &&
+                  !purchaseOrderOptions.some(
+                    (purchaseOrder) => purchaseOrder.id === form.purchaseOrderId,
+                  ) && (
+                    <SelectItem value={form.purchaseOrderId}>
+                      Current: {form.purchaseOrderId}
+                    </SelectItem>
+                  )}
+                {purchaseOrderOptions.map((purchaseOrder) => (
+                  <SelectItem key={purchaseOrder.id} value={purchaseOrder.id}>
+                    {purchaseOrder.poNumber} - {purchaseOrder.vendorName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Receipt ID</Label>
-            <Input
-              value={form.receiptId}
-              onChange={(event) =>
+            <Select
+              value={form.receiptId || NO_RECEIPT_VALUE}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  receiptId: event.target.value,
+                  receiptId: value === NO_RECEIPT_VALUE ? "" : value,
                 }))
               }
-              placeholder="receipt-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    receiptsQuery.isLoading
+                      ? "Loading receipts..."
+                      : "Select receipt"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_RECEIPT_VALUE}>No receipt</SelectItem>
+                {form.receiptId &&
+                  !receiptOptions.some((receipt) => receipt.id === form.receiptId) && (
+                    <SelectItem value={form.receiptId}>
+                      Current: {form.receiptId}
+                    </SelectItem>
+                  )}
+                {receiptOptions.map((receipt) => (
+                  <SelectItem key={receipt.id} value={receipt.id}>
+                    {receipt.receiptNumber} - {formatCents(receipt.receivedAmountCents)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Tolerance (bps)</Label>

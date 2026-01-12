@@ -80,18 +80,19 @@ export function NotificationPreferencesPage() {
         description="Configure in-app and email delivery by event type."
       />
 
-      <div className="rounded-xl border border-border bg-card">
-        <div className="border-b border-border px-5 py-4">
+      <div className="rounded-xl bg-card/70 p-5">
+        <div>
           <h2 className="text-sm font-semibold text-foreground">Defaults</h2>
         </div>
-        <div className="space-y-3 px-5 py-4">
-          <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-            <span className="text-sm text-foreground">
+        <div className="mt-3 flex flex-wrap gap-2">
+          <label className="inline-flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2">
+            <span className="text-sm font-medium text-foreground">
               In-app notifications
             </span>
             <input
               type="checkbox"
               checked={defaults.inApp}
+              className="h-4 w-4"
               onChange={(event) =>
                 setDefaults((current) => ({
                   ...current,
@@ -100,11 +101,14 @@ export function NotificationPreferencesPage() {
               }
             />
           </label>
-          <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-            <span className="text-sm text-foreground">Email notifications</span>
+          <label className="inline-flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2">
+            <span className="text-sm font-medium text-foreground">
+              Email notifications
+            </span>
             <input
               type="checkbox"
               checked={defaults.email}
+              className="h-4 w-4"
               onChange={(event) =>
                 setDefaults((current) => ({
                   ...current,
@@ -116,26 +120,27 @@ export function NotificationPreferencesPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
-        <div className="border-b border-border px-5 py-4">
+      <div className="rounded-xl bg-card/70 p-5">
+        <div>
           <h2 className="text-sm font-semibold text-foreground">
             Event Overrides
           </h2>
         </div>
-        <div className="space-y-3 px-5 py-4">
+        <div className="mt-3 flex flex-wrap gap-2.5">
           {EVENT_KEYS.map((eventKey) => (
             <div
               key={eventKey}
-              className="rounded-lg border border-border px-3 py-3"
+              className="w-full rounded-lg bg-muted/30 px-3 py-3 md:w-[280px]"
             >
               <p className="mb-2 text-sm font-medium capitalize text-foreground">
                 {eventKey.replace(/_/g, " ")}
               </p>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm text-foreground">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 rounded-md bg-background px-2.5 py-1.5 text-sm text-foreground">
                   <input
                     type="checkbox"
                     checked={events[eventKey].inApp}
+                    className="h-4 w-4"
                     onChange={(event) =>
                       setEvents((current) => ({
                         ...current,
@@ -148,10 +153,11 @@ export function NotificationPreferencesPage() {
                   />
                   In-app
                 </label>
-                <label className="flex items-center gap-2 text-sm text-foreground">
+                <label className="inline-flex items-center gap-2 rounded-md bg-background px-2.5 py-1.5 text-sm text-foreground">
                   <input
                     type="checkbox"
                     checked={events[eventKey].email}
+                    className="h-4 w-4"
                     onChange={(event) =>
                       setEvents((current) => ({
                         ...current,

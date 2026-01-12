@@ -7,17 +7,25 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { type Rfq, type RfqStatus, rfqsApi } from "@/lib/api/modules/rfqs-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const RFQ_STATUS_OPTIONS: RfqStatus[] = ["draft", "sent", "closed", "canceled"];
+const ALL_STATUS_VALUE = "__all_status__";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -39,6 +47,29 @@ export function RfqsPage() {
     scope: "",
     dueDate: "",
   });
+
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
+  useEffect(() => {
+    if (form.projectId || projectOptions.length === 0) {
+      return;
+    }
+
+    const defaultProjectId = projectOptions[0]?.id ?? "";
+    if (!defaultProjectId) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+    }));
+  }, [form.projectId, projectOptions]);
 
   const query = useQuery({
     queryKey: queryKeys.rfqs.list(),
@@ -67,7 +98,12 @@ export function RfqsPage() {
     onSuccess: () => {
       toast.success("RFQ created");
       setDrawerOpen(false);
-      setForm({ projectId: "", title: "", scope: "", dueDate: "" });
+      setForm((current) => ({
+        ...current,
+        title: "",
+        scope: "",
+        dueDate: "",
+      }));
       qc.invalidateQueries({ queryKey: queryKeys.rfqs.all });
     },
     onError: (error: Error) => {
@@ -120,7 +156,16 @@ export function RfqsPage() {
         title="RFQs"
         description="Manage request-for-quote documents and lifecycle status."
         action={
-          <Button size="sm" onClick={() => setDrawerOpen(true)}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setDrawerOpen(true);
+              setForm((current) => ({
+                ...current,
+                projectId: current.projectId || projectOptions[0]?.id || "",
+              }));
+            }}
+          >
             <Plus className="mr-1.5 h-4 w-4" />
             New RFQ
           </Button>
@@ -129,18 +174,22 @@ export function RfqsPage() {
 
       <div className="flex items-center gap-3">
         <Select
-          value={statusFilter}
-          onChange={(event) =>
-            setStatusFilter(event.target.value as RfqStatus | "")
+          value={statusFilter || ALL_STATUS_VALUE}
+          onValueChange={(value) =>
+            setStatusFilter(value === ALL_STATUS_VALUE ? "" : (value as RfqStatus))
           }
-          className="w-44"
-          placeholder="All statuses"
         >
-          {RFQ_STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status} className="capitalize">
-              {status}
-            </option>
-          ))}
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_STATUS_VALUE}>All statuses</SelectItem>
+            {RFQ_STATUS_OPTIONS.map((status) => (
+              <SelectItem key={status} value={status}>
+                {status}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
         {statusFilter && (
           <Button variant="ghost" size="sm" onClick={() => setStatusFilter("")}>
@@ -195,16 +244,38 @@ export function RfqsPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Project ID *</Label>
-            <Input
-              value={form.projectId}
-              onChange={(event) =>
+            <Select
+              value={form.projectId || undefined}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  projectId: event.target.value,
+                  projectId: value,
                 }))
               }
-              placeholder="project-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.projectId &&
+                  !projectOptions.some((project) => project.id === form.projectId) && (
+                    <SelectItem value={form.projectId}>
+                      Current: {form.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Title *</Label>

@@ -7,16 +7,24 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   type PurchaseOrder,
   purchaseOrdersApi,
 } from "@/lib/api/modules/purchase-orders-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 function formatCents(c: number) {
@@ -26,10 +34,30 @@ function formatCents(c: number) {
   }).format(c / 100);
 }
 
+function formatProjectCodeToken(projectCode?: string) {
+  const sanitized = (projectCode ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 4);
+
+  return sanitized || "GEN";
+}
+
+function createPurchaseOrderNumber(projectCode?: string) {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const serial = String(Math.floor(Math.random() * 9000) + 1000);
+
+  return `PO-${formatProjectCodeToken(projectCode)}-${yy}${mm}${dd}-${serial}`;
+}
+
 export function PurchaseOrdersPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [poNumberManuallyEdited, setPoNumberManuallyEdited] = useState(false);
   const [form, setForm] = useState({
     projectId: "",
     poNumber: "",
@@ -37,6 +65,52 @@ export function PurchaseOrdersPage() {
     totalAmountCents: "",
     issueDate: "",
   });
+
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
+  function findProjectCode(projectId: string) {
+    return projectOptions.find((project) => project.id === projectId)?.code;
+  }
+
+  function openCreatePurchaseOrderDrawer() {
+    const defaultProjectId = form.projectId || projectOptions[0]?.id || "";
+    const projectCode = findProjectCode(defaultProjectId);
+
+    setPoNumberManuallyEdited(false);
+    setDrawerOpen(true);
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+      poNumber: createPurchaseOrderNumber(projectCode),
+      vendorName: "",
+      totalAmountCents: "",
+      issueDate: "",
+    }));
+  }
+
+  useEffect(() => {
+    if (form.projectId || projectOptions.length === 0) {
+      return;
+    }
+
+    const defaultProjectId = projectOptions[0]?.id ?? "";
+    if (!defaultProjectId) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+      poNumber:
+        current.poNumber ||
+        createPurchaseOrderNumber(findProjectCode(defaultProjectId)),
+    }));
+  }, [form.projectId, projectOptions]);
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.purchaseOrders.list(),
@@ -58,6 +132,14 @@ export function PurchaseOrdersPage() {
       toast.success("Purchase order created");
       qc.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all });
       setDrawerOpen(false);
+      setPoNumberManuallyEdited(false);
+      setForm((current) => ({
+        ...current,
+        poNumber: createPurchaseOrderNumber(findProjectCode(current.projectId)),
+        vendorName: "",
+        totalAmountCents: "",
+        issueDate: "",
+      }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -108,7 +190,10 @@ export function PurchaseOrdersPage() {
         title="Purchase Orders"
         description="Manage vendor purchase orders and delivery tracking."
         action={
-          <Button size="sm" onClick={() => setDrawerOpen(true)}>
+          <Button
+            size="sm"
+            onClick={openCreatePurchaseOrderDrawer}
+          >
             <Plus className="mr-1.5 h-4 w-4" />
             New PO
           </Button>
@@ -126,7 +211,7 @@ export function PurchaseOrdersPage() {
             icon={ShoppingCart}
             title="No purchase orders"
             description="Create a PO to begin tracking vendor commitments."
-            action={{ label: "New PO", onClick: () => setDrawerOpen(true) }}
+            action={{ label: "New PO", onClick: openCreatePurchaseOrderDrawer }}
           />
         }
       />
@@ -144,6 +229,7 @@ export function PurchaseOrdersPage() {
               onClick={() => createMutation.mutate()}
               disabled={
                 createMutation.isPending ||
+                !form.projectId ||
                 !form.poNumber ||
                 !form.vendorName ||
                 !form.totalAmountCents
@@ -160,22 +246,52 @@ export function PurchaseOrdersPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Project ID *</Label>
-            <Input
-              placeholder="project-id"
-              value={form.projectId}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, projectId: e.target.value }))
-              }
-            />
+            <Select
+              value={form.projectId || undefined}
+              onValueChange={(value) => {
+                const projectCode = findProjectCode(value);
+                setForm((current) => ({
+                  ...current,
+                  projectId: value,
+                  poNumber: poNumberManuallyEdited
+                    ? current.poNumber
+                    : createPurchaseOrderNumber(projectCode),
+                }));
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.projectId &&
+                  !projectOptions.some((project) => project.id === form.projectId) && (
+                    <SelectItem value={form.projectId}>
+                      Current: {form.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>PO number *</Label>
             <Input
-              placeholder="PO-2024-001"
+              placeholder="PO-PROJ-260413-1234"
               value={form.poNumber}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, poNumber: e.target.value }))
-              }
+              onChange={(e) => {
+                setPoNumberManuallyEdited(true);
+                setForm((f) => ({ ...f, poNumber: e.target.value }));
+              }}
             />
           </div>
           <div className="space-y-1.5">

@@ -7,7 +7,13 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   canSubmitForApproval,
@@ -18,12 +24,13 @@ import {
   type ChangeOrderStatus,
   changeOrdersApi,
 } from "@/lib/api/modules/change-orders-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock3, Loader2, Plus, Workflow } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const STATUS_ORDER: ChangeOrderStatus[] = [
@@ -75,6 +82,30 @@ export function ChangeOrdersPage() {
   });
 
   const normalizedProjectId = projectId.trim();
+
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
+  useEffect(() => {
+    if (projectId.length > 0 || projectOptions.length === 0) {
+      return;
+    }
+
+    const initialProjectId = projectOptions[0]?.id ?? "";
+    if (!initialProjectId) {
+      return;
+    }
+
+    setProjectId(initialProjectId);
+    setForm((current) => ({
+      ...current,
+      projectId: current.projectId || initialProjectId,
+    }));
+  }, [projectId, projectOptions]);
 
   const listQuery = useQuery({
     queryKey: queryKeys.changeOrders.list({ projectId: normalizedProjectId }),
@@ -259,71 +290,105 @@ export function ChangeOrdersPage() {
       <PageHeader
         title="Change Orders"
         description="Manage scope-change lifecycle, approvals, and SLA deadlines."
-        action={
-          <Button
-            size="sm"
-            onClick={() => {
-              setDrawerOpen(true);
-              setForm((current) => ({
-                ...current,
-                projectId: normalizedProjectId || current.projectId,
-              }));
-            }}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            New change order
-          </Button>
-        }
       />
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Input
-          placeholder="Project ID (required)"
-          value={projectId}
-          onChange={(event) => {
-            setProjectId(event.target.value);
-          }}
-        />
-        <Select
-          value={statusFilter}
-          onChange={(event) =>
-            setStatusFilter(event.target.value as ChangeOrderStatus | "")
-          }
-          placeholder="All statuses"
-        >
-          {STATUS_ORDER.map((status) => (
-            <option key={status} value={status}>
-              {status.replace(/_/g, " ")}
-            </option>
-          ))}
-        </Select>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              void listQuery.refetch();
-            }}
-            disabled={listQuery.isFetching || normalizedProjectId.length === 0}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setStatusFilter("");
-            }}
-            disabled={statusFilter.length === 0}
-          >
-            Clear status
-          </Button>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_220px_auto] lg:items-end xl:flex-1">
+          <div className="space-y-1.5">
+            <Label>Project</Label>
+            <Select
+              value={projectId || undefined}
+              onValueChange={(value) => setProjectId(value)}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {projectId &&
+                  !projectOptions.some((project) => project.id === projectId) && (
+                    <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={(value) =>
+                setStatusFilter(
+                  value === "all" ? "" : (value as ChangeOrderStatus),
+                )
+              }
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {STATUS_ORDER.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status.replace(/_/g, " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-nowrap items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-10 shrink-0"
+              onClick={() => {
+                void listQuery.refetch();
+              }}
+              disabled={listQuery.isFetching || normalizedProjectId.length === 0}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-10 shrink-0"
+              onClick={() => {
+                setStatusFilter("");
+              }}
+              disabled={statusFilter.length === 0}
+            >
+              Clear status
+            </Button>
+          </div>
         </div>
+        <Button
+          size="sm"
+          className="h-10 shrink-0"
+          onClick={() => {
+            setDrawerOpen(true);
+            setForm((current) => ({
+              ...current,
+              projectId: normalizedProjectId || current.projectId,
+            }));
+          }}
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          New change order
+        </Button>
       </div>
 
       {normalizedProjectId.length === 0 ? (
         <EmptyState
           icon={Workflow}
           title="Project scope required"
-          description="Enter a project ID to load change orders from backend."
+          description="Select a project to load change orders from backend."
         />
       ) : (
         <DataTable
@@ -374,16 +439,32 @@ export function ChangeOrdersPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Project ID *</Label>
-            <Input
-              value={form.projectId}
-              onChange={(event) =>
+            <Select
+              value={form.projectId || undefined}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  projectId: event.target.value,
+                  projectId: value,
                 }))
               }
-              placeholder="project-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {form.projectId &&
+                  !projectOptions.some((project) => project.id === form.projectId) && (
+                    <SelectItem value={form.projectId}>
+                      Current: {form.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Title *</Label>

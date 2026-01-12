@@ -7,11 +7,19 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   parseImageUrlInput,
   resolveSiteSnapJobUiState,
 } from "@/features/sitesnap/lib/sitesnap-utils";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { type SiteSnap, siteSnapsApi } from "@/lib/api/modules/sitesnaps-api";
 import { storageApi } from "@/lib/api/modules/storage-api";
 import { queryKeys } from "@/lib/api/query-keys";
@@ -25,7 +33,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function SiteSnapPage() {
@@ -48,6 +56,26 @@ export function SiteSnapPage() {
   });
 
   const normalizedProjectId = projectId.trim();
+
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+
+  useEffect(() => {
+    if (projectId || projectOptions.length === 0) {
+      return;
+    }
+
+    const defaultProjectId = projectOptions[0]?.id ?? "";
+    if (!defaultProjectId) {
+      return;
+    }
+
+    setProjectId(defaultProjectId);
+  }, [projectId, projectOptions]);
 
   const listQuery = useQuery({
     queryKey: queryKeys.siteSnaps.list({ projectId: normalizedProjectId }),
@@ -161,12 +189,13 @@ export function SiteSnapPage() {
   }
 
   function openCreateDrawer() {
+    const defaultProjectId = normalizedProjectId || projectOptions[0]?.id || "";
     setDrawerOpen(true);
     setDraftEntityId(`site-snap-draft-${crypto.randomUUID()}`);
     setUploadedDraftAssets([]);
     setCreateError(null);
     setForm({
-      projectId: normalizedProjectId,
+      projectId: defaultProjectId,
       notes: "",
       locationZone: "",
       imageUrlsInput: "",
@@ -202,11 +231,13 @@ export function SiteSnapPage() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
             <Camera className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="line-clamp-1 font-medium text-foreground">
               {row.notes}
             </p>
-            <p className="text-xs text-muted-foreground">{row.locationZone}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {row.locationZone}
+            </p>
           </div>
         </div>
       ),
@@ -242,12 +273,13 @@ export function SiteSnapPage() {
     {
       key: "actions",
       header: "",
-      width: "120px",
+      width: "240px",
       render: (row) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
             size="sm"
             variant="outline"
+            className="h-8"
             onClick={(event) => {
               event.stopPropagation();
               analyzeMutation.mutate({
@@ -264,6 +296,7 @@ export function SiteSnapPage() {
             <Button
               size="sm"
               variant="outline"
+              className="h-8"
               onClick={(event) => {
                 event.stopPropagation();
                 reviewMutation.mutate(row.id);
@@ -280,7 +313,7 @@ export function SiteSnapPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="SiteSnap AI"
         description="Capture field photos and get AI-powered site observations."
@@ -292,14 +325,35 @@ export function SiteSnapPage() {
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Input
-          value={projectId}
-          onChange={(event) => setProjectId(event.target.value)}
-          placeholder="Project ID (required)"
-        />
+      <div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_auto]">
+        <div className="min-w-0">
+          <Select
+            value={projectId || undefined}
+            onValueChange={(value) => setProjectId(value)}
+          >
+            <SelectTrigger className="h-10">
+              <SelectValue
+                placeholder={
+                  projectsQuery.isLoading ? "Loading projects..." : "Select project"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {projectId &&
+                !projectOptions.some((project) => project.id === projectId) && (
+                  <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                )}
+              {projectOptions.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.code} - {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Button
           variant="outline"
+          className="h-10 w-full md:w-auto"
           onClick={() => {
             void listQuery.refetch();
             void dailyProgressQuery.refetch();
@@ -309,13 +363,13 @@ export function SiteSnapPage() {
           Refresh
         </Button>
         {dailyProgressQuery.data ? (
-          <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
-            {dailyProgressQuery.data.snapCount} snaps,{" "}
-            {dailyProgressQuery.data.reviewedCount} reviewed,{" "}
+          <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground md:col-span-2">
+            {dailyProgressQuery.data.snapCount} snaps, {" "}
+            {dailyProgressQuery.data.reviewedCount} reviewed, {" "}
             {dailyProgressQuery.data.observationCount} observations today
           </div>
         ) : (
-          <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+          <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground md:col-span-2">
             Daily progress appears after selecting a project.
           </div>
         )}
@@ -325,10 +379,11 @@ export function SiteSnapPage() {
         <EmptyState
           icon={Camera}
           title="Project scope required"
-          description="Enter a project ID to load SiteSnap records."
+          description="Select a project to load SiteSnap records."
         />
       ) : (
         <DataTable
+          className="w-full [&_table]:w-full [&_table]:table-fixed"
           columns={columns}
           data={listQuery.data ?? []}
           isLoading={listQuery.isLoading}
@@ -372,13 +427,35 @@ export function SiteSnapPage() {
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Project ID *</Label>
-            <Input
-              placeholder="project-id"
-              value={form.projectId}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, projectId: e.target.value }))
+            <Select
+              value={form.projectId || undefined}
+              onValueChange={(value) =>
+                setForm((f) => ({ ...f, projectId: value }))
               }
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.projectId &&
+                  !projectOptions.some((project) => project.id === form.projectId) && (
+                    <SelectItem value={form.projectId}>
+                      Current: {form.projectId}
+                    </SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Location Zone *</Label>
