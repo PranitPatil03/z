@@ -17,16 +17,23 @@ import { db } from "../database";
 import { sendMail } from "../lib/email";
 import { logger } from "../lib/logger";
 
-const trustedOrigins = [env.CORS_ORIGIN, env.WEB_APP_URL]
-  .flatMap((origin) => origin.split(","))
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const trustedOrigins = Array.from(
+  new Set(
+    [env.CORS_ORIGIN, env.WEB_APP_URL, "https://*.vercel.app"]
+      .flatMap((origin) => origin.split(","))
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ),
+);
 
 export const auth = betterAuth({
   appName: "anvil",
   baseURL: env.BETTER_AUTH_URL,
   basePath: "/auth",
   secret: env.BETTER_AUTH_SECRET,
+  account: {
+    storeStateStrategy: "database",
+  },
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
