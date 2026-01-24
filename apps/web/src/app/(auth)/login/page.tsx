@@ -88,14 +88,19 @@ export default function LoginPage() {
       `/login?next=${encodeURIComponent(nextPath)}`,
     );
 
-    const { error } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL,
-      errorCallbackURL,
-    });
+    try {
+      const { error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+        errorCallbackURL,
+      });
 
-    if (error) {
-      toast.error(error.message ?? "Google sign-in is not available");
+      if (error) {
+        toast.error(error.message ?? "Google sign-in is not available");
+        setGoogleLoading(false);
+      }
+    } catch {
+      toast.error("Failed to connect to Google. Please try again.");
       setGoogleLoading(false);
     }
   }
