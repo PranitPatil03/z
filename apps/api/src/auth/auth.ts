@@ -33,6 +33,9 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   account: {
     storeStateStrategy: "database",
+    // Cross-origin frontend/backend OAuth can fail the extra signed-state-cookie
+    // check in modern browsers; DB-backed state validation remains in place.
+    skipStateCookieCheck: true,
   },
   database: drizzleAdapter(db, {
     provider: "pg",
