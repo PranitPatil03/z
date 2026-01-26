@@ -26,6 +26,33 @@ const trustedOrigins = Array.from(
   ),
 );
 
+const primaryCorsOrigin = env.CORS_ORIGIN.split(",")[0]?.trim();
+
+const webOrigin = (() => {
+  const candidate = env.WEB_APP_URL || primaryCorsOrigin;
+
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return null;
+  }
+})();
+
+const authOrigin = (() => {
+  try {
+    return new URL(env.BETTER_AUTH_URL).origin;
+  } catch {
+    return null;
+  }
+})();
+
+const isCrossOriginAuthDeployment =
+  Boolean(webOrigin) && Boolean(authOrigin) && webOrigin !== authOrigin;
+
 export const auth = betterAuth({
   appName: "anvil",
   baseURL: env.BETTER_AUTH_URL,
@@ -37,6 +64,14 @@ export const auth = betterAuth({
     // check in modern browsers; DB-backed state validation remains in place.
     skipStateCookieCheck: true,
   },
+  advanced: isCrossOriginAuthDeployment
+    ? {
+        defaultCookieAttributes: {
+          sameSite: "none",
+          secure: true,
+        },
+      }
+    : undefined,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
