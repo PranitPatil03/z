@@ -26,10 +26,6 @@ function resolveNextPath(nextPath: string | null) {
   return nextPath;
 }
 
-function buildAbsoluteCallbackUrl(path: string) {
-  return new URL(path, window.location.origin).toString();
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [nextPath, setNextPath] = useState(DEFAULT_NEXT_PATH);
@@ -37,7 +33,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     const next = new URLSearchParams(window.location.search).get("next");
@@ -80,31 +75,6 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  async function handleGoogleSignIn() {
-    setGoogleLoading(true);
-
-    const callbackURL = buildAbsoluteCallbackUrl(nextPath);
-    const errorCallbackURL = buildAbsoluteCallbackUrl(
-      `/login?next=${encodeURIComponent(nextPath)}`,
-    );
-
-    try {
-      const { error } = await authClient.signIn.social({
-        provider: "google",
-        callbackURL,
-        errorCallbackURL,
-      });
-
-      if (error) {
-        toast.error(error.message ?? "Google sign-in is not available");
-        setGoogleLoading(false);
-      }
-    } catch {
-      toast.error("Failed to connect to Google. Please try again.");
-      setGoogleLoading(false);
-    }
-  }
-
   return (
     <div className="rounded-xl">
       <Link href="/" className="mb-6 inline-flex">
@@ -122,32 +92,27 @@ export default function LoginPage() {
         type="button"
         variant="outline"
         className="h-12 w-full rounded-xl border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-        onClick={handleGoogleSignIn}
-        disabled={loading || googleLoading}
+        disabled
       >
-        {googleLoading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <svg aria-hidden="true" className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-            <path
-              d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.28-2.1 3.56-5.2 3.56-8.66Z"
-              fill="#4285F4"
-            />
-            <path
-              d="M12 24c3.24 0 5.96-1.08 7.95-2.93l-3.88-3c-1.08.73-2.46 1.17-4.07 1.17-3.13 0-5.78-2.12-6.73-4.98H1.27v3.09A12 12 0 0 0 12 24Z"
-              fill="#34A853"
-            />
-            <path
-              d="M5.27 14.26A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.56.38-2.26V6.65H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.35l4-3.09Z"
-              fill="#FBBC05"
-            />
-            <path
-              d="M12 4.77c1.76 0 3.35.6 4.6 1.78l3.45-3.46C17.95 1.16 15.24 0 12 0A12 12 0 0 0 1.27 6.65l4 3.09c.95-2.86 3.6-4.97 6.73-4.97Z"
-              fill="#EA4335"
-            />
-          </svg>
-        )}
-        Continue with Google
+        <svg aria-hidden="true" className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+          <path
+            d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.45a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.28-2.1 3.56-5.2 3.56-8.66Z"
+            fill="#4285F4"
+          />
+          <path
+            d="M12 24c3.24 0 5.96-1.08 7.95-2.93l-3.88-3c-1.08.73-2.46 1.17-4.07 1.17-3.13 0-5.78-2.12-6.73-4.98H1.27v3.09A12 12 0 0 0 12 24Z"
+            fill="#34A853"
+          />
+          <path
+            d="M5.27 14.26A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.56.38-2.26V6.65H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.35l4-3.09Z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M12 4.77c1.76 0 3.35.6 4.6 1.78l3.45-3.46C17.95 1.16 15.24 0 12 0A12 12 0 0 0 1.27 6.65l4 3.09c.95-2.86 3.6-4.97 6.73-4.97Z"
+            fill="#EA4335"
+          />
+        </svg>
+        Google sign-in temporarily disabled
       </Button>
 
       <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
@@ -200,7 +165,7 @@ export default function LoginPage() {
         <Button
           type="submit"
           className="h-12 w-full rounded-sm bg-gray-900 text-white transition-colors hover:bg-gray-800"
-          disabled={loading || googleLoading}
+          disabled={loading}
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Sign in
