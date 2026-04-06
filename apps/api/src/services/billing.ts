@@ -6,6 +6,7 @@ import { badRequest, notFound } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
 import { eventService } from "./events";
+import { entitlementsService } from "./entitlements";
 import {
   billingRecordIdParamsSchema,
   createBillingRecordSchema,
@@ -131,7 +132,7 @@ export const billingService = {
             amount: record.amountCents,
           },
         });
-      } else if (record.status === "failed") {
+      } else if (oldRecord?.status === "issued" && record.status === "draft") {
         await eventService.emit({
           event: "payment.failed",
           organizationId: orgId,
@@ -168,5 +169,10 @@ export const billingService = {
     }
 
     return record;
+  },
+
+  async usage(request: Request) {
+    const orgId = requireOrg(request);
+    return await entitlementsService.getUsageSummary(orgId);
   },
 };

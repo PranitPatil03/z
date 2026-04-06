@@ -5,7 +5,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { createMatchRunSchema, matchRunIdParamsSchema } from "../schemas/match-run.schema";
 
-export const matchRunsRouter = Router();
+export const matchRunsRouter: import("express").Router = Router();
 
 matchRunsRouter.use(requireAuth);
 

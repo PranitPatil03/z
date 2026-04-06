@@ -6,6 +6,7 @@ import { aiTaskQueue, enqueueAiTask } from "../lib/queues";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
 import { aiEstimateSchema, aiGenerateSchema, aiJobParamsSchema } from "../schemas/ai.schema";
+import { entitlementsService } from "./entitlements";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -27,6 +28,8 @@ export const aiService = {
   async generateText(request: Request) {
     const orgId = requireOrg(request);
     const body = aiGenerateSchema.parse(readValidatedBody(request));
+    const usageUnits = entitlementsService.estimateAiUnits(body.prompt);
+    const subscription = await entitlementsService.assertAiUsageAllowed(orgId, usageUnits);
 
     if (body.mode === "async") {
       const jobId = await enqueueAiTask({
@@ -43,9 +46,26 @@ export const aiService = {
         throw badRequest("Async AI mode requires REDIS_URL configuration");
       }
 
+      const updatedSubscription = await entitlementsService.recordAiUsage({
+        organizationId: orgId,
+        subscriptionId: subscription.id,
+        units: usageUnits,
+        source: "ai.generate.async",
+        model: body.model,
+        metadata: {
+          mode: body.mode,
+          provider: body.provider ?? "openai",
+        },
+      });
+
       return {
         mode: "async",
         jobId,
+        usage: {
+          units: usageUnits,
+          aiCreditsIncluded: updatedSubscription?.aiCreditsIncluded ?? subscription.aiCreditsIncluded,
+          aiCreditsUsed: updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
+        },
       };
     }
 
@@ -64,9 +84,26 @@ export const aiService = {
       }
     );
 
+    const updatedSubscription = await entitlementsService.recordAiUsage({
+      organizationId: orgId,
+      subscriptionId: subscription.id,
+      units: usageUnits,
+      source: "ai.generate.sync",
+      model: body.model,
+      metadata: {
+        mode: body.mode,
+        provider: response.provider,
+      },
+    });
+
     return {
       ...response,
       mode: "sync",
+      usage: {
+        units: usageUnits,
+        aiCreditsIncluded: updatedSubscription?.aiCreditsIncluded ?? subscription.aiCreditsIncluded,
+        aiCreditsUsed: updatedSubscription?.aiCreditsUsed ?? subscription.aiCreditsUsed,
+      },
     };
   },
 

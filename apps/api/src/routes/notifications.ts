@@ -10,7 +10,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { createNotificationSchema, notificationIdParamsSchema } from "../schemas/notification.schema";
 
-export const notificationsRouter = Router();
+export const notificationsRouter: import("express").Router = Router();
 
 notificationsRouter.use(requireAuth);
 

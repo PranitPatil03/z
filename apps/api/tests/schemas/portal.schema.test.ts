@@ -83,11 +83,11 @@ describe("portal schemas", () => {
 
   it("accepts compliance status update enum values", () => {
     const parsed = portalComplianceUpdateSchema.parse({
-      status: "approved",
+      status: "compliant",
       notes: "Reviewed",
     });
 
-    expect(parsed.status).toBe("approved");
+    expect(parsed.status).toBe("compliant");
   });
 
   it("rejects invalid compliance status", () => {

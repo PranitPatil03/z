@@ -1,7 +1,13 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../lib/pagination";
 
 export const invoiceIdParamsSchema = z.object({
   invoiceId: z.string().min(1),
+});
+
+export const listInvoicesQuerySchema = paginationQuerySchema.extend({
+  projectId: z.string().min(1).optional(),
+  status: z.enum(["draft", "submitted", "approved", "rejected", "paid", "hold"]).optional(),
 });
 
 export const createInvoiceSchema = z.object({

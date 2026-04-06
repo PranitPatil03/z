@@ -30,3 +30,18 @@ export async function decideChangeOrderController(request: Request, response: Re
   const data = await changeOrderService.decide(request);
   response.json({ data });
 }
+
+export async function listChangeOrderAttachmentsController(request: Request, response: Response) {
+  const data = await changeOrderService.listAttachments(request);
+  response.json({ data });
+}
+
+export async function attachChangeOrderFileAssetController(request: Request, response: Response) {
+  const data = await changeOrderService.attachFileAsset(request);
+  response.status(201).json({ data });
+}
+
+export async function detachChangeOrderFileAssetController(request: Request, response: Response) {
+  const data = await changeOrderService.detachFileAsset(request);
+  response.json({ data });
+}

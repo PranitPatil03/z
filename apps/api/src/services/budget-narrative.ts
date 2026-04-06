@@ -1,6 +1,6 @@
 import { generateAiCompletion } from "@foreman/ai";
-import { and, eq } from "drizzle-orm";
-import { budgetAlerts, budgetCostCodes, changeOrders, invoices } from "@foreman/db";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { budgetAlerts, budgetCostCodes, budgetCostEntries, budgetProjectSettings, changeOrders, invoices } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest } from "../lib/errors";
@@ -21,6 +21,92 @@ function requireContext(request: Request) {
   return { orgId: session.activeOrganizationId };
 }
 
+function budgetNarrativeModel() {
+  return env.BUDGET_AI_MODEL ?? "gpt-4.1-mini";
+}
+
+function effectiveThresholdBps(costCodeThresholdBps: number, projectThresholdBps?: number | null) {
+  if (typeof projectThresholdBps !== "number") {
+    return costCodeThresholdBps;
+  }
+  return Math.min(costCodeThresholdBps, projectThresholdBps);
+}
+
+function severityFromVariancePercent(variancePercent: number) {
+  const overrunPercent = Math.max(0, variancePercent);
+  if (overrunPercent >= 20) {
+    return "critical";
+  }
+  if (overrunPercent >= 10) {
+    return "high";
+  }
+  if (overrunPercent >= 5) {
+    return "medium";
+  }
+  return "low";
+}
+
+async function loadProjectSetting(orgId: string, projectId: string) {
+  const [setting] = await db
+    .select()
+    .from(budgetProjectSettings)
+    .where(and(eq(budgetProjectSettings.organizationId, orgId), eq(budgetProjectSettings.projectId, projectId)))
+    .limit(1);
+
+  return setting ?? null;
+}
+
+async function buildNarrativeContext(orgId: string, projectId: string, costCodeId: string) {
+  const [entries, recentInvoices, recentChangeOrders] = await Promise.all([
+    db
+      .select()
+      .from(budgetCostEntries)
+      .where(
+        and(
+          eq(budgetCostEntries.organizationId, orgId),
+          eq(budgetCostEntries.projectId, projectId),
+          eq(budgetCostEntries.costCodeId, costCodeId),
+        ),
+      )
+      .orderBy(desc(budgetCostEntries.occurredAt), desc(budgetCostEntries.createdAt))
+      .limit(5),
+    db
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.projectId, projectId)))
+      .orderBy(desc(invoices.createdAt))
+      .limit(1),
+    db
+      .select()
+      .from(changeOrders)
+      .where(and(eq(changeOrders.organizationId, orgId), eq(changeOrders.projectId, projectId)))
+      .orderBy(desc(changeOrders.createdAt))
+      .limit(1),
+  ]);
+
+  const recentInvoice = recentInvoices[0];
+  const recentChangeOrder = recentChangeOrders[0];
+
+  const entryLines = entries.length > 0
+    ? entries
+        .map((entry) => {
+          const source = entry.sourceRef ?? entry.sourceId ?? "n/a";
+          return `- ${entry.entryType} ${entry.amountCents} (${entry.sourceType}:${source})`;
+        })
+        .join("\n")
+    : "- none";
+
+  return {
+    entryLines,
+    recentInvoiceLine: recentInvoice
+      ? `Recent invoice: #${recentInvoice.invoiceNumber} (${recentInvoice.status}) amount ${recentInvoice.totalAmountCents}`
+      : "Recent invoice: none",
+    recentChangeOrderLine: recentChangeOrder
+      ? `Recent change order: ${recentChangeOrder.title} (${recentChangeOrder.status}) impact ${recentChangeOrder.impactCostCents}`
+      : "Recent change order: none",
+  };
+}
+
 export const budgetNarrativeService = {
   async generateNarrative(costCodeId: string, orgId: string, dryRun: boolean = false) {
     const [costCode] = await db
@@ -32,16 +118,22 @@ export const budgetNarrativeService = {
       return { success: false, message: "Cost code not found" };
     }
 
+    const [projectSetting, narrativeContext] = await Promise.all([
+      loadProjectSetting(orgId, costCode.projectId),
+      buildNarrativeContext(orgId, costCode.projectId, costCode.id),
+    ]);
+
     const variance = costCode.budgetCents > 0
       ? ((costCode.actualCents - costCode.budgetCents) * 10000) / costCode.budgetCents
       : 0;
 
     const variancePercent = Math.round(variance / 100);
+    const effectiveThreshold = effectiveThresholdBps(costCode.alertThresholdBps, projectSetting?.alertThresholdBps);
 
     const [relevantInvoice] = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.projectId, costCode.projectId))
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.projectId, costCode.projectId)))
       .limit(1);
 
     const context = `
@@ -52,7 +144,12 @@ Actual Spend: $${(costCode.actualCents / 100).toFixed(2)}
 Variance: ${variancePercent}%
 Committed: $${(costCode.committedCents / 100).toFixed(2)}
 Billed: $${(costCode.billedCents / 100).toFixed(2)}
+Effective Alert Threshold: ${Math.round(effectiveThreshold / 100)}%
+Linked Entries:
+${narrativeContext.entryLines}
 ${relevantInvoice ? `Recent Invoice: #${relevantInvoice.invoiceNumber} for $${(relevantInvoice.totalAmountCents / 100).toFixed(2)}` : ""}
+${narrativeContext.recentInvoiceLine}
+${narrativeContext.recentChangeOrderLine}
     `;
 
     const prompt = `Generate a concise, non-technical narrative (2-3 sentences max) explaining this budget variance and its implications. Be specific about the numbers and actionable.
@@ -66,7 +163,8 @@ Format: Start with observation, mention root cause if obvious, end with action.`
         ? "[DRY RUN] Would generate narrative for " + costCode.code
         : await generateAiCompletion(
             {
-              model: "gpt-4-mini",
+              provider: env.BUDGET_AI_PROVIDER,
+              model: budgetNarrativeModel(),
               prompt,
               context: { costCodeId, orgId },
             },
@@ -80,7 +178,7 @@ Format: Start with observation, mention root cause if obvious, end with action.`
           );
 
       if (!dryRun) {
-        const severity = Math.abs(variancePercent) >= 20 ? "critical" : Math.abs(variancePercent) >= 10 ? "high" : "medium";
+        const severity = severityFromVariancePercent(variancePercent);
 
         const [alert] = await db
           .insert(budgetAlerts)
@@ -103,7 +201,7 @@ Format: Start with observation, mention root cause if obvious, end with action.`
       return {
         success: true,
         narrative: typeof narrative === "object" ? narrative.output : narrative,
-        severity: Math.abs(variancePercent) >= 20 ? "critical" : Math.abs(variancePercent) >= 10 ? "high" : "medium",
+        severity: severityFromVariancePercent(variancePercent),
         dryRun: true,
       };
     } catch (error) {
@@ -115,27 +213,33 @@ Format: Start with observation, mention root cause if obvious, end with action.`
   },
 
   async queueNarrativesForProject(orgId: string, projectId: string) {
-    const codes = await db
-      .select()
-      .from(budgetCostCodes)
-      .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, projectId)));
+    const [codes, projectSetting] = await Promise.all([
+      db
+        .select()
+        .from(budgetCostCodes)
+        .where(and(eq(budgetCostCodes.organizationId, orgId), eq(budgetCostCodes.projectId, projectId))),
+      loadProjectSetting(orgId, projectId),
+    ]);
 
     const queued = [];
     for (const code of codes) {
       const variance = code.budgetCents > 0 ? Math.abs((code.actualCents - code.budgetCents) * 10000) / code.budgetCents : 0;
+      const thresholdBps = effectiveThresholdBps(code.alertThresholdBps, projectSetting?.alertThresholdBps);
 
-      if (variance >= (code.alertThresholdBps ?? 500)) {
+      if (variance >= thresholdBps) {
         const jobId = await enqueueAiTask({
-          model: "gpt-4-mini",
+          provider: env.BUDGET_AI_PROVIDER,
+          model: budgetNarrativeModel(),
           prompt: `
 Cost Code Variance Alert: ${code.code} (${code.name})
 Budget: $${(code.budgetCents / 100).toFixed(2)}
 Actual: $${(code.actualCents / 100).toFixed(2)}
 Variance: ${Math.round(variance / 100)}%
+Threshold: ${Math.round(thresholdBps / 100)}%
 
 Generate a brief, actionable narrative explaining this variance and next steps.
           `,
-          context: { costCodeId: code.id, orgId, projectId, type: "budget_narrative" },
+          context: { costCodeId: code.id, organizationId: orgId, projectId, type: "budget_narrative" },
         });
 
         if (jobId) {
@@ -156,7 +260,8 @@ Generate a brief, actionable narrative explaining this variance and next steps.
     const allAlerts = await db
       .select()
       .from(budgetAlerts)
-      .where(and(eq(budgetAlerts.organizationId, orgId), eq(budgetAlerts.projectId, projectId)));
+      .where(and(eq(budgetAlerts.organizationId, orgId), eq(budgetAlerts.projectId, projectId)))
+      .orderBy(desc(budgetAlerts.createdAt));
 
     const seen = new Map<string, typeof allAlerts[0]>();
     const duplicates: string[] = [];
@@ -175,7 +280,9 @@ Generate a brief, actionable narrative explaining this variance and next steps.
     }
 
     if (duplicates.length > 0) {
-      await db.delete(budgetAlerts).where(eq(budgetAlerts.id, duplicates[0]));
+      await db
+        .delete(budgetAlerts)
+        .where(and(eq(budgetAlerts.organizationId, orgId), inArray(budgetAlerts.id, duplicates)));
     }
 
     return {

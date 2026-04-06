@@ -25,7 +25,14 @@ export async function enqueueAiTask(payload: {
   return job.id ?? null;
 }
 
-export async function enqueueNotificationDelivery(payload: { to: string; subject: string; body: string }) {
+export async function enqueueNotificationDelivery(payload: {
+  toEmail: string;
+  toUserId?: string;
+  subject: string;
+  body: string;
+  html?: string;
+  notificationId?: string;
+}) {
   if (!notificationDeliveryQueue) {
     return null;
   }

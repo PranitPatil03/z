@@ -160,7 +160,17 @@ export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "submitted",
 export const receiptStatusEnum = pgEnum("receipt_status", ["received", "verified", "rejected"]);
 export const matchRunResultEnum = pgEnum("match_run_result", ["matched", "partial_match", "over_bill", "under_receipt", "price_variance"]);
 export const subcontractorStatusEnum = pgEnum("subcontractor_status", ["active", "inactive", "blocked"]);
-export const complianceStatusEnum = pgEnum("compliance_status", ["pending", "compliant", "non_compliant", "expired"]);
+export const complianceStatusEnum = pgEnum("compliance_status", [
+  "pending",
+  "verified",
+  "expiring",
+  "expired",
+  "non_compliant",
+  "compliant",
+]);
+export const subcontractorInvitationStatusEnum = pgEnum("subcontractor_invitation_status", ["pending", "accepted", "expired", "revoked"]);
+export const payApplicationStatusEnum = pgEnum("pay_application_status", ["draft", "submitted", "under_review", "approved", "rejected", "paid"]);
+export const dailyLogReviewStatusEnum = pgEnum("daily_log_review_status", ["pending", "reviewed", "rejected"]);
 export const billingStatusEnum = pgEnum("billing_status", ["draft", "issued", "paid", "void"]);
 export const integrationStatusEnum = pgEnum("integration_status", ["connected", "disconnected", "error"]);
 export const siteSnapStatusEnum = pgEnum("site_snap_status", ["captured", "analyzing", "reviewed"]);
@@ -180,7 +190,20 @@ export const changeOrderStatusEnum = pgEnum("change_order_status", [
   "revision_requested",
   "closed",
 ]);
+export const budgetEntryTypeEnum = pgEnum("budget_entry_type", ["committed", "actual", "billed"]);
+export const budgetEntrySourceTypeEnum = pgEnum("budget_entry_source_type", [
+  "change_order",
+  "purchase_order",
+  "invoice",
+  "payment_application",
+  "manual",
+  "other",
+]);
 export const smartMailAccountStatusEnum = pgEnum("smartmail_account_status", ["connected", "disconnected", "error"]);
+export const fileAssetStatusEnum = pgEnum("file_asset_status", ["pending", "uploaded", "failed", "deleted"]);
+export const subscriptionPlanEnum = pgEnum("subscription_plan", ["starter", "growth", "enterprise"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "grace", "suspended"]);
+export const usageEventTypeEnum = pgEnum("usage_event_type", ["ai_generation"]);
 
 export const projects = pgTable(
   "projects",
@@ -405,7 +428,12 @@ export const complianceItems = pgTable(
     subcontractorId: text("subcontractor_id"),
     complianceType: text("compliance_type").notNull(),
     status: complianceStatusEnum("status").notNull().default("pending"),
+    highRisk: boolean("high_risk").notNull().default(false),
     dueDate: timestamp("due_date", { withTimezone: true }),
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    escalationSentAt: timestamp("escalation_sent_at", { withTimezone: true }),
+    reviewerConfirmedAt: timestamp("reviewer_confirmed_at", { withTimezone: true }),
+    reviewerConfirmedByUserId: text("reviewer_confirmed_by_user_id"),
     notes: text("notes"),
     evidence: jsonb("evidence").$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -415,6 +443,235 @@ export const complianceItems = pgTable(
   (table) => ({
     orgProjectIndex: index("compliance_items_org_project_idx").on(table.organizationId, table.projectId),
     subcontractorIndex: index("compliance_items_subcontractor_idx").on(table.subcontractorId),
+  }),
+);
+
+export const complianceRequirementTemplates = pgTable(
+  "compliance_requirement_templates",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    name: text("name").notNull(),
+    complianceType: text("compliance_type").notNull(),
+    defaultDueDays: integer("default_due_days").notNull().default(30),
+    required: boolean("required").notNull().default(true),
+    highRisk: boolean("high_risk").notNull().default(false),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdByUserId: text("created_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => ({
+    orgProjectIndex: index("compliance_requirement_templates_org_project_idx").on(table.organizationId, table.projectId),
+    complianceTypeIndex: index("compliance_requirement_templates_compliance_type_idx").on(table.complianceType),
+    uniqueTemplateName: uniqueIndex("compliance_requirement_templates_org_project_name_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.name,
+    ),
+  }),
+);
+
+export const subcontractorInvitations = pgTable(
+  "subcontractor_invitations",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    invitedByUserId: text("invited_by_user_id").notNull(),
+    email: text("email").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    status: subcontractorInvitationStatusEnum("status").notNull().default("pending"),
+    assignedScope: text("assigned_scope"),
+    milestones: jsonb("milestones").$type<string[] | null>(),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    invitedAt: timestamp("invited_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenHashUnique: uniqueIndex("subcontractor_invitations_token_hash_unique").on(table.tokenHash),
+    orgProjectIndex: index("subcontractor_invitations_org_project_idx").on(table.organizationId, table.projectId),
+    subcontractorIndex: index("subcontractor_invitations_subcontractor_idx").on(table.subcontractorId, table.createdAt),
+  }),
+);
+
+export const portalPasswordResetTokens = pgTable(
+  "portal_password_reset_tokens",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenHashUnique: uniqueIndex("portal_password_reset_tokens_token_hash_unique").on(table.tokenHash),
+    subcontractorIndex: index("portal_password_reset_tokens_subcontractor_idx").on(table.subcontractorId, table.createdAt),
+    orgExpiresIndex: index("portal_password_reset_tokens_org_expires_idx").on(table.organizationId, table.expiresAt),
+  }),
+);
+
+export const subcontractorPrequalificationScores = pgTable(
+  "subcontractor_prequalification_scores",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id"),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    overallScoreBps: integer("overall_score_bps").notNull(),
+    safetyScoreBps: integer("safety_score_bps"),
+    financialScoreBps: integer("financial_score_bps"),
+    complianceScoreBps: integer("compliance_score_bps"),
+    capacityScoreBps: integer("capacity_score_bps"),
+    riskLevel: text("risk_level").notNull().default("medium"),
+    modelVersion: text("model_version").notNull().default("v1"),
+    notes: text("notes"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    scoredByUserId: text("scored_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    subcontractorCreatedIndex: index("subcontractor_prequalification_scores_sub_idx").on(table.subcontractorId, table.createdAt),
+    orgProjectIndex: index("subcontractor_prequalification_scores_org_project_idx").on(table.organizationId, table.projectId),
+  }),
+);
+
+export const payApplications = pgTable(
+  "pay_applications",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    status: payApplicationStatusEnum("status").notNull().default("draft"),
+    totalAmountCents: integer("total_amount_cents").notNull().default(0),
+    currency: text("currency").notNull().default("USD"),
+    summary: text("summary"),
+    evidence: jsonb("evidence").$type<Record<string, unknown> | null>(),
+    rejectionReason: text("rejection_reason"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewerUserId: text("reviewer_user_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => ({
+    orgProjectIndex: index("pay_applications_org_project_idx").on(table.organizationId, table.projectId),
+    subcontractorIndex: index("pay_applications_subcontractor_idx").on(table.subcontractorId, table.createdAt),
+    statusIndex: index("pay_applications_status_idx").on(table.status, table.createdAt),
+  }),
+);
+
+export const payApplicationLineItems = pgTable(
+  "pay_application_line_items",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    payApplicationId: text("pay_application_id")
+      .notNull()
+      .references(() => payApplications.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    costCode: text("cost_code"),
+    quantityUnits: integer("quantity_units").notNull().default(1),
+    unitAmountCents: integer("unit_amount_cents"),
+    amountCents: integer("amount_cents").notNull(),
+    evidence: jsonb("evidence").$type<Record<string, unknown> | null>(),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    payApplicationIndex: index("pay_application_line_items_pay_app_idx").on(table.payApplicationId, table.createdAt),
+  }),
+);
+
+export const payApplicationStatusEvents = pgTable(
+  "pay_application_status_events",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    payApplicationId: text("pay_application_id")
+      .notNull()
+      .references(() => payApplications.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    status: payApplicationStatusEnum("status").notNull(),
+    actorType: text("actor_type").notNull(),
+    actorId: text("actor_id"),
+    reason: text("reason"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    payApplicationIndex: index("pay_application_status_events_pay_app_idx").on(table.payApplicationId, table.createdAt),
+    orgProjectIndex: index("pay_application_status_events_org_project_idx").on(table.organizationId, table.projectId),
+  }),
+);
+
+export const dailyLogs = pgTable(
+  "daily_logs",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    logDate: timestamp("log_date", { withTimezone: true }).notNull(),
+    laborCount: integer("labor_count").notNull().default(0),
+    equipmentUsed: jsonb("equipment_used").$type<string[] | null>(),
+    performedWork: text("performed_work").notNull(),
+    attachments: jsonb("attachments").$type<string[] | null>(),
+    reviewStatus: dailyLogReviewStatusEnum("review_status").notNull().default("pending"),
+    reviewNotes: text("review_notes"),
+    reviewerUserId: text("reviewer_user_id"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => ({
+    orgProjectDateIndex: index("daily_logs_org_project_date_idx").on(table.organizationId, table.projectId, table.logDate),
+    subcontractorIndex: index("daily_logs_subcontractor_idx").on(table.subcontractorId, table.logDate),
+    reviewStatusIndex: index("daily_logs_review_status_idx").on(table.reviewStatus, table.createdAt),
+  }),
+);
+
+export const dailyLogStatusEvents = pgTable(
+  "daily_log_status_events",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    dailyLogId: text("daily_log_id")
+      .notNull()
+      .references(() => dailyLogs.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    subcontractorId: text("subcontractor_id").notNull().references(() => subcontractors.id, { onDelete: "cascade" }),
+    status: dailyLogReviewStatusEnum("status").notNull(),
+    actorType: text("actor_type").notNull(),
+    actorId: text("actor_id"),
+    reason: text("reason"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    dailyLogIndex: index("daily_log_status_events_daily_log_idx").on(table.dailyLogId, table.createdAt),
+    orgProjectIndex: index("daily_log_status_events_org_project_idx").on(table.organizationId, table.projectId),
   }),
 );
 
@@ -584,6 +841,49 @@ export const budgetCostCodes = pgTable(
   }),
 );
 
+export const budgetProjectSettings = pgTable(
+  "budget_project_settings",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    alertThresholdBps: integer("alert_threshold_bps").notNull().default(500),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgProjectUnique: uniqueIndex("budget_project_settings_org_project_unique").on(table.organizationId, table.projectId),
+    orgProjectIndex: index("budget_project_settings_org_project_idx").on(table.organizationId, table.projectId),
+  }),
+);
+
+export const budgetCostEntries = pgTable(
+  "budget_cost_entries",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id").notNull(),
+    costCodeId: text("cost_code_id").notNull().references(() => budgetCostCodes.id, { onDelete: "cascade" }),
+    entryType: budgetEntryTypeEnum("entry_type").notNull(),
+    sourceType: budgetEntrySourceTypeEnum("source_type").notNull(),
+    sourceId: text("source_id"),
+    sourceRef: text("source_ref"),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("USD"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    notes: text("notes"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdByUserId: text("created_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgProjectIndex: index("budget_cost_entries_org_project_idx").on(table.organizationId, table.projectId),
+    costCodeIndex: index("budget_cost_entries_cost_code_idx").on(table.costCodeId, table.createdAt),
+    sourceIndex: index("budget_cost_entries_source_idx").on(table.sourceType, table.sourceId),
+  }),
+);
+
 export const budgetAlerts = pgTable(
   "budget_alerts",
   {
@@ -658,6 +958,87 @@ export const smartMailMessages = pgTable(
   },
   (table) => ({
     threadIndex: index("smartmail_messages_thread_idx").on(table.threadId),
+  }),
+);
+
+export const fileAssets = pgTable(
+  "file_assets",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    projectId: text("project_id"),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    uploadedByUserId: text("uploaded_by_user_id").notNull(),
+    bucket: text("bucket").notNull(),
+    storageKey: text("storage_key").notNull(),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull().default(0),
+    status: fileAssetStatusEnum("status").notNull().default("pending"),
+    eTag: text("etag"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => ({
+    orgEntityIndex: index("file_assets_org_entity_idx").on(
+      table.organizationId,
+      table.entityType,
+      table.entityId,
+    ),
+    orgStatusIndex: index("file_assets_org_status_idx").on(table.organizationId, table.status),
+    orgProjectIndex: index("file_assets_org_project_idx").on(table.organizationId, table.projectId),
+    bucketKeyUnique: uniqueIndex("file_assets_bucket_key_unique").on(table.bucket, table.storageKey),
+  }),
+);
+
+export const organizationSubscriptions = pgTable(
+  "organization_subscriptions",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    plan: subscriptionPlanEnum("plan").notNull().default("starter"),
+    status: subscriptionStatusEnum("status").notNull().default("active"),
+    aiCreditsIncluded: integer("ai_credits_included").notNull().default(1500),
+    aiCreditsUsed: integer("ai_credits_used").notNull().default(0),
+    allowOverage: boolean("allow_overage").notNull().default(false),
+    overagePriceCents: integer("overage_price_cents").notNull().default(0),
+    cycleStartAt: timestamp("cycle_start_at", { withTimezone: true }).notNull().defaultNow(),
+    cycleEndAt: timestamp("cycle_end_at", { withTimezone: true })
+      .notNull()
+      .default(sql`(now() + interval '30 days')`),
+    graceEndsAt: timestamp("grace_ends_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgUnique: uniqueIndex("organization_subscriptions_org_unique").on(table.organizationId),
+    orgStatusIndex: index("organization_subscriptions_org_status_idx").on(table.organizationId, table.status),
+    cycleEndIndex: index("organization_subscriptions_cycle_end_idx").on(table.cycleEndAt),
+  }),
+);
+
+export const usageEvents = pgTable(
+  "usage_events",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id").notNull(),
+    subscriptionId: text("subscription_id"),
+    eventType: usageEventTypeEnum("event_type").notNull(),
+    feature: text("feature").notNull(),
+    units: integer("units").notNull(),
+    source: text("source").notNull(),
+    model: text("model"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgCreatedIndex: index("usage_events_org_created_idx").on(table.organizationId, table.createdAt),
+    subscriptionIndex: index("usage_events_subscription_idx").on(table.subscriptionId),
   }),
 );
 

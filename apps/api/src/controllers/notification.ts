@@ -7,7 +7,7 @@ export async function listMyNotificationsController(request: Request, response: 
 }
 
 export async function createNotificationController(request: Request, response: Response) {
-  const data = await notificationService.create(request);
+  const data = await notificationService.createFromRequest(request);
   response.status(201).json({ data });
 }
 

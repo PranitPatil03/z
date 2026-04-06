@@ -5,7 +5,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { archiveProjectController, createProjectController, getProjectController, listProjectsController, updateProjectController } from "../controllers/project";
 import { createProjectSchema, projectIdParamsSchema, updateProjectSchema } from "../schemas/project.schema";
 
-export const projectsRouter = Router();
+export const projectsRouter: import("express").Router = Router();
 
 projectsRouter.use(requireAuth);
 

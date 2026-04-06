@@ -21,3 +21,5 @@ export { commandCenterRouter } from "./command-center";
 export { oauthRouter } from "./oauth";
 export { portalRouter } from "./portal";
 export { activityFeedRouter } from "./activity-feed";
+export { storageRouter } from "./storage";
+export { subconnectRouter } from "./subconnect";

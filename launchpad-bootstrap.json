@@ -1,0 +1,33 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowForemanIamProvisioning",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:GetPolicy",
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:AttachRolePolicy",
+        "iam:CreateUser",
+        "iam:GetUser",
+        "iam:AttachUserPolicy",
+        "iam:CreateAccessKey",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AllowBootstrapSelfInlinePolicy",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PutUserPolicy",
+        "iam:DeleteUserPolicy",
+        "iam:GetUserPolicy"
+      ],
+      "Resource": "arn:aws:iam::235689194792:user/launchpad"
+    }
+  ]
+}

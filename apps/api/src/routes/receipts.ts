@@ -11,7 +11,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { createReceiptSchema, receiptIdParamsSchema, updateReceiptSchema } from "../schemas/receipt.schema";
 
-export const receiptsRouter = Router();
+export const receiptsRouter: import("express").Router = Router();
 
 receiptsRouter.use(requireAuth);
 

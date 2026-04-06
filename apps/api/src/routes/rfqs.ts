@@ -11,7 +11,7 @@ import { validateBody, validateParams } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import { createRfqSchema, rfqIdParamsSchema, updateRfqSchema } from "../schemas/rfq.schema";
 
-export const rfqsRouter = Router();
+export const rfqsRouter: import("express").Router = Router();
 
 rfqsRouter.use(requireAuth);
 
