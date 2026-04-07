@@ -1,9 +1,17 @@
 import type { Request, Response } from "express";
 import { budgetNarrativeService } from "../services/budget-narrative";
+import type { ValidatedRequest } from "../lib/validate";
+
+type BudgetNarrativeRequest = ValidatedRequest & {
+  appContext?: {
+    orgId?: string;
+  };
+};
 
 export async function generateBudgetNarrativeController(request: Request, response: Response) {
-  const validated = ((request as any).validated?.params || {}) as Record<string, string>;
-  const appContext = ((request as any).appContext || {}) as Record<string, string>;
+  const typedRequest = request as BudgetNarrativeRequest;
+  const validated = (typedRequest.validated?.params || {}) as Record<string, string>;
+  const appContext = typedRequest.appContext || {};
   const costCodeId = validated.costCodeId || "";
   const orgId = appContext.orgId || "";
 
@@ -12,8 +20,9 @@ export async function generateBudgetNarrativeController(request: Request, respon
 }
 
 export async function queueBudgetNarrativesController(request: Request, response: Response) {
-  const validated = ((request as any).validated?.body || {}) as Record<string, string>;
-  const appContext = ((request as any).appContext || {}) as Record<string, string>;
+  const typedRequest = request as BudgetNarrativeRequest;
+  const validated = (typedRequest.validated?.body || {}) as Record<string, string>;
+  const appContext = typedRequest.appContext || {};
   const projectId = validated.projectId || "";
   const orgId = appContext.orgId || "";
 
@@ -22,8 +31,9 @@ export async function queueBudgetNarrativesController(request: Request, response
 }
 
 export async function deduplicateBudgetAlertsController(request: Request, response: Response) {
-  const validated = ((request as any).validated?.body || {}) as Record<string, string | number>;
-  const appContext = ((request as any).appContext || {}) as Record<string, string>;
+  const typedRequest = request as BudgetNarrativeRequest;
+  const validated = (typedRequest.validated?.body || {}) as Record<string, string | number>;
+  const appContext = typedRequest.appContext || {};
   const projectId = String(validated.projectId || "");
   const maxAgeHours = Number(validated.maxAgeHours || 24);
   const orgId = appContext.orgId || "";

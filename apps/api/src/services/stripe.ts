@@ -1,11 +1,15 @@
 import Stripe from "stripe";
-import { and, eq, isNull } from "drizzle-orm";
-import { billingRecords } from "@foreman/db";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { billingRecords, organizationSubscriptions, stripeWebhookEvents } from "@foreman/db";
 import { db } from "../database";
 import { env } from "../config/env";
 import { logger } from "../lib/logger";
 import { badRequest, unauthorized, notFound } from "../lib/errors";
 import { eventService } from "./events";
+
+const STRIPE_GRACE_PERIOD_DAYS = 7;
+
+type InternalSubscriptionStatus = "active" | "grace" | "suspended";
 
 function getStripeClient(): Stripe {
   if (!env.STRIPE_SECRET_KEY) {
@@ -32,6 +36,239 @@ function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
     return null;
   }
   return typeof subscription === "string" ? subscription : subscription.id;
+}
+
+function buildEventPayload(event: Stripe.Event) {
+  const object = event.data.object as { id?: string; object?: string };
+
+  return {
+    id: event.id,
+    type: event.type,
+    created: event.created,
+    livemode: event.livemode,
+    objectId: typeof object.id === "string" ? object.id : null,
+    objectType: typeof object.object === "string" ? object.object : null,
+  } satisfies Record<string, unknown>;
+}
+
+export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): InternalSubscriptionStatus {
+  if (status === "active" || status === "trialing") {
+    return "active";
+  }
+  if (status === "past_due" || status === "unpaid" || status === "incomplete") {
+    return "grace";
+  }
+  return "suspended";
+}
+
+export function inferSubscriptionPlan(planHint: string | null | undefined) {
+  const normalized = planHint?.toLowerCase() ?? "";
+  if (normalized.includes("enterprise")) {
+    return "enterprise" as const;
+  }
+  if (normalized.includes("growth") || normalized.includes("pro")) {
+    return "growth" as const;
+  }
+  return "starter" as const;
+}
+
+function getSubscriptionPlanHint(subscription: Stripe.Subscription) {
+  const firstPrice = subscription.items.data[0]?.price;
+  return (
+    subscription.metadata?.plan ??
+    firstPrice?.lookup_key ??
+    firstPrice?.nickname ??
+    firstPrice?.id ??
+    null
+  );
+}
+
+function getSubscriptionCustomerId(subscription: Stripe.Subscription) {
+  return typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id ?? null;
+}
+
+function getSubscriptionCycleBounds(subscription: Stripe.Subscription) {
+  const firstItem = subscription.items.data[0] as Stripe.SubscriptionItem & {
+    current_period_start?: number;
+    current_period_end?: number;
+  };
+
+  const now = new Date();
+  const cycleStartAt =
+    typeof firstItem?.current_period_start === "number"
+      ? new Date(firstItem.current_period_start * 1000)
+      : now;
+  const cycleEndAt =
+    typeof firstItem?.current_period_end === "number"
+      ? new Date(firstItem.current_period_end * 1000)
+      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  return {
+    cycleStartAt,
+    cycleEndAt,
+  };
+}
+
+async function resolveOrganizationIdForSubscription(subscription: Stripe.Subscription) {
+  const metadataOrganizationId = subscription.metadata?.organizationId;
+  if (metadataOrganizationId) {
+    return metadataOrganizationId;
+  }
+
+  const metadataBillingRecordId = subscription.metadata?.billingRecordId;
+  if (metadataBillingRecordId) {
+    const [recordByBillingId] = await db
+      .select({ organizationId: billingRecords.organizationId })
+      .from(billingRecords)
+      .where(eq(billingRecords.id, metadataBillingRecordId))
+      .limit(1);
+
+    if (recordByBillingId) {
+      return recordByBillingId.organizationId;
+    }
+  }
+
+  const [recordBySubscription] = await db
+    .select({ organizationId: billingRecords.organizationId })
+    .from(billingRecords)
+    .where(and(eq(billingRecords.subscriptionId, subscription.id), isNull(billingRecords.deletedAt)))
+    .limit(1);
+
+  return recordBySubscription?.organizationId ?? null;
+}
+
+async function upsertOrganizationSubscriptionStatus(
+  organizationId: string,
+  status: InternalSubscriptionStatus,
+  metadata?: Record<string, unknown>,
+) {
+  const now = new Date();
+  const graceEndsAt =
+    status === "grace" ? new Date(now.getTime() + STRIPE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000) : null;
+
+  await db
+    .insert(organizationSubscriptions)
+    .values({
+      organizationId,
+      status,
+      graceEndsAt,
+      metadata: metadata ?? null,
+    })
+    .onConflictDoUpdate({
+      target: organizationSubscriptions.organizationId,
+      set: {
+        status,
+        graceEndsAt,
+        metadata: metadata ?? null,
+        updatedAt: now,
+      },
+    });
+}
+
+async function syncOrganizationSubscriptionByStripeSubscription(subscription: Stripe.Subscription) {
+  const organizationId = await resolveOrganizationIdForSubscription(subscription);
+  if (!organizationId) {
+    logger.warn({ subscriptionId: subscription.id }, "Unable to resolve organization for Stripe subscription");
+    return;
+  }
+
+  const status = mapStripeSubscriptionStatus(subscription.status);
+  const plan = inferSubscriptionPlan(getSubscriptionPlanHint(subscription));
+  const now = new Date();
+  const cycleBounds = getSubscriptionCycleBounds(subscription);
+  const graceEndsAt =
+    status === "grace" ? new Date(now.getTime() + STRIPE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000) : null;
+
+  await db
+    .insert(organizationSubscriptions)
+    .values({
+      organizationId,
+      plan,
+      status,
+      cycleStartAt: cycleBounds.cycleStartAt,
+      cycleEndAt: cycleBounds.cycleEndAt,
+      graceEndsAt,
+      metadata: {
+        stripeSubscriptionId: subscription.id,
+        stripeCustomerId: getSubscriptionCustomerId(subscription),
+        stripePlanHint: getSubscriptionPlanHint(subscription),
+      },
+    })
+    .onConflictDoUpdate({
+      target: organizationSubscriptions.organizationId,
+      set: {
+        plan,
+        status,
+        cycleStartAt: cycleBounds.cycleStartAt,
+        cycleEndAt: cycleBounds.cycleEndAt,
+        graceEndsAt,
+        metadata: {
+          stripeSubscriptionId: subscription.id,
+          stripeCustomerId: getSubscriptionCustomerId(subscription),
+          stripePlanHint: getSubscriptionPlanHint(subscription),
+        },
+        updatedAt: now,
+      },
+    });
+}
+
+async function syncOrganizationSubscriptionByBillingSubscriptionId(
+  billingSubscriptionId: string,
+  status: InternalSubscriptionStatus,
+) {
+  const [record] = await db
+    .select({ organizationId: billingRecords.organizationId })
+    .from(billingRecords)
+    .where(and(eq(billingRecords.subscriptionId, billingSubscriptionId), isNull(billingRecords.deletedAt)))
+    .limit(1);
+
+  if (!record) {
+    return;
+  }
+
+  await upsertOrganizationSubscriptionStatus(record.organizationId, status, {
+    stripeSubscriptionId: billingSubscriptionId,
+  });
+}
+
+async function processWebhookEvent(event: Stripe.Event) {
+  let handlerResult: Record<string, unknown> | undefined;
+
+  switch (event.type) {
+    case "payment_intent.succeeded":
+      await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+      break;
+
+    case "payment_intent.payment_failed":
+      await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+      break;
+
+    case "invoice.payment_succeeded":
+      await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+      break;
+
+    case "invoice.payment_failed":
+      await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+      break;
+
+    case "customer.subscription.created":
+      await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+      break;
+
+    case "customer.subscription.updated":
+      await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+      break;
+
+    case "customer.subscription.deleted":
+      await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+      break;
+
+    default:
+      logger.warn({ eventType: event.type }, "Unhandled Stripe webhook event type");
+      handlerResult = { handled: false };
+  }
+
+  return handlerResult;
 }
 
 // Helper functions
@@ -125,6 +362,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       },
     });
   }
+
+  await syncOrganizationSubscriptionByBillingSubscriptionId(subscriptionId, "active");
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
@@ -157,17 +396,29 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
       },
     });
   }
+
+  await syncOrganizationSubscriptionByBillingSubscriptionId(subscriptionId, "grace");
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  await syncOrganizationSubscriptionByStripeSubscription(subscription);
   logger.info({ subscriptionId: subscription.id }, "Stripe subscription created");
 }
 
-function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  await syncOrganizationSubscriptionByStripeSubscription(subscription);
   logger.info({ subscriptionId: subscription.id }, "Stripe subscription updated");
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  const organizationId = await resolveOrganizationIdForSubscription(subscription);
+  if (organizationId) {
+    await upsertOrganizationSubscriptionStatus(organizationId, "suspended", {
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: getSubscriptionCustomerId(subscription),
+    });
+  }
+
   // Cancel associated billing records
   const billingRecordId = subscription.metadata?.billingRecordId;
   if (billingRecordId) {
@@ -179,6 +430,18 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
         updatedAt: new Date(),
       })
       .where(eq(billingRecords.id, billingRecordId));
+  }
+
+  if (organizationId) {
+    await eventService.emit({
+      event: "subscription.cancelled",
+      organizationId,
+      title: "Subscription Cancelled",
+      message: `Stripe subscription ${subscription.id} has been cancelled.`,
+      metadata: {
+        stripeSubscriptionId: subscription.id,
+      },
+    });
   }
 }
 
@@ -256,6 +519,18 @@ export const stripeService = {
     billingRecordId: string,
   ) {
     try {
+      const [record] = await db
+        .select({
+          organizationId: billingRecords.organizationId,
+        })
+        .from(billingRecords)
+        .where(eq(billingRecords.id, billingRecordId))
+        .limit(1);
+
+      if (!record) {
+        throw notFound("Billing record not found");
+      }
+
       const subscription = await stripe().subscriptions.create({
         customer: stripeCustomerId,
         items: [
@@ -266,6 +541,7 @@ export const stripeService = {
         metadata: {
           billingRecordId,
           type: "recurring",
+          organizationId: record.organizationId,
         },
       });
 
@@ -290,31 +566,151 @@ export const stripeService = {
    * Handle Stripe webhook events
    */
   async handleWebhookEvent(event: Stripe.Event) {
-    switch (event.type) {
-      case "payment_intent.succeeded":
-        return await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+    const [insertedEvent] = await db
+      .insert(stripeWebhookEvents)
+      .values({
+        stripeEventId: event.id,
+        eventType: event.type,
+        processingStatus: "processing",
+        payload: buildEventPayload(event),
+      })
+      .onConflictDoNothing()
+      .returning({ id: stripeWebhookEvents.id });
 
-      case "payment_intent.payment_failed":
-        return await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+    if (!insertedEvent) {
+      logger.info({ eventId: event.id, eventType: event.type }, "Skipping duplicate Stripe webhook event");
+      return { acknowledged: true, duplicate: true, eventId: event.id };
+    }
 
-      case "invoice.payment_succeeded":
-        return await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+    try {
+      const handlerResult = await processWebhookEvent(event);
 
-      case "invoice.payment_failed":
-        return await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+      await db
+        .update(stripeWebhookEvents)
+        .set({
+          processingStatus: "processed",
+          processedAt: new Date(),
+          error: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(stripeWebhookEvents.id, insertedEvent.id));
 
-      case "customer.subscription.created":
-        return handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+      return {
+        acknowledged: true,
+        duplicate: false,
+        eventId: event.id,
+        ...(handlerResult ?? {}),
+      };
+    } catch (error) {
+      await db
+        .update(stripeWebhookEvents)
+        .set({
+          processingStatus: "failed",
+          error: error instanceof Error ? error.message : "Unknown webhook processing error",
+          updatedAt: new Date(),
+        })
+        .where(eq(stripeWebhookEvents.id, insertedEvent.id));
 
-      case "customer.subscription.updated":
-        return handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+      throw error;
+    }
+  },
 
-      case "customer.subscription.deleted":
-        return await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+  async listWebhookEvents(options: {
+    status?: "processing" | "processed" | "failed";
+    limit: number;
+  }) {
+    const rows = options.status
+      ? await db
+          .select({
+            id: stripeWebhookEvents.id,
+            stripeEventId: stripeWebhookEvents.stripeEventId,
+            eventType: stripeWebhookEvents.eventType,
+            processingStatus: stripeWebhookEvents.processingStatus,
+            error: stripeWebhookEvents.error,
+            processedAt: stripeWebhookEvents.processedAt,
+            createdAt: stripeWebhookEvents.createdAt,
+            updatedAt: stripeWebhookEvents.updatedAt,
+          })
+          .from(stripeWebhookEvents)
+          .where(eq(stripeWebhookEvents.processingStatus, options.status))
+          .orderBy(desc(stripeWebhookEvents.createdAt))
+          .limit(options.limit)
+      : await db
+          .select({
+            id: stripeWebhookEvents.id,
+            stripeEventId: stripeWebhookEvents.stripeEventId,
+            eventType: stripeWebhookEvents.eventType,
+            processingStatus: stripeWebhookEvents.processingStatus,
+            error: stripeWebhookEvents.error,
+            processedAt: stripeWebhookEvents.processedAt,
+            createdAt: stripeWebhookEvents.createdAt,
+            updatedAt: stripeWebhookEvents.updatedAt,
+          })
+          .from(stripeWebhookEvents)
+          .orderBy(desc(stripeWebhookEvents.createdAt))
+          .limit(options.limit);
 
-      default:
-        logger.warn({ eventType: event.type }, "Unhandled Stripe webhook event type");
-        return { acknowledged: true };
+    return {
+      items: rows,
+      total: rows.length,
+    };
+  },
+
+  async retryWebhookEvent(eventId: string) {
+    const [storedEvent] = await db
+      .select({
+        id: stripeWebhookEvents.id,
+        stripeEventId: stripeWebhookEvents.stripeEventId,
+      })
+      .from(stripeWebhookEvents)
+      .where(eq(stripeWebhookEvents.id, eventId))
+      .limit(1);
+
+    if (!storedEvent) {
+      throw notFound("Stripe webhook event not found");
+    }
+
+    await db
+      .update(stripeWebhookEvents)
+      .set({
+        processingStatus: "processing",
+        error: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(stripeWebhookEvents.id, storedEvent.id));
+
+    try {
+      const event = await stripe().events.retrieve(storedEvent.stripeEventId);
+      const handlerResult = await processWebhookEvent(event);
+
+      await db
+        .update(stripeWebhookEvents)
+        .set({
+          processingStatus: "processed",
+          processedAt: new Date(),
+          error: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(stripeWebhookEvents.id, storedEvent.id));
+
+      return {
+        retried: true,
+        eventId: storedEvent.stripeEventId,
+        ...(handlerResult ?? {}),
+      };
+    } catch (error) {
+      await db
+        .update(stripeWebhookEvents)
+        .set({
+          processingStatus: "failed",
+          error: error instanceof Error ? error.message : "Unknown webhook processing error",
+          updatedAt: new Date(),
+        })
+        .where(eq(stripeWebhookEvents.id, storedEvent.id));
+
+      throw badRequest(
+        `Failed to retry webhook event: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   },
 

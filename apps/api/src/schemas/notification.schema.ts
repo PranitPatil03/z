@@ -11,3 +11,22 @@ export const createNotificationSchema = z.object({
   body: z.string().min(2),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
+
+const notificationChannelPreferenceSchema = z.object({
+  inApp: z.boolean().default(true),
+  email: z.boolean().default(true),
+});
+
+export const updateNotificationPreferencesSchema = z
+  .object({
+    defaults: notificationChannelPreferenceSchema.optional(),
+    events: z.record(z.string(), notificationChannelPreferenceSchema).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.defaults === undefined && value.events === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one field must be provided",
+      });
+    }
+  });

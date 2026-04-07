@@ -17,9 +17,15 @@ The Foreman backend is a comprehensive Express API built with TypeScript, featur
 | Module 3 | Budget cost control (threshold policy, ledger entries, drilldown, narratives, dedupe) | 100% | Added project-level threshold settings, source-linked budget entries, drilldown/reconciliation enrichment, queue + worker narrative persistence, and deployable DB migration. |
 | Module 4 | SubConnect (invite lifecycle, templates/automation, prequalification, pay apps, daily logs, AI extraction) | 100% | Completed: tokenized invites + acceptance, project-code policy registration + reset, compliance templates + auto-apply, compliance lifecycle automation + reminders/escalations, prequalification scoring model, pay application submit/review timeline, daily logs submit/review timeline, and insurance AI extraction with reviewer confirmation gates. |
 | Module 5 | SmartMail production workflows (OAuth lifecycle, sync/send, deterministic linking, templates, scheduler auto-sync) | 100% | Completed in this cycle with provider helpers, OAuth hardening, API/worker integration, DB migration, and focused SmartMail test coverage. |
-| Module 6 | Command Center analytics expansion (project health scoring + portfolio risk view) | 20% | Kickoff completed: new `/command-center/health` and `/command-center/portfolio` endpoints, scoring helpers, and unit/schema tests. |
+| Module 6 | Command Center analytics expansion (project health scoring + portfolio risk view) | 100% | Completed: project overview + health + portfolio + trends endpoints with validated contracts, risk pressure trend series, and expanded schema/unit test coverage. |
+| Module 7 | Billing reliability hardening (Stripe webhook idempotency + strict Stripe route contracts) | 100% | Completed: idempotent webhook persistence, Stripe payload validation, webhook event operations (list/retry), subscription lifecycle sync, and test coverage for new contracts/helpers. |
+| Module 8 | Activity Feed hardening (validated contracts + paginated filtering + health metric accuracy) | 100% | Completed: validated filter contracts, paginated entity timeline endpoint, normalized feed payloads, explainable health factors, and added service/schema tests. |
 
-Overall backend module progress: **Modules 1-5 complete, Module 6 in progress**
+Overall backend module progress: **Modules 1-8 complete**
+
+API contract readiness: **OpenAPI 3.0.3 docs are now served live at `/openapi.json` with interactive docs at `/docs`**, generated from mounted routes and Zod validators.
+
+Engineering documentation readiness: **Complete backend and frontend integration handbooks are now available in** [08-backend-frontend-build-handbook.md](08-backend-frontend-build-handbook.md) **and** [09-api-integration-reference.md](09-api-integration-reference.md).
 
 ---
 
@@ -199,55 +205,42 @@ GET  /audit-log/:auditLogId
 
 ---
 
-## 🟡 Partially Implemented / Infrastructure Ready
+## ✅ Completed In Current Cycle
 
 ### 6. **Billing & Payment Processing**
-**Status: SCAFFOLDED - Ready for Stripe Integration**
+**Status: COMPLETE**
 
 **Location:**
-- Service: [apps/api/src/services/billing.ts](apps/api/src/services/billing.ts)
-- Controller: [apps/api/src/controllers/billing.ts](apps/api/src/controllers/billing.ts)
+- Service: [apps/api/src/services/stripe.ts](apps/api/src/services/stripe.ts)
+- Controller: [apps/api/src/controllers/stripe.ts](apps/api/src/controllers/stripe.ts)
 - Routes: [apps/api/src/routes/billing.ts](apps/api/src/routes/billing.ts)
 - Schema: [apps/api/src/schemas/billing.schema.ts](apps/api/src/schemas/billing.schema.ts)
-- Database: [packages/db/src/schema.ts](packages/db/src/schema.ts) (billingRecords ~840)
+- Database: [packages/db/src/schema.ts](packages/db/src/schema.ts)
 
 **Implemented:**
-- ✅ Billing record CRUD (draft, issued, paid, void statuses)
-- ✅ Amount tracking in cents (amountCents)
-- ✅ Due date & paid date tracking
-- ✅ Reference field (invoice ID, PO link)
-- ✅ Metadata support
-
-**Configuration:**
-- Stripe SDK installed: `stripe@^18.5.0` ✓
-- Environment variables ready: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-
-**Still Needed:**
-- ❌ Stripe webhook handler (`/billing/webhooks/stripe`)
-- ❌ Payment intent creation
-- ❌ Invoice generation
-- ❌ Stripe webhook event types (charge.succeeded, charge.failed, invoice.paid)
-- ❌ Payment status sync from Stripe
-- ❌ Subscription management (if applicable)
-
-**API Endpoints (Existing):**
-```
-GET    /billing/
-POST   /billing/                           { projectId, reference, amountCents, ... }
-GET    /billing/:billingRecordId
-PATCH  /billing/:billingRecordId           { status, paidAt, ... }
-DELETE /billing/:billingRecordId           (soft delete via deletedAt)
-```
+- ✅ Stripe webhook idempotency persistence (`stripe_webhook_events` table + processing lifecycle)
+- ✅ Strict Stripe request contracts for payment intent, subscription, webhook event operations
+- ✅ Webhook event operations: list events and retry failed events
+- ✅ Subscription status synchronization into organization subscription entitlements
+- ✅ Payment and invoice webhook handling with state updates and system event emission
 
 ---
 
 ### 7. **Activity Feed / Event Log**
-**Status: NOT FOUND - Can Use AuditLog**
+**Status: COMPLETE**
 
-The codebase does **not** have a dedicated activity/event feed table. However:
-- **Audit Logs** provide full trail: [packages/db/src/schema.ts](packages/db/src/schema.ts)
-- Can be used as activity feed with UI filters
-- Recommendation: Add activity-specific table for user-facing feed if audit logs are too verbose
+**Location:**
+- Service: [apps/api/src/services/activity-feed.ts](apps/api/src/services/activity-feed.ts)
+- Controller: [apps/api/src/controllers/activity-feed.ts](apps/api/src/controllers/activity-feed.ts)
+- Routes: [apps/api/src/routes/activity-feed.ts](apps/api/src/routes/activity-feed.ts)
+- Schema: [apps/api/src/schemas/activity-feed.schema.ts](apps/api/src/schemas/activity-feed.schema.ts)
+
+**Implemented:**
+- ✅ Fully validated list endpoint with page, pageSize, action, entity, actor, project, and date range filters
+- ✅ Entity timeline endpoint with pagination and filter support
+- ✅ Normalized `{ data }` responses for all activity feed endpoints
+- ✅ Explainable health score factors and recommendation output
+- ✅ Health metric fixes for pending change orders and true over-budget detection
 
 ---
 

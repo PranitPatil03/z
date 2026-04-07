@@ -1,8 +1,7 @@
-import { eq } from "drizzle-orm";
-import { users, notifications } from "@foreman/db";
+import { and, eq } from "drizzle-orm";
+import { members, projectMembers } from "@foreman/db";
 import { db } from "../database";
 import { logger } from "../lib/logger";
-import { enqueueNotificationDelivery } from "../lib/queues";
 import { notificationService } from "./notification";
 
 export type NotificationEvent =
@@ -26,6 +25,87 @@ export interface EventPayload {
   message: string;
   metadata?: Record<string, unknown>;
   recipients?: string[]; // User IDs to notify
+}
+
+const ORG_SCOPED_ROLES = new Set(["owner", "admin", "member"]);
+const PROJECT_SCOPED_ROLES = new Set(["pm", "field_supervisor", "viewer"]);
+
+function parseScopedRole(value: string) {
+  const [scope, role] = value.split(":");
+  if (!scope || !role) {
+    return null;
+  }
+
+  return { scope, role };
+}
+
+function metadataProjectId(payload: EventPayload) {
+  const metadata = payload.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const projectId = (metadata as Record<string, unknown>).projectId;
+  return typeof projectId === "string" && projectId.length > 0 ? projectId : null;
+}
+
+async function resolveRecipientsByRole(payload: EventPayload, roleHint: string) {
+  const recipients = new Set(payload.recipients ?? []);
+  if (recipients.size > 0) {
+    return [...recipients];
+  }
+
+  const parsedRole = parseScopedRole(roleHint);
+
+  if (!parsedRole || parsedRole.scope !== "org") {
+    return [...recipients];
+  }
+
+  if (ORG_SCOPED_ROLES.has(parsedRole.role)) {
+    const rows = await db
+      .select({ userId: members.userId })
+      .from(members)
+      .where(and(eq(members.organizationId, payload.organizationId), eq(members.role, parsedRole.role)));
+
+    for (const row of rows) {
+      recipients.add(row.userId);
+    }
+
+    return [...recipients];
+  }
+
+  if (PROJECT_SCOPED_ROLES.has(parsedRole.role)) {
+    const projectId = metadataProjectId(payload);
+    if (projectId) {
+      const rows = await db
+        .select({ userId: projectMembers.userId })
+        .from(projectMembers)
+        .where(
+          and(
+            eq(projectMembers.organizationId, payload.organizationId),
+            eq(projectMembers.projectId, projectId),
+            eq(projectMembers.role, parsedRole.role),
+          ),
+        );
+
+      for (const row of rows) {
+        recipients.add(row.userId);
+      }
+
+      return [...recipients];
+    }
+  }
+
+  const fallbackRows = await db
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.organizationId, payload.organizationId), eq(members.role, "admin")));
+
+  for (const row of fallbackRows) {
+    recipients.add(row.userId);
+  }
+
+  return [...recipients];
 }
 
 // Event handler registry
@@ -82,9 +162,11 @@ async function notifyUsers(payload: EventPayload, defaultTitle: string) {
 }
 
 async function notifyUsersWithRole(payload: EventPayload, role: string, defaultTitle: string) {
-  // In a real implementation, look up users with specific role
-  // For now, fall back to explicit recipients
-  await notifyUsers(payload, defaultTitle);
+  const resolvedRecipients = await resolveRecipientsByRole(payload, role);
+  await notifyUsers({
+    ...payload,
+    recipients: resolvedRecipients,
+  }, defaultTitle);
 }
 
 export const eventService = {

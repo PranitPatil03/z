@@ -1,19 +1,29 @@
 import type { Request, Response } from "express";
 import { activityFeedService } from "../services/activity-feed";
+import type { ValidatedRequest } from "../lib/validate";
+
+function readValidatedParams<T>(request: Request) {
+  return (request as ValidatedRequest).validated?.params as T;
+}
 
 export async function getActivityFeedController(request: Request, response: Response) {
-  const { pageSize } = request.query as { pageSize?: string };
-  const activities = await activityFeedService.getActivityFeed(request, parseInt(pageSize || "50", 10));
-  response.json({ activities });
+  const data = await activityFeedService.getActivityFeed(request);
+  response.json({ data });
 }
 
 export async function getHealthScoreController(request: Request, response: Response) {
-  const health = await activityFeedService.getHealthScore(request);
-  response.json(health);
+  const data = await activityFeedService.getHealthScore(request);
+  response.json({ data });
+}
+
+export async function getEntityTimelineController(request: Request, response: Response) {
+  const { entityType, entityId } = readValidatedParams<{ entityType: string; entityId: string }>(request);
+  const data = await activityFeedService.getEntityTimeline(request, entityType, entityId);
+  response.json({ data });
 }
 
 export async function getProjectHealthController(request: Request, response: Response) {
-  const { projectId } = request.params as { projectId: string };
-  const health = await activityFeedService.getProjectHealth(request, projectId);
-  response.json(health);
+  const { projectId } = readValidatedParams<{ projectId: string }>(request);
+  const data = await activityFeedService.getProjectHealth(request, projectId);
+  response.json({ data });
 }

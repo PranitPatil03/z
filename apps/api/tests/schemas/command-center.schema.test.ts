@@ -3,6 +3,7 @@ import {
   commandCenterHealthQuerySchema,
   commandCenterOverviewQuerySchema,
   commandCenterPortfolioQuerySchema,
+  commandCenterTrendsQuerySchema,
 } from "../../src/schemas/command-center.schema";
 
 describe("command center schemas", () => {
@@ -22,5 +23,13 @@ describe("command center schemas", () => {
 
     expect(parsed.limit).toBe(10);
     expect(parsed.windowDays).toBe(30);
+  });
+
+  it("applies trends defaults and validates interval", () => {
+    const parsed = commandCenterTrendsQuerySchema.parse({ projectId: "proj-1" });
+
+    expect(parsed.windowDays).toBe(30);
+    expect(parsed.interval).toBe("day");
+    expect(() => commandCenterTrendsQuerySchema.parse({ projectId: "proj-1", interval: "month" })).toThrow();
   });
 });

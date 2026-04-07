@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { invoices, matchRuns, purchaseOrders, receipts } from "@foreman/db";
+import { auditLogs, invoices, matchRuns, purchaseOrders, receipts } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
@@ -134,6 +134,26 @@ export const matchRunService = {
         createdByUserId: userId,
       })
       .returning();
+
+    await db.insert(auditLogs).values({
+      organizationId: orgId,
+      actorUserId: userId,
+      entityType: "match_run",
+      entityId: record.id,
+      action: "create",
+      beforeData: null,
+      afterData: {
+        result: record.result,
+        toleranceBps: record.toleranceBps,
+        varianceCents: record.varianceCents,
+      },
+      metadata: {
+        projectId: record.projectId,
+        invoiceId: record.invoiceId,
+        purchaseOrderId: record.purchaseOrderId,
+        receiptId: record.receiptId,
+      },
+    });
 
     return record;
   },

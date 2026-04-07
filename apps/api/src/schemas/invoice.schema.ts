@@ -26,4 +26,14 @@ export const updateInvoiceSchema = z.object({
   totalAmountCents: z.number().int().nonnegative().optional(),
   status: z.enum(["draft", "submitted", "approved", "rejected", "paid", "hold"]).optional(),
   dueDate: z.string().datetime().optional(),
+  allowPayOverride: z.boolean().optional(),
+  payOverrideReason: z.string().min(8).max(1000).optional(),
+}).superRefine((value, context) => {
+  if (value.allowPayOverride === true && !value.payOverrideReason) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "payOverrideReason is required when allowPayOverride is true",
+      path: ["payOverrideReason"],
+    });
+  }
 });

@@ -3,6 +3,7 @@ import {
   getCommandCenterHealthController,
   getCommandCenterOverviewController,
   getCommandCenterPortfolioController,
+  getCommandCenterTrendsController,
 } from "../controllers/command-center";
 import { asyncHandler } from "../lib/async-handler";
 import { validateQuery } from "../lib/validate";
@@ -11,6 +12,7 @@ import {
   commandCenterHealthQuerySchema,
   commandCenterOverviewQuerySchema,
   commandCenterPortfolioQuerySchema,
+  commandCenterTrendsQuerySchema,
 } from "../schemas/command-center.schema";
 
 export const commandCenterRouter: import("express").Router = Router();
@@ -33,4 +35,10 @@ commandCenterRouter.get(
   "/portfolio",
   validateQuery(commandCenterPortfolioQuerySchema),
   asyncHandler(getCommandCenterPortfolioController),
+);
+
+commandCenterRouter.get(
+  "/trends",
+  validateQuery(commandCenterTrendsQuerySchema),
+  asyncHandler(getCommandCenterTrendsController),
 );

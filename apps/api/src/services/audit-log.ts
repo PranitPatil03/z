@@ -1,4 +1,4 @@
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { auditLogs } from "@foreman/db";
 import type { Request } from "express";
 import { db } from "../database";
@@ -37,8 +37,20 @@ export const auditLogService = {
     if (query.entityType) {
       filters.push(eq(auditLogs.entityType, query.entityType));
     }
+    if (query.entityId) {
+      filters.push(eq(auditLogs.entityId, query.entityId));
+    }
+    if (query.actorUserId) {
+      filters.push(eq(auditLogs.actorUserId, query.actorUserId));
+    }
     if (query.action) {
       filters.push(eq(auditLogs.action, query.action));
+    }
+    if (query.from) {
+      filters.push(gte(auditLogs.createdAt, new Date(query.from)));
+    }
+    if (query.to) {
+      filters.push(lte(auditLogs.createdAt, new Date(query.to)));
     }
 
     const { cursorCondition, orderBy, limit } = buildCursorPagination(auditLogs.id, query);
