@@ -13,10 +13,13 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "db:migrate": "pnpm --filter @foreman/api db:migrate",
-    "db:generate": "pnpm --filter @foreman/api db:generate"
+    "db:generate": "pnpm --filter @foreman/api db:generate",
+    "db:seed": "pnpm --filter @foreman/api db:seed",
+    "db:seed:append": "pnpm --filter @foreman/api db:seed:append"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "dotenv-cli": "^11.0.0",
     "turbo": "^2.4.4",
     "typescript": "^5.8.3"
   },

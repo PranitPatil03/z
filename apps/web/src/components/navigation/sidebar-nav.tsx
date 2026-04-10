@@ -1,7 +1,6 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { moduleRegistry } from "@/config/module-registry";
+import { NAV_GROUPS, moduleRegistry } from "@/config/module-registry";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/ui-store";
 import { LayoutDashboard } from "lucide-react";
@@ -15,50 +14,62 @@ export function SidebarNav() {
   return (
     <aside
       className={cn(
-        "hidden border-r border-border/70 bg-card/90 px-3 py-4 backdrop-blur lg:block",
-        isSidebarCollapsed ? "w-[88px]" : "w-[300px]",
+        "hidden shrink-0 flex-col border-r border-border/60 bg-card px-2 py-4 lg:flex",
+        isSidebarCollapsed ? "w-[60px]" : "w-[220px]",
       )}
     >
-      <div className="mb-4 flex items-center justify-between px-2">
-        <Link
-          href="/app"
-          className="flex items-center gap-2 text-sm font-semibold text-foreground"
-        >
-          <span className="rounded-lg bg-primary/15 p-1.5 text-primary">
-            <LayoutDashboard className="h-4 w-4" />
-          </span>
-          {!isSidebarCollapsed && <span>Foreman Console</span>}
-        </Link>
+      {/* Logo */}
+      <div className="mb-4 flex items-center gap-2 px-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <LayoutDashboard className="h-3.5 w-3.5" />
+        </div>
+        {!isSidebarCollapsed && (
+          <span className="text-sm font-semibold text-foreground">Foreman</span>
+        )}
       </div>
 
-      <nav className="space-y-1">
-        {moduleRegistry.map((module) => {
-          const active = pathname === module.routePath;
-          const Icon = module.icon;
+      {/* Nav groups */}
+      <nav className="flex-1 space-y-4 overflow-y-auto">
+        {NAV_GROUPS.map((group) => {
+          const items = moduleRegistry.filter((m) => m.group === group.key);
+          if (items.length === 0) return null;
 
           return (
-            <Link
-              key={module.key}
-              href={module.routePath}
-              className={cn(
-                "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all",
-                active
-                  ? "bg-primary/10 text-primary ring-1 ring-primary/30"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
+            <div key={group.key}>
               {!isSidebarCollapsed && (
-                <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium">
-                    {module.title}
-                  </span>
-                  <Badge variant={module.progress > 0 ? "success" : "outline"}>
-                    {module.priority}
-                  </Badge>
-                </div>
+                <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  {group.label}
+                </p>
               )}
-            </Link>
+              <div className="space-y-0.5">
+                {items.map((module) => {
+                  const isActive =
+                    module.routePath === "/app"
+                      ? pathname === "/app"
+                      : pathname.startsWith(module.routePath);
+                  const Icon = module.icon;
+
+                  return (
+                    <Link
+                      key={module.key}
+                      href={module.routePath}
+                      title={isSidebarCollapsed ? module.title : undefined}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {!isSidebarCollapsed && (
+                        <span className="truncate">{module.title}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>

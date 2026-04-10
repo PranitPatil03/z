@@ -78,12 +78,12 @@ export function DashboardPage() {
 
         <Card className="glass-card">
           <CardHeader className="pb-3">
-            <CardDescription>M0 Status</CardDescription>
-            <CardTitle className="text-3xl">In Progress</CardTitle>
+            <CardDescription>Auth</CardDescription>
+            <CardTitle className="text-3xl">Live</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-xs text-muted-foreground">
             <Activity className="h-3.5 w-3.5" />
-            Theme, API, state, shell complete
+            Better Auth, sessions, orgs
           </CardContent>
         </Card>
       </section>
@@ -98,7 +98,7 @@ export function DashboardPage() {
             </p>
           </div>
           <Button asChild variant="secondary">
-            <Link href="/app/module/m0-foundation">Open M0 Module</Link>
+            <Link href="/app/command-center">Open Command Center</Link>
           </Button>
         </div>
 

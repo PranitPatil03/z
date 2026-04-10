@@ -5,23 +5,26 @@ import { persist } from "zustand/middleware";
 export interface SessionUser {
   id: string;
   name: string;
-  role: string;
+  email: string;
+  image?: string | null;
 }
 
 interface SessionState {
+  // Portal mode: bearer token for subcontractor JWT auth
   authMode: ApiAuthMode;
   portalToken: string | null;
-  user: SessionUser | null;
+  // Active org context (used to scope API requests via x-org-id header or session)
+  activeOrganizationId: string | null;
   setAuthMode: (authMode: ApiAuthMode) => void;
   setPortalToken: (token: string | null) => void;
-  setUser: (user: SessionUser | null) => void;
+  setActiveOrganizationId: (id: string | null) => void;
   clearSession: () => void;
 }
 
 const initialState = {
   authMode: "internal" as ApiAuthMode,
   portalToken: null,
-  user: null,
+  activeOrganizationId: null,
 };
 
 export const useSessionStore = create<SessionState>()(
@@ -30,7 +33,8 @@ export const useSessionStore = create<SessionState>()(
       ...initialState,
       setAuthMode: (authMode) => set({ authMode }),
       setPortalToken: (portalToken) => set({ portalToken }),
-      setUser: (user) => set({ user }),
+      setActiveOrganizationId: (activeOrganizationId) =>
+        set({ activeOrganizationId }),
       clearSession: () => set(initialState),
     }),
     {
@@ -38,7 +42,7 @@ export const useSessionStore = create<SessionState>()(
       partialize: (state) => ({
         authMode: state.authMode,
         portalToken: state.portalToken,
-        user: state.user,
+        activeOrganizationId: state.activeOrganizationId,
       }),
     },
   ),
