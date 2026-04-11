@@ -17,18 +17,24 @@ export async function requestDataWithInit<T>(
   return response.data;
 }
 
-export function toQueryString(
-  params?: Record<string, string | number | boolean | undefined | null>,
-) {
+export function toQueryString(params?: object) {
   if (!params) {
     return "";
   }
 
+  const filteredEntries = Object.entries(params).filter(([, value]) => {
+    return (
+      value !== undefined &&
+      value !== null &&
+      (typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean")
+    );
+  });
+
   const filtered = Object.fromEntries(
-    Object.entries(params).filter(
-      ([, value]) => value !== undefined && value !== null,
-    ),
-  ) as Record<string, string>;
+    filteredEntries.map(([key, value]) => [key, String(value)]),
+  );
 
   const query = new URLSearchParams(filtered).toString();
   return query.length > 0 ? `?${query}` : "";

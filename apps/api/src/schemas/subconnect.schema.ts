@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-export const subconnectInvitationStatusSchema = z.enum(["pending", "accepted", "expired", "revoked"]);
+export const subconnectInvitationStatusSchema = z.enum([
+  "pending",
+  "accepted",
+  "expired",
+  "revoked",
+]);
 
 export const listSubconnectInvitationsQuerySchema = z.object({
   projectId: z.string().min(1).optional(),
@@ -30,7 +35,16 @@ export const subcontractorIdParamsSchema = z.object({
 export const listInternalPayApplicationsQuerySchema = z.object({
   projectId: z.string().min(1).optional(),
   subcontractorId: z.string().min(1).optional(),
-  status: z.enum(["draft", "submitted", "under_review", "approved", "rejected", "paid"]).optional(),
+  status: z
+    .enum([
+      "draft",
+      "submitted",
+      "under_review",
+      "approved",
+      "rejected",
+      "paid",
+    ])
+    .optional(),
   limit: z.number().int().min(1).max(200).default(100),
 });
 

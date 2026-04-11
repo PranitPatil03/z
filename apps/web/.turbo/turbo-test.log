@@ -1,0 +1,298 @@
+
+
+> @foreman/web@0.1.0 test /Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/web
+> vitest run
+
+[?25l
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/web[39m
+
+[?2026h
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m1.31s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m2.24s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m3.28s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m3.80s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m3.91s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m4.11s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m4.22s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 0/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m4.44s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/features/portal/lib/portal-utils.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m1 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m3 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m4.54s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/features/change-orders/lib/change-order-utils.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m2 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m7 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m4.64s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/test/smoke/critical-journeys.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/api/modules/integrations-api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m 0/3[22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m4 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m13 passed[39m[22m[90m (20)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m4.84s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/lib/api/modules/oauth-api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m6 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m20 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m5.25s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[90mstderr[2m | src/lib/api/http-client.test.ts[2m > [22m[2mrequestJson[2m > [22m[2mcan suppress auth redirect handling
+[22m[39m[Foreman][Diagnostic] {
+  type: [32m'api-request-error'[39m,
+  timestamp: [32m'2026-04-11T07:37:49.059Z'[39m,
+  message: [32m'Missing session'[39m,
+  details: { path: [32m'/projects'[39m, status: [33m401[39m, code: [32m'UNAUTHORIZED'[39m }
+}
+
+[90mstderr[2m | src/lib/api/http-client.test.ts[2m > [22m[2mrequestJson[2m > [22m[2mclears portal session and redirects on portal auth failure
+[22m[39m[Foreman][Diagnostic] {
+  type: [32m'api-request-error'[39m,
+  timestamp: [32m'2026-04-11T07:37:49.062Z'[39m,
+  message: [32m'Token expired'[39m,
+  details: { path: [32m'/portal/overview'[39m, status: [33m401[39m, code: [32m'UNAUTHORIZED'[39m }
+}
+
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m6 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m20 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m5.25s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/lib/api/http-client.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/features/change-orders/lib/change-order-utils.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/features/portal/lib/portal-utils.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/http-client.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/integrations-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/oauth-api.test.ts[2m 3/3[22m
+[1m[33m ❯ [39m[22msrc/test/smoke/critical-journeys.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m6 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m20 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m5.25s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/components/ui/data-table.qa.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 650[2mms[22m[39m
+   [33m[2m✓[22m[39m data table qa checks[2m > [22mrenders large list within acceptable performance budget [33m 455[2mms[22m[39m
+
+
+
+
+
+[1m[33m ❯ [39m[22msrc/components/ui/data-table.qa.test.tsx[2m 4/4[22m
+
+[2m Test Files [22m[1m[32m7 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m6.27s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+
+
+
+
+[1m[33m ❯ [39m[22msrc/lib/api/modules/billing-api.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m7 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m6.48s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+
+
+[1m[33m ❯ [39m[22msrc/lib/api/modules/billing-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/portal-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/smartmail-api.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m7 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m6.90s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/features/procurement/lib/procurement-forms.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/workspace/lib/workspace-forms.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/billing-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/portal-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/smartmail-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/auth/route-guards.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m7 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m7.13s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/features/procurement/lib/procurement-forms.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/workspace/lib/workspace-forms.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/billing-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/portal-api.test.ts[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/smartmail-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/auth/route-guards.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m7 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m24 passed[39m[22m[90m (28)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m7.23s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/lib/api/modules/billing-api.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/lib/api/modules/portal-api.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/features/procurement/lib/procurement-forms.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/features/workspace/lib/workspace-forms.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/billing-api.test.ts[2m 5/5[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/portal-api.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/smartmail-api.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/auth/route-guards.test.ts[2m 0/3[22m
+
+[2m Test Files [22m[1m[32m9 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m33 passed[39m[22m[90m (36)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m7.43s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/lib/auth/route-guards.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/features/workspace/lib/workspace-forms.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/api/modules/smartmail-api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/features/procurement/lib/procurement-forms.test.ts[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/billing-api.test.ts[2m 5/5[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/portal-api.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/lib/auth/route-guards.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m12 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m45 passed[39m[22m[90m (49)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m7.53s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/features/procurement/lib/procurement-forms.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/features/budgets/lib/budgets-utils.test.ts[2m 0/4[22m
+[1m[33m ❯ [39m[22msrc/lib/api/modules/portal-api.test.ts[2m 4/4[22m
+[1m[33m ❯ [39m[22msrc/lib/auth/route-guards.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m13 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m49 passed[39m[22m[90m (53)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m7.73s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/features/budgets/lib/budgets-utils.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/features/ops-intelligence/lib/ops-intelligence-utils.test.ts[2m [queued][22m
+[1m[33m ❯ [39m[22msrc/lib/auth/route-guards.test.ts[2m 3/3[22m
+
+[2m Test Files [22m[1m[32m14 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m53 passed[39m[22m[90m (53)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m8.03s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/features/sitesnap/lib/sitesnap-utils.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/features/ops-intelligence/lib/ops-intelligence-utils.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/features/subconnect/lib/subconnect-utils.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[1m[33m ❯ [39m[22msrc/config/module-registry.test.ts[2m [queued][22m
+
+[2m Test Files [22m[1m[32m17 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m[1m[32m64 passed[39m[22m[90m (64)[39m
+[2m   Start at [22m13:07:44
+[2m   Duration [22m8.23s
+[?2026l[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/config/module-registry.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m [1m[32m66 passed[39m[22m[90m (66)[39m
+[2m   Start at [22m 13:07:43
+[2m   Duration [22m 8.54s[2m (transform 1.53s, setup 4.72s, collect 3.89s, tests 890ms, environment 26.91s, prepare 10.84s)[22m
+
+[?25h

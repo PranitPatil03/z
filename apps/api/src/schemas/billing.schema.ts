@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const subscriptionPlanSchema = z.enum(["starter", "growth", "enterprise"]);
+export const subscriptionPlanSchema = z.enum([
+  "starter",
+  "growth",
+  "enterprise",
+]);
 
 export const billingRecordIdParamsSchema = z.object({
   billingRecordId: z.string().min(1),
@@ -35,6 +39,7 @@ export const createStripeSubscriptionSchema = z.object({
   stripeCustomerId: z.string().min(1),
   priceId: z.string().min(1),
   billingRecordId: z.string().min(1),
+  addOnPriceIds: z.array(z.string().min(1)).optional(),
 });
 
 export const listStripeWebhookEventsQuerySchema = z.object({

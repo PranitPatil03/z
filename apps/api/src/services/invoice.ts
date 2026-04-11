@@ -1,12 +1,17 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
 import { auditLogs, invoices, matchRuns, members } from "@foreman/db";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, forbidden, notFound } from "../lib/errors";
 import { buildCursorPagination, paginatedResponse } from "../lib/pagination";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { createInvoiceSchema, invoiceIdParamsSchema, listInvoicesQuerySchema, updateInvoiceSchema } from "../schemas/invoice.schema";
+import {
+  createInvoiceSchema,
+  invoiceIdParamsSchema,
+  listInvoicesQuerySchema,
+  updateInvoiceSchema,
+} from "../schemas/invoice.schema";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -37,7 +42,12 @@ async function ensurePayableTransitionAllowed(input: {
   const [latestMatchRun] = await db
     .select({ id: matchRuns.id, result: matchRuns.result })
     .from(matchRuns)
-    .where(and(eq(matchRuns.organizationId, input.orgId), eq(matchRuns.invoiceId, input.invoiceId)))
+    .where(
+      and(
+        eq(matchRuns.organizationId, input.orgId),
+        eq(matchRuns.invoiceId, input.invoiceId),
+      ),
+    )
     .orderBy(desc(matchRuns.createdAt))
     .limit(1);
 
@@ -50,17 +60,26 @@ async function ensurePayableTransitionAllowed(input: {
   }
 
   if (!input.allowPayOverride) {
-    throw badRequest("Invoice cannot be marked paid without a matched 3-way run or authorized override");
+    throw badRequest(
+      "Invoice cannot be marked paid without a matched 3-way run or authorized override",
+    );
   }
 
   if (!input.payOverrideReason) {
-    throw badRequest("payOverrideReason is required when overriding payable gate");
+    throw badRequest(
+      "payOverrideReason is required when overriding payable gate",
+    );
   }
 
   const [membership] = await db
     .select({ role: members.role })
     .from(members)
-    .where(and(eq(members.organizationId, input.orgId), eq(members.userId, input.userId)))
+    .where(
+      and(
+        eq(members.organizationId, input.orgId),
+        eq(members.userId, input.userId),
+      ),
+    )
     .limit(1);
 
   if (!membership || !["owner", "admin"].includes(membership.role)) {
@@ -77,13 +96,22 @@ async function ensurePayableTransitionAllowed(input: {
 export const invoiceService = {
   async list(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listInvoicesQuerySchema.parse((request as ValidatedRequest).validated?.query || request.query);
+    const query = listInvoicesQuerySchema.parse(
+      (request as ValidatedRequest).validated?.query || request.query,
+    );
 
-    const conditions = [eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)];
-    if (query.projectId) conditions.push(eq(invoices.projectId, query.projectId));
+    const conditions = [
+      eq(invoices.organizationId, orgId),
+      isNull(invoices.deletedAt),
+    ];
+    if (query.projectId)
+      conditions.push(eq(invoices.projectId, query.projectId));
     if (query.status) conditions.push(eq(invoices.status, query.status));
 
-    const { cursorCondition, orderBy, limit } = buildCursorPagination(invoices.id, query);
+    const { cursorCondition, orderBy, limit } = buildCursorPagination(
+      invoices.id,
+      query,
+    );
     if (cursorCondition) conditions.push(cursorCondition);
 
     const items = await db
@@ -142,7 +170,13 @@ export const invoiceService = {
     const [record] = await db
       .select()
       .from(invoices)
-      .where(and(eq(invoices.id, params.invoiceId), eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)));
+      .where(
+        and(
+          eq(invoices.id, params.invoiceId),
+          eq(invoices.organizationId, orgId),
+          isNull(invoices.deletedAt),
+        ),
+      );
 
     if (!record) {
       throw notFound("Invoice not found");
@@ -159,14 +193,21 @@ export const invoiceService = {
     const [existing] = await db
       .select()
       .from(invoices)
-      .where(and(eq(invoices.id, params.invoiceId), eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)))
+      .where(
+        and(
+          eq(invoices.id, params.invoiceId),
+          eq(invoices.organizationId, orgId),
+          isNull(invoices.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existing) {
       throw notFound("Invoice not found");
     }
 
-    const statusTransitionToPaid = body.status === "paid" && existing.status !== "paid";
+    const statusTransitionToPaid =
+      body.status === "paid" && existing.status !== "paid";
 
     const payableGate = statusTransitionToPaid
       ? await ensurePayableTransitionAllowed({
@@ -192,10 +233,21 @@ export const invoiceService = {
       .update(invoices)
       .set({
         ...persistedBody,
-        dueDate: persistedBody.dueDate === undefined ? undefined : persistedBody.dueDate ? new Date(persistedBody.dueDate) : null,
+        dueDate:
+          persistedBody.dueDate === undefined
+            ? undefined
+            : persistedBody.dueDate
+              ? new Date(persistedBody.dueDate)
+              : null,
         updatedAt: new Date(),
       })
-      .where(and(eq(invoices.id, params.invoiceId), eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)))
+      .where(
+        and(
+          eq(invoices.id, params.invoiceId),
+          eq(invoices.organizationId, orgId),
+          isNull(invoices.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -203,7 +255,12 @@ export const invoiceService = {
     }
 
     const statusChanged = existing.status !== record.status;
-    if (statusChanged || body.vendorName !== undefined || body.totalAmountCents !== undefined || body.currency !== undefined) {
+    if (
+      statusChanged ||
+      body.vendorName !== undefined ||
+      body.totalAmountCents !== undefined ||
+      body.currency !== undefined
+    ) {
       await db.insert(auditLogs).values({
         organizationId: orgId,
         actorUserId: userId,
@@ -239,7 +296,13 @@ export const invoiceService = {
     const [existing] = await db
       .select()
       .from(invoices)
-      .where(and(eq(invoices.id, params.invoiceId), eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)))
+      .where(
+        and(
+          eq(invoices.id, params.invoiceId),
+          eq(invoices.organizationId, orgId),
+          isNull(invoices.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existing) {
@@ -249,7 +312,13 @@ export const invoiceService = {
     const [record] = await db
       .update(invoices)
       .set({ status: "hold", deletedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(invoices.id, params.invoiceId), eq(invoices.organizationId, orgId), isNull(invoices.deletedAt)))
+      .where(
+        and(
+          eq(invoices.id, params.invoiceId),
+          eq(invoices.organizationId, orgId),
+          isNull(invoices.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {

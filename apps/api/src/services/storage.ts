@@ -1,7 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { and, eq, isNull } from "drizzle-orm";
 import { fileAssets } from "@foreman/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
@@ -61,7 +61,9 @@ export const storageService = {
 
     const maxUploadBytes = getMaxUploadBytes();
     if (body.sizeBytes > maxUploadBytes) {
-      throw badRequest(`File too large. Max upload size is ${Math.floor(maxUploadBytes / 1024 / 1024)}MB`);
+      throw badRequest(
+        `File too large. Max upload size is ${Math.floor(maxUploadBytes / 1024 / 1024)}MB`,
+      );
     }
 
     const [asset] = await db

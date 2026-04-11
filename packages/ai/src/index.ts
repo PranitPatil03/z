@@ -1,4 +1,8 @@
-export type LlmProviderName = "openai" | "anthropic" | "gemini" | "azure-openai";
+export type LlmProviderName =
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "azure-openai";
 
 export interface AiRequest {
   provider?: LlmProviderName;
@@ -40,8 +44,11 @@ export function listSupportedProviders(): LlmProviderName[] {
 }
 
 export function buildEstimateBrief(input: EstimateBriefInput) {
-  const budget = input.budgetCents ? `$${(input.budgetCents / 100).toFixed(2)}` : "not provided";
-  const constraints = input.constraints.length > 0 ? input.constraints.join(", ") : "none";
+  const budget = input.budgetCents
+    ? `$${(input.budgetCents / 100).toFixed(2)}`
+    : "not provided";
+  const constraints =
+    input.constraints.length > 0 ? input.constraints.join(", ") : "none";
 
   return [
     `Project: ${input.projectName}`,
@@ -60,7 +67,10 @@ export function routeAiRequest(request: AiRequest): AiResponse {
   const provider = request.provider ?? "openai";
   const style = providerStyles[provider];
   const contextKeys = request.context ? Object.keys(request.context) : [];
-  const contextLine = contextKeys.length > 0 ? `Context keys: ${contextKeys.join(", ")}.` : "No context provided.";
+  const contextLine =
+    contextKeys.length > 0
+      ? `Context keys: ${contextKeys.join(", ")}.`
+      : "No context provided.";
   const output = [
     `Provider style: ${style}.`,
     contextLine,
@@ -82,17 +92,24 @@ async function parseOpenAiResponse(response: Response) {
 async function parseAnthropicResponse(response: Response) {
   const payload = await response.json();
   const textNode = Array.isArray(payload?.content)
-    ? payload.content.find((item: { type?: string; text?: string }) => item?.type === "text")
+    ? payload.content.find(
+        (item: { type?: string; text?: string }) => item?.type === "text",
+      )
     : null;
   return textNode?.text as string | undefined;
 }
 
 async function parseGeminiResponse(response: Response) {
   const payload = await response.json();
-  return payload?.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+  return payload?.candidates?.[0]?.content?.parts?.[0]?.text as
+    | string
+    | undefined;
 }
 
-export async function generateAiCompletion(request: AiRequest, credentials: AiProviderCredentials): Promise<AiResponse> {
+export async function generateAiCompletion(
+  request: AiRequest,
+  credentials: AiProviderCredentials,
+): Promise<AiResponse> {
   const provider = request.provider ?? "openai";
   const fallback = routeAiRequest(request);
 
@@ -167,7 +184,11 @@ export async function generateAiCompletion(request: AiRequest, credentials: AiPr
     return fallback;
   }
 
-  if (provider === "azure-openai" && credentials.azureOpenAiApiKey && credentials.azureOpenAiEndpoint) {
+  if (
+    provider === "azure-openai" &&
+    credentials.azureOpenAiApiKey &&
+    credentials.azureOpenAiEndpoint
+  ) {
     const endpoint = `${credentials.azureOpenAiEndpoint.replace(/\/$/, "")}/openai/deployments/${encodeURIComponent(request.model)}/chat/completions?api-version=2024-10-21`;
 
     const response = await fetch(endpoint, {

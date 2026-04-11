@@ -2,8 +2,8 @@ import { Router } from "express";
 import {
   attachChangeOrderFileAssetController,
   createChangeOrderController,
-  detachChangeOrderFileAssetController,
   decideChangeOrderController,
+  detachChangeOrderFileAssetController,
   getChangeOrderController,
   listChangeOrderAttachmentsController,
   listChangeOrdersController,
@@ -27,9 +27,21 @@ export const changeOrdersRouter: import("express").Router = Router();
 
 changeOrdersRouter.use(requireAuth);
 
-changeOrdersRouter.get("/", validateQuery(listChangeOrdersQuerySchema), asyncHandler(listChangeOrdersController));
-changeOrdersRouter.post("/", validateBody(createChangeOrderSchema), asyncHandler(createChangeOrderController));
-changeOrdersRouter.get("/:changeOrderId", validateParams(changeOrderIdParamsSchema), asyncHandler(getChangeOrderController));
+changeOrdersRouter.get(
+  "/",
+  validateQuery(listChangeOrdersQuerySchema),
+  asyncHandler(listChangeOrdersController),
+);
+changeOrdersRouter.post(
+  "/",
+  validateBody(createChangeOrderSchema),
+  asyncHandler(createChangeOrderController),
+);
+changeOrdersRouter.get(
+  "/:changeOrderId",
+  validateParams(changeOrderIdParamsSchema),
+  asyncHandler(getChangeOrderController),
+);
 changeOrdersRouter.patch(
   "/:changeOrderId",
   validateParams(changeOrderIdParamsSchema),

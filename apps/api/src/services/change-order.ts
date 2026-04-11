@@ -1,4 +1,9 @@
-import { budgetCostCodes, changeOrders, fileAssets, projects } from "@foreman/db";
+import {
+  budgetCostCodes,
+  changeOrders,
+  fileAssets,
+  projects,
+} from "@foreman/db";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { env } from "../config/env";
@@ -55,8 +60,7 @@ function toMetadata(raw: unknown): ChangeOrderMetadata {
 }
 
 function parseApprovalStagesFromEnv() {
-  const configured = env.CHANGE_ORDER_APPROVAL_STAGES
-    ?.split(",")
+  const configured = env.CHANGE_ORDER_APPROVAL_STAGES?.split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 
@@ -92,24 +96,30 @@ function parseStageSlaHoursFromEnv() {
   return output;
 }
 
-function resolveRoutingPolicy(metadata: ChangeOrderMetadata, override?: unknown): RoutingPolicy {
+function resolveRoutingPolicy(
+  metadata: ChangeOrderMetadata,
+  override?: unknown,
+): RoutingPolicy {
   const baseFromMetadata =
     metadata.routingPolicy && typeof metadata.routingPolicy === "object"
       ? (metadata.routingPolicy as Record<string, unknown>)
       : null;
 
   const approvalStagesFromOverride =
-    override && typeof override === "object" && Array.isArray((override as Record<string, unknown>).approvalStages)
+    override &&
+    typeof override === "object" &&
+    Array.isArray((override as Record<string, unknown>).approvalStages)
       ? ((override as Record<string, unknown>).approvalStages as unknown[])
           .map((value) => (typeof value === "string" ? value.trim() : ""))
           .filter(Boolean)
       : [];
 
-  const approvalStagesFromMetadata = baseFromMetadata && Array.isArray(baseFromMetadata.approvalStages)
-    ? (baseFromMetadata.approvalStages as unknown[])
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
-        .filter(Boolean)
-    : [];
+  const approvalStagesFromMetadata =
+    baseFromMetadata && Array.isArray(baseFromMetadata.approvalStages)
+      ? (baseFromMetadata.approvalStages as unknown[])
+          .map((value) => (typeof value === "string" ? value.trim() : ""))
+          .filter(Boolean)
+      : [];
 
   const approvalStages =
     approvalStagesFromOverride.length > 0
@@ -122,8 +132,13 @@ function resolveRoutingPolicy(metadata: ChangeOrderMetadata, override?: unknown)
     ...parseStageSlaHoursFromEnv(),
   };
 
-  if (baseFromMetadata?.stageSlaHours && typeof baseFromMetadata.stageSlaHours === "object") {
-    for (const [stage, rawHours] of Object.entries(baseFromMetadata.stageSlaHours as Record<string, unknown>)) {
+  if (
+    baseFromMetadata?.stageSlaHours &&
+    typeof baseFromMetadata.stageSlaHours === "object"
+  ) {
+    for (const [stage, rawHours] of Object.entries(
+      baseFromMetadata.stageSlaHours as Record<string, unknown>,
+    )) {
       const hours = Number(rawHours);
       if (Number.isFinite(hours) && hours > 0) {
         stageSlaHours[stage] = Math.round(hours);
@@ -132,9 +147,12 @@ function resolveRoutingPolicy(metadata: ChangeOrderMetadata, override?: unknown)
   }
 
   if (override && typeof override === "object") {
-    const rawStageSlaHours = (override as Record<string, unknown>).stageSlaHours;
+    const rawStageSlaHours = (override as Record<string, unknown>)
+      .stageSlaHours;
     if (rawStageSlaHours && typeof rawStageSlaHours === "object") {
-      for (const [stage, rawHours] of Object.entries(rawStageSlaHours as Record<string, unknown>)) {
+      for (const [stage, rawHours] of Object.entries(
+        rawStageSlaHours as Record<string, unknown>,
+      )) {
         const hours = Number(rawHours);
         if (Number.isFinite(hours) && hours > 0) {
           stageSlaHours[stage] = Math.round(hours);
@@ -164,7 +182,11 @@ function buildDecisionHistoryEntry(input: {
   };
 }
 
-function computeStageDeadline(stage: string, policy: RoutingPolicy, from: Date) {
+function computeStageDeadline(
+  stage: string,
+  policy: RoutingPolicy,
+  from: Date,
+) {
   const defaultHours = env.CHANGE_ORDER_DEFAULT_STAGE_SLA_HOURS ?? 48;
   const stageHours = policy.stageSlaHours[stage] ?? defaultHours;
 
@@ -173,23 +195,40 @@ function computeStageDeadline(stage: string, policy: RoutingPolicy, from: Date) 
   return deadline;
 }
 
-function resolveCurrentStageIndex(record: typeof changeOrders.$inferSelect, policy: RoutingPolicy, metadata: ChangeOrderMetadata) {
+function resolveCurrentStageIndex(
+  record: typeof changeOrders.$inferSelect,
+  policy: RoutingPolicy,
+  metadata: ChangeOrderMetadata,
+) {
   const approvalFlow =
     metadata.approvalFlow && typeof metadata.approvalFlow === "object"
       ? (metadata.approvalFlow as Record<string, unknown>)
       : null;
 
   const fromMetadata = approvalFlow?.currentStageIndex;
-  if (typeof fromMetadata === "number" && Number.isInteger(fromMetadata) && fromMetadata >= 0) {
-    return Math.min(fromMetadata, Math.max(0, policy.approvalStages.length - 1));
+  if (
+    typeof fromMetadata === "number" &&
+    Number.isInteger(fromMetadata) &&
+    fromMetadata >= 0
+  ) {
+    return Math.min(
+      fromMetadata,
+      Math.max(0, policy.approvalStages.length - 1),
+    );
   }
 
-  const fromPipeline = policy.approvalStages.findIndex((stage) => stage === record.pipelineStage);
+  const fromPipeline = policy.approvalStages.findIndex(
+    (stage) => stage === record.pipelineStage,
+  );
   return fromPipeline >= 0 ? fromPipeline : 0;
 }
 
 function extractCostCodeId(metadata: ChangeOrderMetadata) {
-  const candidates = [metadata.costCodeId, metadata.budgetCostCodeId, metadata.cost_code_id];
+  const candidates = [
+    metadata.costCodeId,
+    metadata.budgetCostCodeId,
+    metadata.cost_code_id,
+  ];
   for (const value of candidates) {
     if (typeof value === "string" && value.trim().length > 0) {
       return value.trim();
@@ -240,13 +279,20 @@ async function applyFinalApprovalHooks(input: {
     const [project] = await db
       .select()
       .from(projects)
-      .where(and(eq(projects.id, input.record.projectId), eq(projects.organizationId, input.orgId)))
+      .where(
+        and(
+          eq(projects.id, input.record.projectId),
+          eq(projects.organizationId, input.orgId),
+        ),
+      )
       .limit(1);
 
     if (project) {
       const baseEndDate = project.endDate ?? new Date();
       const updatedEndDate = new Date(baseEndDate);
-      updatedEndDate.setUTCDate(updatedEndDate.getUTCDate() + input.record.impactDays);
+      updatedEndDate.setUTCDate(
+        updatedEndDate.getUTCDate() + input.record.impactDays,
+      );
 
       await db
         .update(projects)
@@ -254,7 +300,12 @@ async function applyFinalApprovalHooks(input: {
           endDate: updatedEndDate,
           updatedAt: new Date(),
         })
-        .where(and(eq(projects.id, project.id), eq(projects.organizationId, input.orgId)));
+        .where(
+          and(
+            eq(projects.id, project.id),
+            eq(projects.organizationId, input.orgId),
+          ),
+        );
 
       hooks.projectScheduleApplied = true;
       hooks.projectId = project.id;
@@ -269,7 +320,12 @@ async function loadChangeOrderOrThrow(orgId: string, changeOrderId: string) {
   const [record] = await db
     .select()
     .from(changeOrders)
-    .where(and(eq(changeOrders.id, changeOrderId), eq(changeOrders.organizationId, orgId)))
+    .where(
+      and(
+        eq(changeOrders.id, changeOrderId),
+        eq(changeOrders.organizationId, orgId),
+      ),
+    )
     .limit(1);
 
   if (!record) {
@@ -282,12 +338,19 @@ async function loadChangeOrderOrThrow(orgId: string, changeOrderId: string) {
 export const changeOrderService = {
   async list(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listChangeOrdersQuerySchema.parse(readValidatedQuery(request));
+    const query = listChangeOrdersQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
     return await db
       .select()
       .from(changeOrders)
-      .where(and(eq(changeOrders.organizationId, orgId), eq(changeOrders.projectId, query.projectId)));
+      .where(
+        and(
+          eq(changeOrders.organizationId, orgId),
+          eq(changeOrders.projectId, query.projectId),
+        ),
+      );
   },
 
   async create(request: Request) {
@@ -295,7 +358,10 @@ export const changeOrderService = {
     const body = createChangeOrderSchema.parse(readValidatedBody(request));
 
     const baseMetadata = toMetadata(body.metadata);
-    const routingPolicy = resolveRoutingPolicy(baseMetadata, body.routingPolicy);
+    const routingPolicy = resolveRoutingPolicy(
+      baseMetadata,
+      body.routingPolicy,
+    );
 
     const [record] = await db
       .insert(changeOrders)
@@ -320,14 +386,18 @@ export const changeOrderService = {
 
   async get(request: Request) {
     const { orgId } = requireContext(request);
-    const params = changeOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     return await loadChangeOrderOrThrow(orgId, params.changeOrderId);
   },
 
   async update(request: Request) {
     const { orgId } = requireContext(request);
-    const params = changeOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateChangeOrderSchema.parse(readValidatedBody(request));
 
     const existing = await loadChangeOrderOrThrow(orgId, params.changeOrderId);
@@ -337,7 +407,10 @@ export const changeOrderService = {
       ...toMetadata(body.metadata),
     };
 
-    const routingPolicy = resolveRoutingPolicy(mergedMetadata, body.routingPolicy);
+    const routingPolicy = resolveRoutingPolicy(
+      mergedMetadata,
+      body.routingPolicy,
+    );
 
     const [record] = await db
       .update(changeOrders)
@@ -355,7 +428,12 @@ export const changeOrderService = {
         },
         updatedAt: new Date(),
       })
-      .where(and(eq(changeOrders.id, params.changeOrderId), eq(changeOrders.organizationId, orgId)))
+      .where(
+        and(
+          eq(changeOrders.id, params.changeOrderId),
+          eq(changeOrders.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -367,11 +445,15 @@ export const changeOrderService = {
 
   async submit(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = changeOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const existing = await loadChangeOrderOrThrow(orgId, params.changeOrderId);
     if (!["draft", "revision_requested"].includes(existing.status)) {
-      throw badRequest("Only draft or revision requested change orders can be submitted");
+      throw badRequest(
+        "Only draft or revision requested change orders can be submitted",
+      );
     }
 
     const now = new Date();
@@ -380,7 +462,9 @@ export const changeOrderService = {
     const firstStage = routingPolicy.approvalStages[0];
 
     if (!firstStage) {
-      throw badRequest("Routing policy must define at least one approval stage");
+      throw badRequest(
+        "Routing policy must define at least one approval stage",
+      );
     }
 
     const updatedMetadata: ChangeOrderMetadata = {
@@ -410,7 +494,12 @@ export const changeOrderService = {
         metadata: updatedMetadata,
         updatedAt: now,
       })
-      .where(and(eq(changeOrders.id, params.changeOrderId), eq(changeOrders.organizationId, orgId)))
+      .where(
+        and(
+          eq(changeOrders.id, params.changeOrderId),
+          eq(changeOrders.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -435,19 +524,28 @@ export const changeOrderService = {
 
   async decide(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = changeOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = decisionChangeOrderSchema.parse(readValidatedBody(request));
 
     const existing = await loadChangeOrderOrThrow(orgId, params.changeOrderId);
     if (!["submitted", "under_review"].includes(existing.status)) {
-      throw badRequest("Only submitted or under-review change orders can be decided");
+      throw badRequest(
+        "Only submitted or under-review change orders can be decided",
+      );
     }
 
     const now = new Date();
     const metadata = toMetadata(existing.metadata);
     const routingPolicy = resolveRoutingPolicy(metadata);
-    const currentStageIndex = resolveCurrentStageIndex(existing, routingPolicy, metadata);
-    const currentStage = routingPolicy.approvalStages[currentStageIndex] ?? existing.pipelineStage;
+    const currentStageIndex = resolveCurrentStageIndex(
+      existing,
+      routingPolicy,
+      metadata,
+    );
+    const currentStage =
+      routingPolicy.approvalStages[currentStageIndex] ?? existing.pipelineStage;
 
     const approvalFlow =
       metadata.approvalFlow && typeof metadata.approvalFlow === "object"
@@ -469,7 +567,8 @@ export const changeOrderService = {
     ];
 
     if (body.status === "approved") {
-      const hasNextStage = currentStageIndex < routingPolicy.approvalStages.length - 1;
+      const hasNextStage =
+        currentStageIndex < routingPolicy.approvalStages.length - 1;
 
       if (hasNextStage) {
         const nextStage = routingPolicy.approvalStages[currentStageIndex + 1];
@@ -490,7 +589,12 @@ export const changeOrderService = {
             },
             updatedAt: now,
           })
-          .where(and(eq(changeOrders.id, params.changeOrderId), eq(changeOrders.organizationId, orgId)))
+          .where(
+            and(
+              eq(changeOrders.id, params.changeOrderId),
+              eq(changeOrders.organizationId, orgId),
+            ),
+          )
           .returning();
 
         if (!advanced) {
@@ -531,7 +635,12 @@ export const changeOrderService = {
           },
           updatedAt: now,
         })
-        .where(and(eq(changeOrders.id, params.changeOrderId), eq(changeOrders.organizationId, orgId)))
+        .where(
+          and(
+            eq(changeOrders.id, params.changeOrderId),
+            eq(changeOrders.organizationId, orgId),
+          ),
+        )
         .returning();
 
       if (!approved) {
@@ -552,7 +661,12 @@ export const changeOrderService = {
           },
           updatedAt: new Date(),
         })
-        .where(and(eq(changeOrders.id, approved.id), eq(changeOrders.organizationId, orgId)))
+        .where(
+          and(
+            eq(changeOrders.id, approved.id),
+            eq(changeOrders.organizationId, orgId),
+          ),
+        )
         .returning();
 
       await eventService.emit({
@@ -573,7 +687,8 @@ export const changeOrderService = {
     }
 
     const finalStatus = body.status as DecisionStatus;
-    const shouldSetDecider = finalStatus === "rejected" || finalStatus === "closed";
+    const shouldSetDecider =
+      finalStatus === "rejected" || finalStatus === "closed";
 
     const [record] = await db
       .update(changeOrders)
@@ -582,7 +697,8 @@ export const changeOrderService = {
         pipelineStage: finalStatus,
         decidedByUserId: shouldSetDecider ? userId : existing.decidedByUserId,
         resolvedAt: finalStatus === "revision_requested" ? null : now,
-        deadlineAt: finalStatus === "revision_requested" ? null : existing.deadlineAt,
+        deadlineAt:
+          finalStatus === "revision_requested" ? null : existing.deadlineAt,
         metadata: {
           ...metadata,
           routingPolicy,
@@ -594,7 +710,12 @@ export const changeOrderService = {
         },
         updatedAt: now,
       })
-      .where(and(eq(changeOrders.id, params.changeOrderId), eq(changeOrders.organizationId, orgId)))
+      .where(
+        and(
+          eq(changeOrders.id, params.changeOrderId),
+          eq(changeOrders.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -621,7 +742,9 @@ export const changeOrderService = {
 
   async listAttachments(request: Request) {
     const { orgId } = requireContext(request);
-    const params = changeOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     await loadChangeOrderOrThrow(orgId, params.changeOrderId);
 
@@ -640,7 +763,9 @@ export const changeOrderService = {
 
   async attachFileAsset(request: Request) {
     const { orgId } = requireContext(request);
-    const params = changeOrderAttachmentParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderAttachmentParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const record = await loadChangeOrderOrThrow(orgId, params.changeOrderId);
 
@@ -672,7 +797,13 @@ export const changeOrderService = {
         projectId: record.projectId,
         updatedAt: new Date(),
       })
-      .where(and(eq(fileAssets.id, asset.id), eq(fileAssets.organizationId, orgId), isNull(fileAssets.deletedAt)))
+      .where(
+        and(
+          eq(fileAssets.id, asset.id),
+          eq(fileAssets.organizationId, orgId),
+          isNull(fileAssets.deletedAt),
+        ),
+      )
       .returning();
 
     if (!updated) {
@@ -684,7 +815,9 @@ export const changeOrderService = {
 
   async detachFileAsset(request: Request) {
     const { orgId } = requireContext(request);
-    const params = changeOrderAttachmentParamsSchema.parse(readValidatedParams(request));
+    const params = changeOrderAttachmentParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     await loadChangeOrderOrThrow(orgId, params.changeOrderId);
 

@@ -9,11 +9,30 @@
 [?2026h
 [2m Test Files [22m[1m[32m0 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
-[2m   Start at [22m02:32:42
-[2m   Duration [22m134ms
-[?2026l[?25h[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[2m   Start at [22m13:07:43
+[2m   Duration [22m864ms
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/index.test.ts[2m [queued][22m
+
 [2m Test Files [22m[1m[32m0 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m[1m[32m0 passed[39m[22m[90m (0)[39m
-[2m   Start at [22m02:32:42
-[2m   Duration [22m134ms
-[?2026l[?25h
+[2m   Start at [22m13:07:43
+[2m   Duration [22m1.07s
+[?2026l[?2026h[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K
+[1m[33m ❯ [39m[22msrc/index.test.ts[2m 0/3[22m
+
+[2m Test Files [22m[1m[32m0 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m[1m[32m0 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m13:07:43
+[2m   Duration [22m1.48s
+[?2026l[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K [32m✓[39m src/index.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+   [32m✓[39m ai package[2m > [22mreturns supported providers[32m 12[2mms[22m[39m
+   [32m✓[39m ai package[2m > [22mbuilds estimate brief with required sections[32m 0[2mms[22m[39m
+   [32m✓[39m ai package[2m > [22mroutes ai request and enriches output[32m 0[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m 13:07:43
+[2m   Duration [22m 1.85s[2m (transform 209ms, setup 0ms, collect 469ms, tests 18ms, environment 0ms, prepare 142ms)[22m
+
+[?25h

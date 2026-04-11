@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingState } from "@/components/ui/loading-state";
 import { portalApi } from "@/lib/api/modules/portal-api";
 import { setPortalSession } from "@/lib/auth/portal-session";
 import { useSessionStore } from "@/store/session-store";
@@ -10,7 +11,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const DEFAULT_NEXT = "/portal/overview";
@@ -23,7 +24,7 @@ function resolveNextPath(nextValue: string | null) {
   return nextValue;
 }
 
-export default function PortalLoginPage() {
+function PortalLoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const portalToken = useSessionStore((state) => state.portalToken);
@@ -166,5 +167,13 @@ export default function PortalLoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function PortalLoginPage() {
+  return (
+    <Suspense fallback={<LoadingState title="Loading portal" rows={2} />}>
+      <PortalLoginPageContent />
+    </Suspense>
   );
 }

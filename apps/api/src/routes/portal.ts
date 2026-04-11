@@ -3,18 +3,18 @@ import {
   portalAcceptInvitationController,
   portalCreateDailyLogController,
   portalCreatePayApplicationController,
-  portalGetDailyLogController,
-  portalRegisterController,
-  portalLoginController,
   portalGetComplianceController,
+  portalGetDailyLogController,
+  portalGetOverviewController,
   portalGetPayApplicationController,
-  portalUpdateComplianceController,
+  portalGetProfileController,
   portalListDailyLogsController,
   portalListPayApplicationsController,
+  portalLoginController,
   portalPasswordResetConfirmController,
   portalPasswordResetRequestController,
-  portalGetOverviewController,
-  portalGetProfileController,
+  portalRegisterController,
+  portalUpdateComplianceController,
 } from "../controllers/portal";
 import { asyncHandler } from "../lib/async-handler";
 import { validateBody, validateParams, validateQuery } from "../lib/validate";
@@ -23,22 +23,30 @@ import {
   dailyLogIdParamsSchema,
   payApplicationIdParamsSchema,
   portalAcceptInvitationSchema,
-  portalRegisterSchema,
-  portalLoginSchema,
   portalComplianceUploadSchema,
   portalCreateDailyLogSchema,
   portalCreatePayApplicationSchema,
   portalListDailyLogsQuerySchema,
   portalListPayApplicationsQuerySchema,
+  portalLoginSchema,
   portalPasswordResetConfirmSchema,
   portalPasswordResetRequestSchema,
+  portalRegisterSchema,
 } from "../schemas/portal.schema";
 
 export const portalRouter: import("express").Router = Router();
 
 // Public routes - no auth required
-portalRouter.post("/register", validateBody(portalRegisterSchema), asyncHandler(portalRegisterController));
-portalRouter.post("/login", validateBody(portalLoginSchema), asyncHandler(portalLoginController));
+portalRouter.post(
+  "/register",
+  validateBody(portalRegisterSchema),
+  asyncHandler(portalRegisterController),
+);
+portalRouter.post(
+  "/login",
+  validateBody(portalLoginSchema),
+  asyncHandler(portalLoginController),
+);
 portalRouter.post(
   "/invitations/accept",
   validateBody(portalAcceptInvitationSchema),

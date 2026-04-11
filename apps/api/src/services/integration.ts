@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
 import { integrations } from "@foreman/db";
+import { and, eq } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
@@ -30,7 +30,10 @@ function requireOrg(request: Request) {
 export const integrationService = {
   async list(request: Request) {
     const orgId = requireOrg(request);
-    return await db.select().from(integrations).where(eq(integrations.organizationId, orgId));
+    return await db
+      .select()
+      .from(integrations)
+      .where(eq(integrations.organizationId, orgId));
   },
 
   async create(request: Request) {
@@ -53,12 +56,19 @@ export const integrationService = {
 
   async get(request: Request) {
     const orgId = requireOrg(request);
-    const params = integrationIdParamsSchema.parse(readValidatedParams(request));
+    const params = integrationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .select()
       .from(integrations)
-      .where(and(eq(integrations.id, params.integrationId), eq(integrations.organizationId, orgId)));
+      .where(
+        and(
+          eq(integrations.id, params.integrationId),
+          eq(integrations.organizationId, orgId),
+        ),
+      );
 
     if (!record) {
       throw notFound("Integration not found");
@@ -69,17 +79,29 @@ export const integrationService = {
 
   async update(request: Request) {
     const orgId = requireOrg(request);
-    const params = integrationIdParamsSchema.parse(readValidatedParams(request));
+    const params = integrationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateIntegrationSchema.parse(readValidatedBody(request));
 
     const [record] = await db
       .update(integrations)
       .set({
         ...body,
-        lastSyncAt: body.lastSyncAt === undefined ? undefined : body.lastSyncAt ? new Date(body.lastSyncAt) : null,
+        lastSyncAt:
+          body.lastSyncAt === undefined
+            ? undefined
+            : body.lastSyncAt
+              ? new Date(body.lastSyncAt)
+              : null,
         updatedAt: new Date(),
       })
-      .where(and(eq(integrations.id, params.integrationId), eq(integrations.organizationId, orgId)))
+      .where(
+        and(
+          eq(integrations.id, params.integrationId),
+          eq(integrations.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -91,12 +113,19 @@ export const integrationService = {
 
   async disconnect(request: Request) {
     const orgId = requireOrg(request);
-    const params = integrationIdParamsSchema.parse(readValidatedParams(request));
+    const params = integrationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(integrations)
       .set({ status: "disconnected", updatedAt: new Date() })
-      .where(and(eq(integrations.id, params.integrationId), eq(integrations.organizationId, orgId)))
+      .where(
+        and(
+          eq(integrations.id, params.integrationId),
+          eq(integrations.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!record) {

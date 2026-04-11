@@ -1,0 +1,6 @@
+
+
+> @foreman/api@ lint /Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/api
+> biome check src
+
+[0m[34mChecked [0m[0m[34m139[0m[0m[34m [0m[0m[34mfiles[0m[0m[34m in [0m[0m[34m72[0m[0m[2m[34mms[0m[0m[34m.[0m[0m[34m No fixes applied.[0m

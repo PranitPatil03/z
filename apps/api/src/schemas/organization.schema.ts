@@ -30,14 +30,21 @@ export const teamMemberParamsSchema = z.object({
 
 export const createOrganizationSchema = z.object({
   name: z.string().min(2),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+  slug: z
+    .string()
+    .min(2)
+    .regex(/^[a-z0-9-]+$/),
   logo: z.string().url().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const updateOrganizationSchema = z.object({
   name: z.string().min(2).optional(),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/).optional(),
+  slug: z
+    .string()
+    .min(2)
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
   logo: z.string().url().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
@@ -59,7 +66,10 @@ export const updateMemberRoleSchema = z.object({
 });
 
 export const checkOrganizationSlugSchema = z.object({
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+  slug: z
+    .string()
+    .min(2)
+    .regex(/^[a-z0-9-]+$/),
 });
 
 export const setActiveOrganizationSchema = z.object({

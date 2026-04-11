@@ -1,18 +1,22 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { auditLogs, billingRecords } from "@foreman/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { eventService } from "./events";
-import { entitlementsService, getDefaultsForPlan } from "./entitlements";
 import {
   billingRecordIdParamsSchema,
   createBillingRecordSchema,
-  updateSubscriptionPlanSchema,
   updateBillingRecordSchema,
+  updateSubscriptionPlanSchema,
 } from "../schemas/billing.schema";
+import {
+  entitlementsService,
+  getDefaultsForPlan,
+  getFeatureConfigForPlan,
+} from "./entitlements";
+import { eventService } from "./events";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -39,7 +43,12 @@ export const billingService = {
     return await db
       .select()
       .from(billingRecords)
-      .where(and(eq(billingRecords.organizationId, orgId), isNull(billingRecords.deletedAt)));
+      .where(
+        and(
+          eq(billingRecords.organizationId, orgId),
+          isNull(billingRecords.deletedAt),
+        ),
+      );
   },
 
   async create(request: Request) {
@@ -82,7 +91,9 @@ export const billingService = {
 
   async get(request: Request) {
     const { orgId } = requireContext(request);
-    const params = billingRecordIdParamsSchema.parse(readValidatedParams(request));
+    const params = billingRecordIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .select()
@@ -104,7 +115,9 @@ export const billingService = {
 
   async update(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = billingRecordIdParamsSchema.parse(readValidatedParams(request));
+    const params = billingRecordIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateBillingRecordSchema.parse(readValidatedBody(request));
 
     const [oldRecord] = await db
@@ -123,8 +136,18 @@ export const billingService = {
       .update(billingRecords)
       .set({
         ...body,
-        dueDate: body.dueDate === undefined ? undefined : body.dueDate ? new Date(body.dueDate) : null,
-        paidAt: body.paidAt === undefined ? undefined : body.paidAt ? new Date(body.paidAt) : null,
+        dueDate:
+          body.dueDate === undefined
+            ? undefined
+            : body.dueDate
+              ? new Date(body.dueDate)
+              : null,
+        paidAt:
+          body.paidAt === undefined
+            ? undefined
+            : body.paidAt
+              ? new Date(body.paidAt)
+              : null,
         updatedAt: new Date(),
       })
       .where(
@@ -145,7 +168,10 @@ export const billingService = {
       actorUserId: userId,
       entityType: "billing_record",
       entityId: record.id,
-      action: oldRecord?.status !== record.status && record.status === "paid" ? "approve" : "update",
+      action:
+        oldRecord?.status !== record.status && record.status === "paid"
+          ? "approve"
+          : "update",
       beforeData: oldRecord
         ? {
             status: oldRecord.status,
@@ -194,7 +220,9 @@ export const billingService = {
 
   async archive(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = billingRecordIdParamsSchema.parse(readValidatedParams(request));
+    const params = billingRecordIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [existing] = await db
       .select()
@@ -258,6 +286,7 @@ export const billingService = {
     return plans.map((plan) => ({
       plan,
       ...getDefaultsForPlan(plan),
+      ...getFeatureConfigForPlan(plan),
     }));
   },
 

@@ -12,5 +12,8 @@ export const logger = pino({
     ],
     remove: true,
   },
-  transport: env.NODE_ENV !== "production" ? { target: "pino/file", options: { destination: 1 } } : undefined,
+  transport:
+    env.NODE_ENV !== "production"
+      ? { target: "pino/file", options: { destination: 1 } }
+      : undefined,
 });

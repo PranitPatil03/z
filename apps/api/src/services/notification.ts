@@ -1,5 +1,5 @@
-import { and, count, eq, isNull } from "drizzle-orm";
 import { integrations, notifications, users } from "@foreman/db";
+import { and, count, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
@@ -52,14 +52,20 @@ function preferenceIntegrationName(userId: string) {
   return `user:${userId}`;
 }
 
-function normalizeNotificationPreferences(raw: unknown): NotificationPreferences {
-  const config = raw && typeof raw === "object" && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : {};
+function normalizeNotificationPreferences(
+  raw: unknown,
+): NotificationPreferences {
+  const config =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
 
-  const defaultsRaw = config.defaults && typeof config.defaults === "object" && !Array.isArray(config.defaults)
-    ? (config.defaults as Record<string, unknown>)
-    : {};
+  const defaultsRaw =
+    config.defaults &&
+    typeof config.defaults === "object" &&
+    !Array.isArray(config.defaults)
+      ? (config.defaults as Record<string, unknown>)
+      : {};
 
   const defaults: NotificationPreferenceChannels = {
     inApp:
@@ -72,9 +78,12 @@ function normalizeNotificationPreferences(raw: unknown): NotificationPreferences
         : DEFAULT_NOTIFICATION_PREFERENCES.defaults.email,
   };
 
-  const eventsRaw = config.events && typeof config.events === "object" && !Array.isArray(config.events)
-    ? (config.events as Record<string, unknown>)
-    : {};
+  const eventsRaw =
+    config.events &&
+    typeof config.events === "object" &&
+    !Array.isArray(config.events)
+      ? (config.events as Record<string, unknown>)
+      : {};
 
   const events: Record<string, NotificationPreferenceChannels> = {};
   for (const [eventType, value] of Object.entries(eventsRaw)) {
@@ -84,8 +93,14 @@ function normalizeNotificationPreferences(raw: unknown): NotificationPreferences
 
     const eventConfig = value as Record<string, unknown>;
     events[eventType] = {
-      inApp: typeof eventConfig.inApp === "boolean" ? eventConfig.inApp : defaults.inApp,
-      email: typeof eventConfig.email === "boolean" ? eventConfig.email : defaults.email,
+      inApp:
+        typeof eventConfig.inApp === "boolean"
+          ? eventConfig.inApp
+          : defaults.inApp,
+      email:
+        typeof eventConfig.email === "boolean"
+          ? eventConfig.email
+          : defaults.email,
     };
   }
 
@@ -114,7 +129,10 @@ async function loadPreferences(orgId: string, userId: string) {
   };
 }
 
-function mergePreferences(current: NotificationPreferences, updates: Partial<NotificationPreferences>) {
+function mergePreferences(
+  current: NotificationPreferences,
+  updates: Partial<NotificationPreferences>,
+) {
   return {
     defaults: updates.defaults ?? current.defaults,
     events: {
@@ -130,7 +148,12 @@ export const notificationService = {
     return await db
       .select()
       .from(notifications)
-      .where(and(eq(notifications.organizationId, orgId), eq(notifications.userId, userId)));
+      .where(
+        and(
+          eq(notifications.organizationId, orgId),
+          eq(notifications.userId, userId),
+        ),
+      );
   },
 
   async unreadCount(request: Request) {
@@ -164,7 +187,9 @@ export const notificationService = {
 
   async updatePreferences(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const body = updateNotificationPreferencesSchema.parse(readValidatedBody(request));
+    const body = updateNotificationPreferencesSchema.parse(
+      readValidatedBody(request),
+    );
     const current = await loadPreferences(orgId, userId);
 
     const next = mergePreferences(current.preferences, {
@@ -182,7 +207,11 @@ export const notificationService = {
         config: next,
       })
       .onConflictDoUpdate({
-        target: [integrations.organizationId, integrations.provider, integrations.name],
+        target: [
+          integrations.organizationId,
+          integrations.provider,
+          integrations.name,
+        ],
         set: {
           status: "connected",
           config: next,
@@ -252,7 +281,9 @@ export const notificationService = {
 
   async markAsRead(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = notificationIdParamsSchema.parse(readValidatedParams(request));
+    const params = notificationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(notifications)
@@ -275,7 +306,9 @@ export const notificationService = {
 
   async remove(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = notificationIdParamsSchema.parse(readValidatedParams(request));
+    const params = notificationIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .delete(notifications)

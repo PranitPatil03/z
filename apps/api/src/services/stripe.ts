@@ -1,10 +1,14 @@
-import Stripe from "stripe";
+import {
+  billingRecords,
+  organizationSubscriptions,
+  stripeWebhookEvents,
+} from "@foreman/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { billingRecords, organizationSubscriptions, stripeWebhookEvents } from "@foreman/db";
-import { db } from "../database";
+import Stripe from "stripe";
 import { env } from "../config/env";
+import { db } from "../database";
+import { badRequest, notFound, unauthorized } from "../lib/errors";
 import { logger } from "../lib/logger";
-import { badRequest, unauthorized, notFound } from "../lib/errors";
 import { eventService } from "./events";
 
 const STRIPE_GRACE_PERIOD_DAYS = 7;
@@ -51,7 +55,9 @@ function buildEventPayload(event: Stripe.Event) {
   } satisfies Record<string, unknown>;
 }
 
-export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): InternalSubscriptionStatus {
+export function mapStripeSubscriptionStatus(
+  status: Stripe.Subscription.Status,
+): InternalSubscriptionStatus {
   if (status === "active" || status === "trialing") {
     return "active";
   }
@@ -84,7 +90,9 @@ function getSubscriptionPlanHint(subscription: Stripe.Subscription) {
 }
 
 function getSubscriptionCustomerId(subscription: Stripe.Subscription) {
-  return typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id ?? null;
+  return typeof subscription.customer === "string"
+    ? subscription.customer
+    : (subscription.customer?.id ?? null);
 }
 
 function getSubscriptionCycleBounds(subscription: Stripe.Subscription) {
@@ -109,7 +117,9 @@ function getSubscriptionCycleBounds(subscription: Stripe.Subscription) {
   };
 }
 
-async function resolveOrganizationIdForSubscription(subscription: Stripe.Subscription) {
+async function resolveOrganizationIdForSubscription(
+  subscription: Stripe.Subscription,
+) {
   const metadataOrganizationId = subscription.metadata?.organizationId;
   if (metadataOrganizationId) {
     return metadataOrganizationId;
@@ -131,7 +141,12 @@ async function resolveOrganizationIdForSubscription(subscription: Stripe.Subscri
   const [recordBySubscription] = await db
     .select({ organizationId: billingRecords.organizationId })
     .from(billingRecords)
-    .where(and(eq(billingRecords.subscriptionId, subscription.id), isNull(billingRecords.deletedAt)))
+    .where(
+      and(
+        eq(billingRecords.subscriptionId, subscription.id),
+        isNull(billingRecords.deletedAt),
+      ),
+    )
     .limit(1);
 
   return recordBySubscription?.organizationId ?? null;
@@ -144,7 +159,9 @@ async function upsertOrganizationSubscriptionStatus(
 ) {
   const now = new Date();
   const graceEndsAt =
-    status === "grace" ? new Date(now.getTime() + STRIPE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000) : null;
+    status === "grace"
+      ? new Date(now.getTime() + STRIPE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000)
+      : null;
 
   await db
     .insert(organizationSubscriptions)
@@ -165,10 +182,16 @@ async function upsertOrganizationSubscriptionStatus(
     });
 }
 
-async function syncOrganizationSubscriptionByStripeSubscription(subscription: Stripe.Subscription) {
-  const organizationId = await resolveOrganizationIdForSubscription(subscription);
+async function syncOrganizationSubscriptionByStripeSubscription(
+  subscription: Stripe.Subscription,
+) {
+  const organizationId =
+    await resolveOrganizationIdForSubscription(subscription);
   if (!organizationId) {
-    logger.warn({ subscriptionId: subscription.id }, "Unable to resolve organization for Stripe subscription");
+    logger.warn(
+      { subscriptionId: subscription.id },
+      "Unable to resolve organization for Stripe subscription",
+    );
     return;
   }
 
@@ -177,7 +200,9 @@ async function syncOrganizationSubscriptionByStripeSubscription(subscription: St
   const now = new Date();
   const cycleBounds = getSubscriptionCycleBounds(subscription);
   const graceEndsAt =
-    status === "grace" ? new Date(now.getTime() + STRIPE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000) : null;
+    status === "grace"
+      ? new Date(now.getTime() + STRIPE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000)
+      : null;
 
   await db
     .insert(organizationSubscriptions)
@@ -219,7 +244,12 @@ async function syncOrganizationSubscriptionByBillingSubscriptionId(
   const [record] = await db
     .select({ organizationId: billingRecords.organizationId })
     .from(billingRecords)
-    .where(and(eq(billingRecords.subscriptionId, billingSubscriptionId), isNull(billingRecords.deletedAt)))
+    .where(
+      and(
+        eq(billingRecords.subscriptionId, billingSubscriptionId),
+        isNull(billingRecords.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (!record) {
@@ -236,11 +266,15 @@ async function processWebhookEvent(event: Stripe.Event) {
 
   switch (event.type) {
     case "payment_intent.succeeded":
-      await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+      await handlePaymentIntentSucceeded(
+        event.data.object as Stripe.PaymentIntent,
+      );
       break;
 
     case "payment_intent.payment_failed":
-      await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+      await handlePaymentIntentFailed(
+        event.data.object as Stripe.PaymentIntent,
+      );
       break;
 
     case "invoice.payment_succeeded":
@@ -264,7 +298,10 @@ async function processWebhookEvent(event: Stripe.Event) {
       break;
 
     default:
-      logger.warn({ eventType: event.type }, "Unhandled Stripe webhook event type");
+      logger.warn(
+        { eventType: event.type },
+        "Unhandled Stripe webhook event type",
+      );
       handlerResult = { handled: false };
   }
 
@@ -272,7 +309,9 @@ async function processWebhookEvent(event: Stripe.Event) {
 }
 
 // Helper functions
-async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentIntentSucceeded(
+  paymentIntent: Stripe.PaymentIntent,
+) {
   const billingRecordId = paymentIntent.metadata?.billingRecordId;
   if (!billingRecordId) return;
 
@@ -286,7 +325,11 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     .where(eq(billingRecords.id, billingRecordId));
 
   // Emit event
-  const [record] = await db.select().from(billingRecords).where(eq(billingRecords.id, billingRecordId)).limit(1);
+  const [record] = await db
+    .select()
+    .from(billingRecords)
+    .where(eq(billingRecords.id, billingRecordId))
+    .limit(1);
 
   if (record) {
     await eventService.emit({
@@ -315,7 +358,11 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
     .where(eq(billingRecords.id, billingRecordId));
 
   // Emit event
-  const [record] = await db.select().from(billingRecords).where(eq(billingRecords.id, billingRecordId)).limit(1);
+  const [record] = await db
+    .select()
+    .from(billingRecords)
+    .where(eq(billingRecords.id, billingRecordId))
+    .limit(1);
 
   if (record) {
     await eventService.emit({
@@ -341,13 +388,23 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       status: "paid",
       paidAt: new Date(),
     })
-    .where(and(eq(billingRecords.subscriptionId, subscriptionId), isNull(billingRecords.deletedAt)));
+    .where(
+      and(
+        eq(billingRecords.subscriptionId, subscriptionId),
+        isNull(billingRecords.deletedAt),
+      ),
+    );
 
   // Emit event
   const [record] = await db
     .select()
     .from(billingRecords)
-    .where(and(eq(billingRecords.subscriptionId, subscriptionId), isNull(billingRecords.deletedAt)))
+    .where(
+      and(
+        eq(billingRecords.subscriptionId, subscriptionId),
+        isNull(billingRecords.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (record) {
@@ -363,7 +420,10 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     });
   }
 
-  await syncOrganizationSubscriptionByBillingSubscriptionId(subscriptionId, "active");
+  await syncOrganizationSubscriptionByBillingSubscriptionId(
+    subscriptionId,
+    "active",
+  );
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
@@ -375,13 +435,23 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     .set({
       status: "draft",
     })
-    .where(and(eq(billingRecords.subscriptionId, subscriptionId), isNull(billingRecords.deletedAt)));
+    .where(
+      and(
+        eq(billingRecords.subscriptionId, subscriptionId),
+        isNull(billingRecords.deletedAt),
+      ),
+    );
 
   // Emit event
   const [record] = await db
     .select()
     .from(billingRecords)
-    .where(and(eq(billingRecords.subscriptionId, subscriptionId), isNull(billingRecords.deletedAt)))
+    .where(
+      and(
+        eq(billingRecords.subscriptionId, subscriptionId),
+        isNull(billingRecords.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (record) {
@@ -397,21 +467,31 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     });
   }
 
-  await syncOrganizationSubscriptionByBillingSubscriptionId(subscriptionId, "grace");
+  await syncOrganizationSubscriptionByBillingSubscriptionId(
+    subscriptionId,
+    "grace",
+  );
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   await syncOrganizationSubscriptionByStripeSubscription(subscription);
-  logger.info({ subscriptionId: subscription.id }, "Stripe subscription created");
+  logger.info(
+    { subscriptionId: subscription.id },
+    "Stripe subscription created",
+  );
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   await syncOrganizationSubscriptionByStripeSubscription(subscription);
-  logger.info({ subscriptionId: subscription.id }, "Stripe subscription updated");
+  logger.info(
+    { subscriptionId: subscription.id },
+    "Stripe subscription updated",
+  );
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const organizationId = await resolveOrganizationIdForSubscription(subscription);
+  const organizationId =
+    await resolveOrganizationIdForSubscription(subscription);
   if (organizationId) {
     await upsertOrganizationSubscriptionStatus(organizationId, "suspended", {
       stripeSubscriptionId: subscription.id,
@@ -464,7 +544,9 @@ export const stripeService = {
       // You may need to add this field to the schema
       return customer;
     } catch (error) {
-      throw badRequest(`Failed to create Stripe customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw badRequest(
+        `Failed to create Stripe customer: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   },
 
@@ -506,7 +588,9 @@ export const stripeService = {
 
       return paymentIntent;
     } catch (error) {
-      throw badRequest(`Failed to create payment intent: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw badRequest(
+        `Failed to create payment intent: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   },
 
@@ -517,6 +601,7 @@ export const stripeService = {
     stripeCustomerId: string,
     priceId: string,
     billingRecordId: string,
+    addOnPriceIds: string[] = [],
   ) {
     try {
       const [record] = await db
@@ -531,13 +616,18 @@ export const stripeService = {
         throw notFound("Billing record not found");
       }
 
+      const items = [
+        {
+          price: priceId,
+        },
+        ...addOnPriceIds.map((addOnPriceId) => ({
+          price: addOnPriceId,
+        })),
+      ];
+
       const subscription = await stripe().subscriptions.create({
         customer: stripeCustomerId,
-        items: [
-          {
-            price: priceId,
-          },
-        ],
+        items,
         metadata: {
           billingRecordId,
           type: "recurring",
@@ -578,7 +668,10 @@ export const stripeService = {
       .returning({ id: stripeWebhookEvents.id });
 
     if (!insertedEvent) {
-      logger.info({ eventId: event.id, eventType: event.type }, "Skipping duplicate Stripe webhook event");
+      logger.info(
+        { eventId: event.id, eventType: event.type },
+        "Skipping duplicate Stripe webhook event",
+      );
       return { acknowledged: true, duplicate: true, eventId: event.id };
     }
 
@@ -606,7 +699,10 @@ export const stripeService = {
         .update(stripeWebhookEvents)
         .set({
           processingStatus: "failed",
-          error: error instanceof Error ? error.message : "Unknown webhook processing error",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown webhook processing error",
           updatedAt: new Date(),
         })
         .where(eq(stripeWebhookEvents.id, insertedEvent.id));
@@ -703,7 +799,10 @@ export const stripeService = {
         .update(stripeWebhookEvents)
         .set({
           processingStatus: "failed",
-          error: error instanceof Error ? error.message : "Unknown webhook processing error",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown webhook processing error",
           updatedAt: new Date(),
         })
         .where(eq(stripeWebhookEvents.id, storedEvent.id));
@@ -717,11 +816,18 @@ export const stripeService = {
   /**
    * Construct Stripe webhook event with raw body
    */
-  constructWebhookEvent(body: string | Buffer, signature: string): Stripe.Event {
+  constructWebhookEvent(
+    body: string | Buffer,
+    signature: string,
+  ): Stripe.Event {
     if (!env.STRIPE_WEBHOOK_SECRET) {
       throw unauthorized("Stripe webhook secret not configured");
     }
 
-    return stripe().webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
+    return stripe().webhooks.constructEvent(
+      body,
+      signature,
+      env.STRIPE_WEBHOOK_SECRET,
+    );
   },
 };

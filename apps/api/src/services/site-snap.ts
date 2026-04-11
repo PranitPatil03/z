@@ -1,13 +1,22 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { fileAssets, siteSnapImages, siteSnapObservations, siteSnaps } from "@foreman/db";
+import {
+  fileAssets,
+  siteSnapImages,
+  siteSnapObservations,
+  siteSnaps,
+} from "@foreman/db";
 import { and, asc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import type { Request } from "express";
 import { env } from "../config/env";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
-import { getMaxUploadBytes, getS3Client, getSignedUrlTtlSeconds } from "../lib/s3";
 import { enqueueAiTask } from "../lib/queues";
+import {
+  getMaxUploadBytes,
+  getS3Client,
+  getSignedUrlTtlSeconds,
+} from "../lib/s3";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
 import {
@@ -50,7 +59,14 @@ const DEFAULT_ALLOWED_IMAGE_TYPES = [
   "image/heic",
   "image/heif",
 ];
-const DEFAULT_ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+const DEFAULT_ALLOWED_IMAGE_EXTENSIONS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "heic",
+  "heif",
+];
 const DEFAULT_SITE_SNAP_MIN_IMAGE_BYTES = 50 * 1024;
 const DEFAULT_SITE_SNAP_SAFETY_ALERT_MIN_CONFIDENCE_BPS = 7000;
 
@@ -59,12 +75,15 @@ function parseAssetReference(value: string) {
 }
 
 function getAllowedImageTypes() {
-  const configured = env.SITE_SNAP_ALLOWED_IMAGE_TYPES
-    ?.split(",")
+  const configured = env.SITE_SNAP_ALLOWED_IMAGE_TYPES?.split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
-  return new Set(configured && configured.length > 0 ? configured : DEFAULT_ALLOWED_IMAGE_TYPES);
+  return new Set(
+    configured && configured.length > 0
+      ? configured
+      : DEFAULT_ALLOWED_IMAGE_TYPES,
+  );
 }
 
 function getMinImageBytes() {
@@ -72,7 +91,10 @@ function getMinImageBytes() {
 }
 
 function getSafetyAlertMinConfidenceBps() {
-  return env.SITE_SNAP_SAFETY_ALERT_MIN_CONFIDENCE_BPS ?? DEFAULT_SITE_SNAP_SAFETY_ALERT_MIN_CONFIDENCE_BPS;
+  return (
+    env.SITE_SNAP_SAFETY_ALERT_MIN_CONFIDENCE_BPS ??
+    DEFAULT_SITE_SNAP_SAFETY_ALERT_MIN_CONFIDENCE_BPS
+  );
 }
 
 function getSiteSnapAiModel() {
@@ -104,7 +126,10 @@ function isImageUrlAllowed(rawUrl: string) {
   return DEFAULT_ALLOWED_IMAGE_EXTENSIONS.includes(extension);
 }
 
-function readAssetDimension(metadata: Record<string, unknown> | null | undefined, key: "width" | "height") {
+function readAssetDimension(
+  metadata: Record<string, unknown> | null | undefined,
+  key: "width" | "height",
+) {
   const value = metadata?.[key];
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -140,7 +165,9 @@ async function validateImageFileAssets(orgId: string, fileAssetIds: string[]) {
   }
 
   const byId = new Map(assets.map((asset) => [asset.id, asset]));
-  const orderedAssets = uniqueFileAssetIds.map((fileAssetId) => byId.get(fileAssetId)).filter(Boolean) as FileAssetRecord[];
+  const orderedAssets = uniqueFileAssetIds
+    .map((fileAssetId) => byId.get(fileAssetId))
+    .filter(Boolean) as FileAssetRecord[];
 
   const allowedImageTypes = getAllowedImageTypes();
   const minImageBytes = getMinImageBytes();
@@ -152,11 +179,15 @@ async function validateImageFileAssets(orgId: string, fileAssetIds: string[]) {
     }
 
     if (!allowedImageTypes.has(asset.contentType.toLowerCase())) {
-      throw badRequest(`File asset ${asset.id} has unsupported image type ${asset.contentType}`);
+      throw badRequest(
+        `File asset ${asset.id} has unsupported image type ${asset.contentType}`,
+      );
     }
 
     if (asset.sizeBytes < minImageBytes) {
-      throw badRequest(`File asset ${asset.id} failed quality gate (image too small)`);
+      throw badRequest(
+        `File asset ${asset.id} failed quality gate (image too small)`,
+      );
     }
 
     if (asset.sizeBytes > maxImageBytes) {
@@ -166,7 +197,9 @@ async function validateImageFileAssets(orgId: string, fileAssetIds: string[]) {
     const width = readAssetDimension(asset.metadata, "width");
     const height = readAssetDimension(asset.metadata, "height");
     if (width !== null && height !== null && (width < 640 || height < 480)) {
-      throw badRequest(`File asset ${asset.id} failed quality gate (min 640x480 required)`);
+      throw badRequest(
+        `File asset ${asset.id} failed quality gate (min 640x480 required)`,
+      );
     }
   }
 
@@ -190,7 +223,10 @@ async function resolveIncomingImageReferences(input: {
   const imageFileAssetIds = input.imageFileAssetIds ?? [];
 
   validateExternalImageUrls(imageUrls);
-  const linkedFileAssets = await validateImageFileAssets(input.orgId, imageFileAssetIds);
+  const linkedFileAssets = await validateImageFileAssets(
+    input.orgId,
+    imageFileAssetIds,
+  );
 
   const imageReferences = [
     ...imageUrls,
@@ -236,7 +272,10 @@ async function linkAssetsToSiteSnap(input: {
     );
 }
 
-async function resolveSiteSnapImages(orgId: string, images: Array<typeof siteSnapImages.$inferSelect>) {
+async function resolveSiteSnapImages(
+  orgId: string,
+  images: Array<typeof siteSnapImages.$inferSelect>,
+) {
   const s3Client = getS3Client();
   const expiresIn = getSignedUrlTtlSeconds();
 
@@ -244,20 +283,23 @@ async function resolveSiteSnapImages(orgId: string, images: Array<typeof siteSna
     .map((image) => parseAssetReference(image.imageUrl))
     .filter((value): value is string => Boolean(value));
 
-  const fileAssetRecords = fileAssetIds.length > 0
-    ? await db
-        .select()
-        .from(fileAssets)
-        .where(
-          and(
-            eq(fileAssets.organizationId, orgId),
-            inArray(fileAssets.id, Array.from(new Set(fileAssetIds))),
-            isNull(fileAssets.deletedAt),
-          ),
-        )
-    : [];
+  const fileAssetRecords =
+    fileAssetIds.length > 0
+      ? await db
+          .select()
+          .from(fileAssets)
+          .where(
+            and(
+              eq(fileAssets.organizationId, orgId),
+              inArray(fileAssets.id, Array.from(new Set(fileAssetIds))),
+              isNull(fileAssets.deletedAt),
+            ),
+          )
+      : [];
 
-  const fileAssetById = new Map(fileAssetRecords.map((asset) => [asset.id, asset]));
+  const fileAssetById = new Map(
+    fileAssetRecords.map((asset) => [asset.id, asset]),
+  );
 
   return await Promise.all(
     images.map(async (image) => {
@@ -305,7 +347,9 @@ function buildSiteSnapAnalysisPrompt(input: {
   notes: string;
   imageReferences: string[];
 }) {
-  const imageLines = input.imageReferences.map((value, index) => `- image_${index + 1}: ${value}`).join("\n");
+  const imageLines = input.imageReferences
+    .map((value, index) => `- image_${index + 1}: ${value}`)
+    .join("\n");
 
   return [
     "You are a construction field analyst.",
@@ -329,17 +373,26 @@ export const siteSnapService = {
   async list(request: Request) {
     const { orgId } = requireContext(request);
     const query = readValidatedQuery<{ projectId: string }>(request);
-    return await db.select().from(siteSnaps).where(and(eq(siteSnaps.organizationId, orgId), eq(siteSnaps.projectId, query.projectId)));
+    return await db
+      .select()
+      .from(siteSnaps)
+      .where(
+        and(
+          eq(siteSnaps.organizationId, orgId),
+          eq(siteSnaps.projectId, query.projectId),
+        ),
+      );
   },
 
   async create(request: Request) {
     const { orgId, userId } = requireContext(request);
     const body = createSiteSnapSchema.parse(readValidatedBody(request));
-    const { imageReferences, linkedFileAssets } = await resolveIncomingImageReferences({
-      orgId,
-      imageUrls: body.imageUrls,
-      imageFileAssetIds: body.imageFileAssetIds,
-    });
+    const { imageReferences, linkedFileAssets } =
+      await resolveIncomingImageReferences({
+        orgId,
+        imageUrls: body.imageUrls,
+        imageFileAssetIds: body.imageFileAssetIds,
+      });
 
     const [snap] = await db
       .insert(siteSnaps)
@@ -377,7 +430,12 @@ export const siteSnapService = {
     const [snap] = await db
       .select()
       .from(siteSnaps)
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)));
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      );
 
     if (!snap) {
       throw notFound("Site snap not found");
@@ -388,7 +446,10 @@ export const siteSnapService = {
       .from(siteSnapImages)
       .where(eq(siteSnapImages.snapId, snap.id))
       .orderBy(asc(siteSnapImages.position));
-    const observations = await db.select().from(siteSnapObservations).where(eq(siteSnapObservations.snapId, snap.id));
+    const observations = await db
+      .select()
+      .from(siteSnapObservations)
+      .where(eq(siteSnapObservations.snapId, snap.id));
     const resolvedImages = await resolveSiteSnapImages(orgId, images);
 
     return {
@@ -410,20 +471,27 @@ export const siteSnapService = {
         locationZone: body.locationZone,
         updatedAt: new Date(),
       })
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)))
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!snap) {
       throw notFound("Site snap not found");
     }
 
-    const hasImageUpdate = body.imageUrls !== undefined || body.imageFileAssetIds !== undefined;
+    const hasImageUpdate =
+      body.imageUrls !== undefined || body.imageFileAssetIds !== undefined;
     if (hasImageUpdate) {
-      const { imageReferences, linkedFileAssets } = await resolveIncomingImageReferences({
-        orgId,
-        imageUrls: body.imageUrls,
-        imageFileAssetIds: body.imageFileAssetIds,
-      });
+      const { imageReferences, linkedFileAssets } =
+        await resolveIncomingImageReferences({
+          orgId,
+          imageUrls: body.imageUrls,
+          imageFileAssetIds: body.imageFileAssetIds,
+        });
 
       await db.delete(siteSnapImages).where(eq(siteSnapImages.snapId, snap.id));
       await db.insert(siteSnapImages).values(
@@ -452,7 +520,12 @@ export const siteSnapService = {
     const [snap] = await db
       .select()
       .from(siteSnaps)
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)));
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      );
 
     if (!snap) {
       throw notFound("Site snap not found");
@@ -465,7 +538,9 @@ export const siteSnapService = {
       .orderBy(asc(siteSnapImages.position));
 
     if (images.length === 0) {
-      throw badRequest("Site snap must have at least one image before analysis");
+      throw badRequest(
+        "Site snap must have at least one image before analysis",
+      );
     }
 
     const model = getSiteSnapAiModel();
@@ -519,7 +594,12 @@ export const siteSnapService = {
         reviewedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)))
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      )
       .returning();
 
     if (!snap) {
@@ -537,7 +617,12 @@ export const siteSnapService = {
     const [snap] = await db
       .select()
       .from(siteSnaps)
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)));
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      );
 
     if (!snap) {
       throw notFound("Site snap not found");
@@ -559,13 +644,20 @@ export const siteSnapService = {
 
   async updateObservation(request: Request) {
     const { orgId } = requireContext(request);
-    const params = siteSnapObservationParamsSchema.parse(readValidatedParams(request));
+    const params = siteSnapObservationParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateObservationSchema.parse(readValidatedBody(request));
 
     const [snap] = await db
       .select()
       .from(siteSnaps)
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)));
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      );
 
     if (!snap) {
       throw notFound("Site snap not found");
@@ -579,7 +671,12 @@ export const siteSnapService = {
         detail: body.detail,
         updatedAt: new Date(),
       })
-      .where(and(eq(siteSnapObservations.id, params.observationId), eq(siteSnapObservations.snapId, snap.id)))
+      .where(
+        and(
+          eq(siteSnapObservations.id, params.observationId),
+          eq(siteSnapObservations.snapId, snap.id),
+        ),
+      )
       .returning();
 
     if (!observation) {
@@ -591,12 +688,19 @@ export const siteSnapService = {
 
   async deleteObservation(request: Request) {
     const { orgId } = requireContext(request);
-    const params = siteSnapObservationParamsSchema.parse(readValidatedParams(request));
+    const params = siteSnapObservationParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [snap] = await db
       .select()
       .from(siteSnaps)
-      .where(and(eq(siteSnaps.id, params.siteSnapId), eq(siteSnaps.organizationId, orgId)));
+      .where(
+        and(
+          eq(siteSnaps.id, params.siteSnapId),
+          eq(siteSnaps.organizationId, orgId),
+        ),
+      );
 
     if (!snap) {
       throw notFound("Site snap not found");
@@ -604,7 +708,12 @@ export const siteSnapService = {
 
     const [deleted] = await db
       .delete(siteSnapObservations)
-      .where(and(eq(siteSnapObservations.id, params.observationId), eq(siteSnapObservations.snapId, snap.id)))
+      .where(
+        and(
+          eq(siteSnapObservations.id, params.observationId),
+          eq(siteSnapObservations.snapId, snap.id),
+        ),
+      )
       .returning();
 
     if (!deleted) {
@@ -619,7 +728,9 @@ export const siteSnapService = {
     const query = dailyProgressQuerySchema.parse(readValidatedQuery(request));
 
     const day = query.day ? new Date(query.day) : new Date();
-    const start = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
+    const start = new Date(
+      Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()),
+    );
     const end = new Date(start);
     end.setUTCDate(end.getUTCDate() + 1);
 
@@ -636,15 +747,24 @@ export const siteSnapService = {
       );
 
     const snapIds = snaps.map((snap) => snap.id);
-    const observations = snapIds.length > 0
-      ? await db.select().from(siteSnapObservations).where(inArray(siteSnapObservations.snapId, snapIds))
-      : [];
+    const observations =
+      snapIds.length > 0
+        ? await db
+            .select()
+            .from(siteSnapObservations)
+            .where(inArray(siteSnapObservations.snapId, snapIds))
+        : [];
 
-    const reviewedCount = snaps.filter((snap) => snap.status === "reviewed").length;
-    const categoryCounts = observations.reduce<Record<string, number>>((acc, obs) => {
-      acc[obs.category] = (acc[obs.category] ?? 0) + 1;
-      return acc;
-    }, {});
+    const reviewedCount = snaps.filter(
+      (snap) => snap.status === "reviewed",
+    ).length;
+    const categoryCounts = observations.reduce<Record<string, number>>(
+      (acc, obs) => {
+        acc[obs.category] = (acc[obs.category] ?? 0) + 1;
+        return acc;
+      },
+      {},
+    );
 
     return {
       day: start.toISOString().slice(0, 10),

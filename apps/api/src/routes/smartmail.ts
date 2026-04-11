@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
-  createSmartMailDraftController,
   createSmartMailAccountController,
+  createSmartMailDraftController,
   createSmartMailMessageController,
   createSmartMailTemplateController,
   createSmartMailThreadController,
@@ -11,16 +11,16 @@ import {
   listSmartMailTemplatesController,
   listSmartMailThreadsController,
   syncSmartMailAccountController,
-  updateSmartMailMessageLinkController,
   updateSmartMailAccountController,
+  updateSmartMailMessageLinkController,
   updateSmartMailTemplateController,
 } from "../controllers/smartmail";
 import { asyncHandler } from "../lib/async-handler";
 import { validateBody, validateParams, validateQuery } from "../lib/validate";
 import { requireAuth } from "../middleware/require-auth";
 import {
-  createSmartMailDraftSchema,
   createSmartMailAccountSchema,
+  createSmartMailDraftSchema,
   createSmartMailMessageSchema,
   createSmartMailTemplateSchema,
   createSmartMailThreadSchema,
@@ -31,8 +31,8 @@ import {
   smartMailTemplateIdParamsSchema,
   smartMailThreadIdParamsSchema,
   syncSmartMailAccountSchema,
-  updateSmartMailMessageLinkSchema,
   updateSmartMailAccountSchema,
+  updateSmartMailMessageLinkSchema,
   updateSmartMailTemplateSchema,
 } from "../schemas/smartmail.schema";
 
@@ -41,7 +41,11 @@ export const smartMailRouter: import("express").Router = Router();
 smartMailRouter.use(requireAuth);
 
 smartMailRouter.get("/accounts", asyncHandler(listSmartMailAccountsController));
-smartMailRouter.post("/accounts", validateBody(createSmartMailAccountSchema), asyncHandler(createSmartMailAccountController));
+smartMailRouter.post(
+  "/accounts",
+  validateBody(createSmartMailAccountSchema),
+  asyncHandler(createSmartMailAccountController),
+);
 smartMailRouter.patch(
   "/accounts/:accountId",
   validateParams(smartMailAccountIdParamsSchema),
@@ -54,8 +58,16 @@ smartMailRouter.post(
   validateBody(syncSmartMailAccountSchema),
   asyncHandler(syncSmartMailAccountController),
 );
-smartMailRouter.get("/threads", validateQuery(listSmartMailThreadsQuerySchema), asyncHandler(listSmartMailThreadsController));
-smartMailRouter.post("/threads", validateBody(createSmartMailThreadSchema), asyncHandler(createSmartMailThreadController));
+smartMailRouter.get(
+  "/threads",
+  validateQuery(listSmartMailThreadsQuerySchema),
+  asyncHandler(listSmartMailThreadsController),
+);
+smartMailRouter.post(
+  "/threads",
+  validateBody(createSmartMailThreadSchema),
+  asyncHandler(createSmartMailThreadController),
+);
 smartMailRouter.get(
   "/threads/:threadId/messages",
   validateParams(smartMailThreadIdParamsSchema),

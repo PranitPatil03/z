@@ -1,8 +1,4 @@
 import { Router } from "express";
-import { asyncHandler } from "../lib/async-handler";
-import { validateBody, validateParams, validateQuery } from "../lib/validate";
-import { requireAuth } from "../middleware/require-auth";
-import { requireOrgRole } from "../middleware/require-role";
 import {
   assignRoleController,
   bootstrapPermissionsController,
@@ -19,6 +15,10 @@ import {
   setRolePermissionsController,
   updateRoleController,
 } from "../controllers/permission";
+import { asyncHandler } from "../lib/async-handler";
+import { validateBody, validateParams, validateQuery } from "../lib/validate";
+import { requireAuth } from "../middleware/require-auth";
+import { requireOrgRole } from "../middleware/require-role";
 import {
   assignRoleSchema,
   assignmentIdParamsSchema,
@@ -37,7 +37,10 @@ export const permissionsRouter: import("express").Router = Router();
 
 permissionsRouter.use(requireAuth);
 
-permissionsRouter.get("/catalog", asyncHandler(listPermissionCatalogController));
+permissionsRouter.get(
+  "/catalog",
+  asyncHandler(listPermissionCatalogController),
+);
 permissionsRouter.post(
   "/bootstrap",
   requireOrgRole("owner", "admin"),
@@ -45,14 +48,22 @@ permissionsRouter.post(
   asyncHandler(bootstrapPermissionsController),
 );
 
-permissionsRouter.get("/roles", validateQuery(listRolesQuerySchema), asyncHandler(listRolesController));
+permissionsRouter.get(
+  "/roles",
+  validateQuery(listRolesQuerySchema),
+  asyncHandler(listRolesController),
+);
 permissionsRouter.post(
   "/roles",
   requireOrgRole("owner", "admin"),
   validateBody(createRoleSchema),
   asyncHandler(createRoleController),
 );
-permissionsRouter.get("/roles/:roleId", validateParams(roleIdParamsSchema), asyncHandler(getRoleController));
+permissionsRouter.get(
+  "/roles/:roleId",
+  validateParams(roleIdParamsSchema),
+  asyncHandler(getRoleController),
+);
 permissionsRouter.patch(
   "/roles/:roleId",
   requireOrgRole("owner", "admin"),
@@ -103,4 +114,8 @@ permissionsRouter.get(
   validateQuery(resolvePermissionsQuerySchema),
   asyncHandler(resolveEffectivePermissionsController),
 );
-permissionsRouter.post("/check", validateBody(checkPermissionSchema), asyncHandler(checkPermissionController));
+permissionsRouter.post(
+  "/check",
+  validateBody(checkPermissionSchema),
+  asyncHandler(checkPermissionController),
+);

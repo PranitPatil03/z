@@ -42,15 +42,25 @@ function toStatus(impactBps: number) {
 }
 
 export function computeRateBps(numerator: number, denominator: number) {
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+  if (
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    denominator <= 0
+  ) {
     return 0;
   }
 
   return clamp(Math.round((numerator / denominator) * 10_000), 0, 10_000);
 }
 
-export function computeBudgetBurnBps(totalBudgetCents: number, totalActualCents: number) {
-  if (!Number.isFinite(totalBudgetCents) || !Number.isFinite(totalActualCents)) {
+export function computeBudgetBurnBps(
+  totalBudgetCents: number,
+  totalActualCents: number,
+) {
+  if (
+    !Number.isFinite(totalBudgetCents) ||
+    !Number.isFinite(totalActualCents)
+  ) {
     return 0;
   }
 
@@ -58,7 +68,10 @@ export function computeBudgetBurnBps(totalBudgetCents: number, totalActualCents:
     return totalActualCents > 0 ? 10_000 : 0;
   }
 
-  return Math.max(0, Math.round((totalActualCents / totalBudgetCents) * 10_000));
+  return Math.max(
+    0,
+    Math.round((totalActualCents / totalBudgetCents) * 10_000),
+  );
 }
 
 export function computeAverageAgeDays(dates: Date[], now: Date = new Date()) {
@@ -75,7 +88,9 @@ export function computeAverageAgeDays(dates: Date[], now: Date = new Date()) {
   return Number((totalDays / dates.length).toFixed(2));
 }
 
-export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCenterHealthResult {
+export function buildHealthScore(
+  inputs: CommandCenterHealthInputs,
+): CommandCenterHealthResult {
   const factors: CommandCenterHealthFactor[] = [];
 
   const normalizedBurn = Math.max(0, inputs.budgetBurnBps);
@@ -84,7 +99,11 @@ export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCent
       ? 0
       : normalizedBurn <= 10_000
         ? Math.round(((normalizedBurn - 8_500) / 1_500) * 1_600)
-        : clamp(1_600 + Math.round((normalizedBurn - 10_000) * 0.4), 1_600, 2_600);
+        : clamp(
+            1_600 + Math.round((normalizedBurn - 10_000) * 0.4),
+            1_600,
+            2_600,
+          );
   factors.push({
     key: "budget_burn",
     label: "Budget burn",
@@ -104,7 +123,11 @@ export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCent
     description: "Counts unresolved high/critical budget alerts.",
   });
 
-  const openChangeOrderPenalty = clamp(inputs.openChangeOrderCount * 175, 0, 1_400);
+  const openChangeOrderPenalty = clamp(
+    inputs.openChangeOrderCount * 175,
+    0,
+    1_400,
+  );
   factors.push({
     key: "open_change_orders",
     label: "Open change orders",
@@ -114,7 +137,11 @@ export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCent
     description: "Open change orders add schedule and cost risk.",
   });
 
-  const overdueCompliancePenalty = clamp(inputs.overdueComplianceCount * 275, 0, 2_200);
+  const overdueCompliancePenalty = clamp(
+    inputs.overdueComplianceCount * 275,
+    0,
+    2_200,
+  );
   factors.push({
     key: "overdue_compliance",
     label: "Overdue compliance items",
@@ -124,7 +151,10 @@ export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCent
     description: "Overdue compliance artifacts increase operational exposure.",
   });
 
-  const payAppAgeExcess = Math.max(0, inputs.pendingPayApplicationAverageAgeDays - 7);
+  const payAppAgeExcess = Math.max(
+    0,
+    inputs.pendingPayApplicationAverageAgeDays - 7,
+  );
   const payAppPenalty = clamp(
     Math.round(payAppAgeExcess * 80) + inputs.pendingPayApplicationCount * 40,
     0,
@@ -136,7 +166,8 @@ export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCent
     value: inputs.pendingPayApplicationCount,
     impactBps: -payAppPenalty,
     status: toStatus(-payAppPenalty),
-    description: "Long-running payment reviews indicate cash-flow and approval risk.",
+    description:
+      "Long-running payment reviews indicate cash-flow and approval risk.",
   });
 
   const snapRateGap = Math.max(0, 7_000 - inputs.reviewedSiteSnapRateBps);
@@ -147,13 +178,18 @@ export function buildHealthScore(inputs: CommandCenterHealthInputs): CommandCent
     value: inputs.reviewedSiteSnapRateBps,
     impactBps: -snapRatePenalty,
     status: toStatus(-snapRatePenalty),
-    description: "Higher review completion improves confidence in field visibility.",
+    description:
+      "Higher review completion improves confidence in field visibility.",
   });
 
-  const totalPenalty = factors.reduce((sum, factor) => sum + Math.abs(factor.impactBps), 0);
+  const totalPenalty = factors.reduce(
+    (sum, factor) => sum + Math.abs(factor.impactBps),
+    0,
+  );
   const scoreBps = clamp(10_000 - totalPenalty, 0, 10_000);
   const score = Math.round(scoreBps / 100);
-  const band: CommandCenterHealthBand = scoreBps >= 8_000 ? "healthy" : scoreBps >= 6_000 ? "watch" : "critical";
+  const band: CommandCenterHealthBand =
+    scoreBps >= 8_000 ? "healthy" : scoreBps >= 6_000 ? "watch" : "critical";
 
   return {
     score,

@@ -1,5 +1,3 @@
-import { and, asc, eq, inArray, isNull, or, type SQL } from "drizzle-orm";
-import type { Request } from "express";
 import {
   accessRoleAssignments,
   accessRolePermissions,
@@ -9,6 +7,8 @@ import {
   projectMembers,
   users,
 } from "@foreman/db";
+import { type SQL, and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, forbidden, notFound, unauthorized } from "../lib/errors";
 import {
@@ -24,6 +24,7 @@ import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
 import {
   assignRoleSchema,
+  assignmentIdParamsSchema,
   bootstrapPermissionsSchema,
   checkPermissionSchema,
   createRoleSchema,
@@ -33,7 +34,6 @@ import {
   roleIdParamsSchema,
   setRolePermissionsSchema,
   updateRoleSchema,
-  assignmentIdParamsSchema,
 } from "../schemas/permission.schema";
 
 interface RequestContext {
@@ -94,11 +94,19 @@ function andConditions(conditions: SQL<unknown>[]) {
   return and(...conditions) as SQL<unknown>;
 }
 
-async function loadMembership(organizationId: string, userId: string): Promise<MembershipRecord> {
+async function loadMembership(
+  organizationId: string,
+  userId: string,
+): Promise<MembershipRecord> {
   const [membership] = await db
     .select({ role: members.role })
     .from(members)
-    .where(and(eq(members.organizationId, organizationId), eq(members.userId, userId)))
+    .where(
+      and(
+        eq(members.organizationId, organizationId),
+        eq(members.userId, userId),
+      ),
+    )
     .limit(1);
 
   if (!membership) {
@@ -112,7 +120,11 @@ function isOrgAdmin(role: string) {
   return role === "owner" || role === "admin";
 }
 
-function assertCanInspectTargetUser(actorRole: string, actorUserId: string, targetUserId: string) {
+function assertCanInspectTargetUser(
+  actorRole: string,
+  actorUserId: string,
+  targetUserId: string,
+) {
   if (actorUserId === targetUserId) {
     return;
   }
@@ -158,7 +170,12 @@ async function loadRoleForOrganization(organizationId: string, roleId: string) {
   const [role] = await db
     .select()
     .from(accessRoles)
-    .where(and(eq(accessRoles.organizationId, organizationId), eq(accessRoles.id, roleId)))
+    .where(
+      and(
+        eq(accessRoles.organizationId, organizationId),
+        eq(accessRoles.id, roleId),
+      ),
+    )
     .limit(1);
 
   if (!role) {
@@ -168,8 +185,14 @@ async function loadRoleForOrganization(organizationId: string, roleId: string) {
   return role;
 }
 
-async function upsertSystemRoles(input: { organizationId: string; actorUserId: string }) {
-  const rolesByCode = new Map<string, { id: string; code: string; scope: string }>();
+async function upsertSystemRoles(input: {
+  organizationId: string;
+  actorUserId: string;
+}) {
+  const rolesByCode = new Map<
+    string,
+    { id: string; code: string; scope: string }
+  >();
 
   for (const template of systemRoleTemplates) {
     const [role] = await db
@@ -184,7 +207,11 @@ async function upsertSystemRoles(input: { organizationId: string; actorUserId: s
         createdByUserId: input.actorUserId,
       })
       .onConflictDoUpdate({
-        target: [accessRoles.organizationId, accessRoles.scope, accessRoles.code],
+        target: [
+          accessRoles.organizationId,
+          accessRoles.scope,
+          accessRoles.code,
+        ],
         set: {
           name: template.name,
           description: template.description,
@@ -192,7 +219,11 @@ async function upsertSystemRoles(input: { organizationId: string; actorUserId: s
           updatedAt: new Date(),
         },
       })
-      .returning({ id: accessRoles.id, code: accessRoles.code, scope: accessRoles.scope });
+      .returning({
+        id: accessRoles.id,
+        code: accessRoles.code,
+        scope: accessRoles.scope,
+      });
 
     rolesByCode.set(template.code, role);
   }
@@ -211,12 +242,14 @@ async function upsertSystemRoles(input: { organizationId: string; actorUserId: s
       return [];
     }
 
-    return normalizePermissionKeys(template.permissions).map((permissionKey) => ({
-      organizationId: input.organizationId,
-      roleId: role.id,
-      permissionKey,
-      granted: true,
-    }));
+    return normalizePermissionKeys(template.permissions).map(
+      (permissionKey) => ({
+        organizationId: input.organizationId,
+        roleId: role.id,
+        permissionKey,
+        granted: true,
+      }),
+    );
   });
 
   if (permissionRows.length > 0) {
@@ -224,7 +257,10 @@ async function upsertSystemRoles(input: { organizationId: string; actorUserId: s
       .insert(accessRolePermissions)
       .values(permissionRows)
       .onConflictDoNothing({
-        target: [accessRolePermissions.roleId, accessRolePermissions.permissionKey],
+        target: [
+          accessRolePermissions.roleId,
+          accessRolePermissions.permissionKey,
+        ],
       });
   }
 
@@ -242,7 +278,11 @@ async function syncSystemAssignments(input: {
       .from(members)
       .where(eq(members.organizationId, input.organizationId)),
     db
-      .select({ userId: projectMembers.userId, projectId: projectMembers.projectId, role: projectMembers.role })
+      .select({
+        userId: projectMembers.userId,
+        projectId: projectMembers.projectId,
+        role: projectMembers.role,
+      })
       .from(projectMembers)
       .where(eq(projectMembers.organizationId, input.organizationId)),
   ]);
@@ -326,7 +366,9 @@ export async function resolveEffectivePermissions(input: {
   projectId?: string;
 }): Promise<EffectivePermissionResult> {
   const membership = await loadMembership(input.organizationId, input.userId);
-  const permissionSet = new Set<string>(builtInOrgRolePermissions[membership.role] ?? []);
+  const permissionSet = new Set<string>(
+    builtInOrgRolePermissions[membership.role] ?? [],
+  );
 
   let projectRole: string | null = null;
 
@@ -345,7 +387,9 @@ export async function resolveEffectivePermissions(input: {
 
     if (projectMembership) {
       projectRole = projectMembership.role;
-      for (const permissionKey of builtInProjectRolePermissions[projectMembership.role] ?? []) {
+      for (const permissionKey of builtInProjectRolePermissions[
+        projectMembership.role
+      ] ?? []) {
         permissionSet.add(permissionKey);
       }
     }
@@ -381,7 +425,10 @@ export async function resolveEffectivePermissions(input: {
         eq(accessRoles.organizationId, accessRoleAssignments.organizationId),
       ),
     )
-    .leftJoin(accessRolePermissions, eq(accessRolePermissions.roleId, accessRoles.id))
+    .leftJoin(
+      accessRolePermissions,
+      eq(accessRolePermissions.roleId, accessRoles.id),
+    )
     .where(andConditions(assignmentConditions));
 
   const customRoleCodes = new Set<string>();
@@ -442,7 +489,10 @@ export const permissionService = {
   async bootstrapPermissions(request: Request) {
     const context = requireContext(request);
     const body = bootstrapPermissionsSchema.parse(readValidatedBody(request));
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     await syncPermissionCatalog();
@@ -473,7 +523,9 @@ export const permissionService = {
 
     await loadMembership(context.organizationId, context.userId);
 
-    const conditions: SQL<unknown>[] = [eq(accessRoles.organizationId, context.organizationId)];
+    const conditions: SQL<unknown>[] = [
+      eq(accessRoles.organizationId, context.organizationId),
+    ];
 
     if (query.scope) {
       conditions.push(eq(accessRoles.scope, query.scope));
@@ -497,11 +549,17 @@ export const permissionService = {
 
     const [permissionRows, assignmentRows] = await Promise.all([
       db
-        .select({ roleId: accessRolePermissions.roleId, permissionKey: accessRolePermissions.permissionKey })
+        .select({
+          roleId: accessRolePermissions.roleId,
+          permissionKey: accessRolePermissions.permissionKey,
+        })
         .from(accessRolePermissions)
         .where(inArray(accessRolePermissions.roleId, roleIds)),
       db
-        .select({ roleId: accessRoleAssignments.roleId, id: accessRoleAssignments.id })
+        .select({
+          roleId: accessRoleAssignments.roleId,
+          id: accessRoleAssignments.id,
+        })
         .from(accessRoleAssignments)
         .where(inArray(accessRoleAssignments.roleId, roleIds)),
     ]);
@@ -515,7 +573,10 @@ export const permissionService = {
 
     const assignmentCountMap = new Map<string, number>();
     for (const row of assignmentRows) {
-      assignmentCountMap.set(row.roleId, (assignmentCountMap.get(row.roleId) ?? 0) + 1);
+      assignmentCountMap.set(
+        row.roleId,
+        (assignmentCountMap.get(row.roleId) ?? 0) + 1,
+      );
     }
 
     return roles.map((role) => ({
@@ -531,7 +592,10 @@ export const permissionService = {
 
     await loadMembership(context.organizationId, context.userId);
 
-    const role = await loadRoleForOrganization(context.organizationId, params.roleId);
+    const role = await loadRoleForOrganization(
+      context.organizationId,
+      params.roleId,
+    );
 
     const [permissions, assignments] = await Promise.all([
       db
@@ -546,14 +610,19 @@ export const permissionService = {
 
     return {
       ...role,
-      permissionKeys: normalizePermissionKeys(permissions.map((item) => item.permissionKey)),
+      permissionKeys: normalizePermissionKeys(
+        permissions.map((item) => item.permissionKey),
+      ),
       assignmentCount: assignments.length,
     };
   },
 
   async createRole(request: Request) {
     const context = requireContext(request);
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     const body = createRoleSchema.parse(readValidatedBody(request));
@@ -584,12 +653,18 @@ export const permissionService = {
 
   async updateRole(request: Request) {
     const context = requireContext(request);
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     const params = roleIdParamsSchema.parse(readValidatedParams(request));
     const body = updateRoleSchema.parse(readValidatedBody(request));
-    const role = await loadRoleForOrganization(context.organizationId, params.roleId);
+    const role = await loadRoleForOrganization(
+      context.organizationId,
+      params.roleId,
+    );
 
     if (role.isSystem) {
       throw forbidden("System roles cannot be edited");
@@ -602,7 +677,12 @@ export const permissionService = {
         description: body.description ?? role.description,
         updatedAt: new Date(),
       })
-      .where(and(eq(accessRoles.organizationId, context.organizationId), eq(accessRoles.id, role.id)))
+      .where(
+        and(
+          eq(accessRoles.organizationId, context.organizationId),
+          eq(accessRoles.id, role.id),
+        ),
+      )
       .returning();
 
     if (!updated) {
@@ -614,11 +694,17 @@ export const permissionService = {
 
   async deleteRole(request: Request) {
     const context = requireContext(request);
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     const params = roleIdParamsSchema.parse(readValidatedParams(request));
-    const role = await loadRoleForOrganization(context.organizationId, params.roleId);
+    const role = await loadRoleForOrganization(
+      context.organizationId,
+      params.roleId,
+    );
 
     if (role.isSystem) {
       throw forbidden("System roles cannot be deleted");
@@ -626,7 +712,12 @@ export const permissionService = {
 
     const [deleted] = await db
       .delete(accessRoles)
-      .where(and(eq(accessRoles.organizationId, context.organizationId), eq(accessRoles.id, role.id)))
+      .where(
+        and(
+          eq(accessRoles.organizationId, context.organizationId),
+          eq(accessRoles.id, role.id),
+        ),
+      )
       .returning();
 
     if (!deleted) {
@@ -642,7 +733,10 @@ export const permissionService = {
 
     await loadMembership(context.organizationId, context.userId);
 
-    const role = await loadRoleForOrganization(context.organizationId, params.roleId);
+    const role = await loadRoleForOrganization(
+      context.organizationId,
+      params.roleId,
+    );
 
     const rows = await db
       .select({ permissionKey: accessRolePermissions.permissionKey })
@@ -651,27 +745,41 @@ export const permissionService = {
 
     return {
       role,
-      permissionKeys: normalizePermissionKeys(rows.map((row) => row.permissionKey)),
+      permissionKeys: normalizePermissionKeys(
+        rows.map((row) => row.permissionKey),
+      ),
     };
   },
 
   async setRolePermissions(request: Request) {
     const context = requireContext(request);
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     const params = roleIdParamsSchema.parse(readValidatedParams(request));
     const body = setRolePermissionsSchema.parse(readValidatedBody(request));
-    const role = await loadRoleForOrganization(context.organizationId, params.roleId);
+    const role = await loadRoleForOrganization(
+      context.organizationId,
+      params.roleId,
+    );
 
     if (role.isSystem) {
-      throw forbidden("System role permissions are managed by bootstrap and cannot be edited directly");
+      throw forbidden(
+        "System role permissions are managed by bootstrap and cannot be edited directly",
+      );
     }
 
     const permissionKeys = normalizePermissionKeys(body.permissionKeys);
     const validPermissionKeys = await listValidPermissionKeys();
 
-    const invalidPermissionKeys = permissionKeys.filter((permissionKey) => !validPermissionKeys.has(permissionKey) && !permissionKeyExists(permissionKey));
+    const invalidPermissionKeys = permissionKeys.filter(
+      (permissionKey) =>
+        !validPermissionKeys.has(permissionKey) &&
+        !permissionKeyExists(permissionKey),
+    );
     if (invalidPermissionKeys.length > 0) {
       throw badRequest("One or more permission keys are invalid", {
         invalidPermissionKeys,
@@ -696,7 +804,10 @@ export const permissionService = {
           })),
         )
         .onConflictDoUpdate({
-          target: [accessRolePermissions.roleId, accessRolePermissions.permissionKey],
+          target: [
+            accessRolePermissions.roleId,
+            accessRolePermissions.permissionKey,
+          ],
           set: {
             granted: true,
           },
@@ -710,17 +821,23 @@ export const permissionService = {
 
     return {
       role,
-      permissionKeys: normalizePermissionKeys(rows.map((row) => row.permissionKey)),
+      permissionKeys: normalizePermissionKeys(
+        rows.map((row) => row.permissionKey),
+      ),
     };
   },
 
   async listAssignments(request: Request) {
     const context = requireContext(request);
-    const query = listAssignmentsQuerySchema.parse(readValidatedQuery(request) ?? {});
+    const query = listAssignmentsQuerySchema.parse(
+      readValidatedQuery(request) ?? {},
+    );
 
     await loadMembership(context.organizationId, context.userId);
 
-    const conditions: SQL<unknown>[] = [eq(accessRoleAssignments.organizationId, context.organizationId)];
+    const conditions: SQL<unknown>[] = [
+      eq(accessRoleAssignments.organizationId, context.organizationId),
+    ];
 
     if (query.userId) {
       conditions.push(eq(accessRoleAssignments.userId, query.userId));
@@ -763,28 +880,45 @@ export const permissionService = {
 
   async assignRole(request: Request) {
     const context = requireContext(request);
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     const body = assignRoleSchema.parse(readValidatedBody(request));
-    const role = await loadRoleForOrganization(context.organizationId, body.roleId);
+    const role = await loadRoleForOrganization(
+      context.organizationId,
+      body.roleId,
+    );
 
     if (role.scope === "project" && !body.projectId) {
-      throw badRequest("projectId is required when assigning a project-scoped role");
+      throw badRequest(
+        "projectId is required when assigning a project-scoped role",
+      );
     }
 
     if (role.scope === "organization" && body.projectId) {
-      throw badRequest("projectId is not allowed when assigning an organization-scoped role");
+      throw badRequest(
+        "projectId is not allowed when assigning an organization-scoped role",
+      );
     }
 
     const [assigneeMembership] = await db
       .select({ id: members.id })
       .from(members)
-      .where(and(eq(members.organizationId, context.organizationId), eq(members.userId, body.userId)))
+      .where(
+        and(
+          eq(members.organizationId, context.organizationId),
+          eq(members.userId, body.userId),
+        ),
+      )
       .limit(1);
 
     if (!assigneeMembership) {
-      throw badRequest("Assigned user is not a member of the active organization");
+      throw badRequest(
+        "Assigned user is not a member of the active organization",
+      );
     }
 
     if (body.projectId) {
@@ -801,7 +935,9 @@ export const permissionService = {
         .limit(1);
 
       if (!projectMembership) {
-        throw badRequest("Assigned user is not a member of the specified project");
+        throw badRequest(
+          "Assigned user is not a member of the specified project",
+        );
       }
     }
 
@@ -812,7 +948,9 @@ export const permissionService = {
     ];
 
     if (body.projectId) {
-      uniquenessConditions.push(eq(accessRoleAssignments.projectId, body.projectId));
+      uniquenessConditions.push(
+        eq(accessRoleAssignments.projectId, body.projectId),
+      );
     } else {
       uniquenessConditions.push(isNull(accessRoleAssignments.projectId));
     }
@@ -850,14 +988,22 @@ export const permissionService = {
 
   async removeAssignment(request: Request) {
     const context = requireContext(request);
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     assertCanManageAccess(actorMembership.role);
 
     const params = assignmentIdParamsSchema.parse(readValidatedParams(request));
 
     const [deleted] = await db
       .delete(accessRoleAssignments)
-      .where(and(eq(accessRoleAssignments.organizationId, context.organizationId), eq(accessRoleAssignments.id, params.assignmentId)))
+      .where(
+        and(
+          eq(accessRoleAssignments.organizationId, context.organizationId),
+          eq(accessRoleAssignments.id, params.assignmentId),
+        ),
+      )
       .returning();
 
     if (!deleted) {
@@ -869,12 +1015,21 @@ export const permissionService = {
 
   async resolvePermissions(request: Request) {
     const context = requireContext(request);
-    const query = resolvePermissionsQuerySchema.parse(readValidatedQuery(request) ?? {});
+    const query = resolvePermissionsQuerySchema.parse(
+      readValidatedQuery(request) ?? {},
+    );
 
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     const targetUserId = query.userId ?? context.userId;
 
-    assertCanInspectTargetUser(actorMembership.role, context.userId, targetUserId);
+    assertCanInspectTargetUser(
+      actorMembership.role,
+      context.userId,
+      targetUserId,
+    );
 
     const effective = await resolveEffectivePermissions({
       organizationId: context.organizationId,
@@ -893,10 +1048,17 @@ export const permissionService = {
     const context = requireContext(request);
     const body = checkPermissionSchema.parse(readValidatedBody(request));
 
-    const actorMembership = await loadMembership(context.organizationId, context.userId);
+    const actorMembership = await loadMembership(
+      context.organizationId,
+      context.userId,
+    );
     const targetUserId = body.userId ?? context.userId;
 
-    assertCanInspectTargetUser(actorMembership.role, context.userId, targetUserId);
+    assertCanInspectTargetUser(
+      actorMembership.role,
+      context.userId,
+      targetUserId,
+    );
 
     const effective = await resolveEffectivePermissions({
       organizationId: context.organizationId,

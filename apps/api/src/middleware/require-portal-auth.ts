@@ -1,13 +1,14 @@
-import type { Request, Response, NextFunction } from "express";
-import { portalAuthService, type PortalSession } from "../services/portal-auth";
+import type { NextFunction, Request, Response } from "express";
 import { unauthorized } from "../lib/errors";
+import { type PortalSession, portalAuthService } from "../services/portal-auth";
 
 export interface PortalAuthenticatedRequest extends Request {
   portalSession: PortalSession;
 }
 
 export function getPortalSession(request: Request): PortalSession {
-  const session = (request as Partial<PortalAuthenticatedRequest>).portalSession;
+  const session = (request as Partial<PortalAuthenticatedRequest>)
+    .portalSession;
 
   if (!session) {
     throw unauthorized("Portal session is required");
@@ -16,7 +17,11 @@ export function getPortalSession(request: Request): PortalSession {
   return session;
 }
 
-export async function requirePortalAuth(request: Request, _response: Response, next: NextFunction) {
+export async function requirePortalAuth(
+  request: Request,
+  _response: Response,
+  next: NextFunction,
+) {
   const authHeader = request.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {

@@ -1,6 +1,7 @@
-import { eq, and } from "drizzle-orm";
 import { smartMailAccounts } from "@foreman/db";
+import { and, eq } from "drizzle-orm";
 import type { Request } from "express";
+import { env } from "../config/env";
 import { db } from "../database";
 import { badRequest, notFound, unauthorized } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
@@ -11,14 +12,13 @@ import {
   oauthStateSchema,
   syncEmailsSchema,
 } from "../schemas/oauth.schema";
-import { env } from "../config/env";
+import { smartMailService } from "./smartmail";
 import {
+  type SmartMailProvider,
   encryptOpaqueToken,
   signStatePayload,
   verifySignedStatePayload,
-  type SmartMailProvider,
 } from "./smartmail-provider";
-import { smartMailService } from "./smartmail";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -40,12 +40,34 @@ function requireEncryptionKey() {
   return env.ENCRYPTION_KEY;
 }
 
-function generateState(orgId: string, userId: string, provider: SmartMailProvider): string {
+function requireProviderConfiguration(provider: SmartMailProvider) {
+  if (provider === "gmail") {
+    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+      throw badRequest(
+        "Gmail OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
+      );
+    }
+    return;
+  }
+
+  if (!env.OUTLOOK_CLIENT_ID || !env.OUTLOOK_CLIENT_SECRET) {
+    throw badRequest(
+      "Outlook OAuth is disabled. Set OUTLOOK_CLIENT_ID and OUTLOOK_CLIENT_SECRET to enable it.",
+    );
+  }
+}
+
+function generateState(
+  orgId: string,
+  userId: string,
+  provider: SmartMailProvider,
+): string {
   const stateObj = {
     organizationId: orgId,
     userId,
     provider,
-    redirectUri: env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
+    redirectUri:
+      env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
     timestamp: Date.now(),
   };
 
@@ -56,13 +78,16 @@ function generateState(orgId: string, userId: string, provider: SmartMailProvide
 export const oauthService = {
   async getGmailAuthUrl(request: Request) {
     const { orgId, userId } = requireContext(request);
+    requireProviderConfiguration("gmail");
 
     const state = generateState(orgId, userId, "gmail");
     const params = new URLSearchParams({
       client_id: env.GOOGLE_CLIENT_ID || "",
-      redirect_uri: env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
+      redirect_uri:
+        env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
       response_type: "code",
-      scope: "openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send",
+      scope:
+        "openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send",
       state,
       access_type: "offline",
       prompt: "consent",
@@ -76,11 +101,13 @@ export const oauthService = {
 
   async getOutlookAuthUrl(request: Request) {
     const { orgId, userId } = requireContext(request);
+    requireProviderConfiguration("outlook");
 
     const state = generateState(orgId, userId, "outlook");
     const params = new URLSearchParams({
       client_id: env.OUTLOOK_CLIENT_ID || "",
-      redirect_uri: env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
+      redirect_uri:
+        env.OAUTH_REDIRECT_URI || "http://localhost:3001/auth/oauth/callback",
       response_type: "code",
       scope: "Mail.Read Mail.Send offline_access",
       state,
@@ -96,11 +123,17 @@ export const oauthService = {
   async handleOAuthCallback(request: Request) {
     const body = oauthCallbackSchema.parse(readValidatedBody(request));
     const { code, state, provider } = body;
+    requireProviderConfiguration(provider);
 
     let stateObj: Record<string, unknown>;
     try {
-      const verifiedPayload = verifySignedStatePayload(state, requireEncryptionKey());
-      stateObj = JSON.parse(Buffer.from(verifiedPayload, "base64").toString("utf8"));
+      const verifiedPayload = verifySignedStatePayload(
+        state,
+        requireEncryptionKey(),
+      );
+      stateObj = JSON.parse(
+        Buffer.from(verifiedPayload, "base64").toString("utf8"),
+      );
     } catch (error) {
       throw unauthorized("Invalid state parameter");
     }
@@ -122,7 +155,9 @@ export const oauthService = {
 
     const key = requireEncryptionKey();
     const encryptedAccessToken = encryptOpaqueToken(tokenData.accessToken, key);
-    const encryptedRefreshToken = tokenData.refreshToken ? encryptOpaqueToken(tokenData.refreshToken, key) : undefined;
+    const encryptedRefreshToken = tokenData.refreshToken
+      ? encryptOpaqueToken(tokenData.refreshToken, key)
+      : undefined;
 
     const [existing] = await db
       .select()
@@ -184,7 +219,12 @@ export const oauthService = {
     const [account] = await db
       .select()
       .from(smartMailAccounts)
-      .where(and(eq(smartMailAccounts.id, body.accountId), eq(smartMailAccounts.organizationId, orgId)));
+      .where(
+        and(
+          eq(smartMailAccounts.id, body.accountId),
+          eq(smartMailAccounts.organizationId, orgId),
+        ),
+      );
 
     if (!account) {
       throw notFound("OAuth account not found");

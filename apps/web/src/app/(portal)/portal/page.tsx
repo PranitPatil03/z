@@ -8,20 +8,26 @@ import { useEffect, useState } from "react";
 export default function PortalHomePage() {
   const router = useRouter();
   const portalToken = useSessionStore((state) => state.portalToken);
+  const persistApi = useSessionStore.persist;
 
   const [hasHydrated, setHasHydrated] = useState(
-    useSessionStore.persist.hasHydrated(),
+    persistApi?.hasHydrated?.() ?? false,
   );
 
   useEffect(() => {
-    const unsubscribe = useSessionStore.persist.onFinishHydration(() => {
+    if (!persistApi) {
+      setHasHydrated(true);
+      return;
+    }
+
+    const unsubscribe = persistApi.onFinishHydration(() => {
       setHasHydrated(true);
     });
 
-    setHasHydrated(useSessionStore.persist.hasHydrated());
+    setHasHydrated(persistApi.hasHydrated());
 
     return unsubscribe;
-  }, []);
+  }, [persistApi]);
 
   useEffect(() => {
     if (!hasHydrated) {

@@ -1,0 +1,5 @@
+
+
+> @foreman/web@0.1.0 typecheck /Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/web
+> tsc -p tsconfig.json --noEmit
+

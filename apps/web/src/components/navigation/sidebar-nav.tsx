@@ -14,7 +14,7 @@ export function SidebarNav() {
   return (
     <aside
       className={cn(
-        "hidden shrink-0 flex-col border-r border-border/60 bg-card px-2 py-4 lg:flex",
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/60 bg-card px-2 py-4 lg:flex",
         isSidebarCollapsed ? "w-[60px]" : "w-[220px]",
       )}
     >

@@ -1,0 +1,73 @@
+
+
+> @foreman/web@0.1.0 build /Users/nikhil/Downloads/pranit/2026/Products/anvil/apps/web
+> cross-env NODE_ENV=production next build
+
+[1m[38;2;173;127;168m▲ Next.js 16.2.3[39m[22m (Turbopack)
+- Environments: .env.local
+
+[37m[1m [22m[39m Creating an optimized production build ...
+[32m[1m✓[22m[39m Compiled successfully in 4.0s
+[?25l[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m..[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m...[39m[2K[1G[37m[1m [22m[39m Running TypeScript  [36m.[39m[2K[1G[?25h[?25l[37m[1m [22m[39m Finished TypeScript in 8.8s  [36m.[39m[2K[1G[?25h[37m[1m [22m[39m Finished TypeScript in 8.8s    [32m[1m✓[22m[39m Finished TypeScript in 8.8s 
+[?25l[37m[1m [22m[39m Collecting page data using 7 workers  [36m.[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m..[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m...[39m[2K[1G[37m[1m [22m[39m Collecting page data using 7 workers  [36m.[39m[2K[1G[?25h[37m[1m [22m[39m Collecting page data using 7 workers in 633ms    [32m[1m✓[22m[39m Collecting page data using 7 workers in 633ms 
+[?25l[37m[1m [22m[39m Generating static pages using 7 workers (0/38)  [36m[    ][39m[2K[1G[37m[1m [22m[39m Generating static pages using 7 workers (0/38)  [36m[=   ][39m[2K[1G[?25h[32m[1m✓[22m[39m Generating static pages using 7 workers (38/38) in 360ms
+[?25l[37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G[?25h[37m[1m [22m[39m Finalizing page optimization in 13ms    [32m[1m✓[22m[39m Finalizing page optimization in 13ms 
+
+[4mRoute (app)[24m
+┌ ○ /
+├ ○ /_not-found
+├ ○ /app
+├ ○ /app/activity-feed
+├ ○ /app/audit-log
+├ ○ /app/billing
+├ ○ /app/budgets
+├ ○ /app/change-orders
+├ ƒ /app/change-orders/[changeOrderId]
+├ ○ /app/command-center
+├ ○ /app/integrations
+├ ○ /app/invoices
+├ ƒ /app/invoices/[invoiceId]
+├ ○ /app/match-runs
+├ ƒ /app/match-runs/[matchRunId]
+├ ○ /app/members
+├ ƒ /app/module/[moduleKey]
+├ ○ /app/notifications
+├ ○ /app/notifications/preferences
+├ ○ /app/projects
+├ ƒ /app/projects/[projectId]
+├ ○ /app/purchase-orders
+├ ƒ /app/purchase-orders/[purchaseOrderId]
+├ ○ /app/receipts
+├ ƒ /app/receipts/[receiptId]
+├ ○ /app/rfqs
+├ ƒ /app/rfqs/[rfqId]
+├ ○ /app/site-snaps
+├ ƒ /app/site-snaps/[siteSnapId]
+├ ○ /app/smartmail
+├ ƒ /app/smartmail/[threadId]
+├ ○ /app/subconnect
+├ ○ /auth/oauth/callback
+├ ○ /forgot-password
+├ ○ /login
+├ ○ /portal
+├ ○ /portal/compliance
+├ ○ /portal/daily-logs
+├ ƒ /portal/daily-logs/[dailyLogId]
+├ ○ /portal/forgot-password
+├ ○ /portal/invitations/accept
+├ ○ /portal/login
+├ ○ /portal/overview
+├ ○ /portal/pay-applications
+├ ƒ /portal/pay-applications/[payApplicationId]
+├ ○ /portal/profile
+├ ○ /portal/register
+├ ○ /portal/reset-password
+└ ○ /signup
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+[?25h

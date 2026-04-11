@@ -12,20 +12,26 @@ export function PortalAuthGuard({ children }: PropsWithChildren) {
   const searchParams = useSearchParams();
   const portalToken = useSessionStore((state) => state.portalToken);
   const setAuthMode = useSessionStore((state) => state.setAuthMode);
+  const persistApi = useSessionStore.persist;
 
   const [hasHydrated, setHasHydrated] = useState(
-    useSessionStore.persist.hasHydrated(),
+    persistApi?.hasHydrated?.() ?? false,
   );
 
   useEffect(() => {
-    const unsubscribe = useSessionStore.persist.onFinishHydration(() => {
+    if (!persistApi) {
+      setHasHydrated(true);
+      return;
+    }
+
+    const unsubscribe = persistApi.onFinishHydration(() => {
       setHasHydrated(true);
     });
 
-    setHasHydrated(useSessionStore.persist.hasHydrated());
+    setHasHydrated(persistApi.hasHydrated());
 
     return unsubscribe;
-  }, []);
+  }, [persistApi]);
 
   useEffect(() => {
     if (!hasHydrated || portalToken) {

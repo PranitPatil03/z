@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { buildEstimateBrief, listSupportedProviders, routeAiRequest } from "./index";
+import {
+  buildEstimateBrief,
+  listSupportedProviders,
+  routeAiRequest,
+} from "./index";
 
 describe("ai package", () => {
   it("returns supported providers", () => {
-    expect(listSupportedProviders()).toEqual(["openai", "anthropic", "gemini", "azure-openai"]);
+    expect(listSupportedProviders()).toEqual([
+      "openai",
+      "anthropic",
+      "gemini",
+      "azure-openai",
+    ]);
   });
 
   it("builds estimate brief with required sections", () => {

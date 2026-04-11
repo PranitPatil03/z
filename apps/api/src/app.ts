@@ -1,8 +1,24 @@
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import express, { type Express, type Request, type Response } from "express";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import { env } from "./config/env";
+import { logger } from "./lib/logger";
 import {
+  type ApiRouterMount,
+  buildOpenApiDocument,
+  renderOpenApiHtml,
+} from "./lib/openapi";
+import { errorHandler } from "./middleware/error-handler";
+import {
+  aiLimiter,
+  authLimiter,
+  billingLimiter,
+  standardLimiter,
+} from "./middleware/rate-limit";
+import { requestId } from "./middleware/request-id";
+import {
+  activityFeedRouter,
   aiRouter,
   auditLogRouter,
   authRouter,
@@ -15,30 +31,49 @@ import {
   invoicesRouter,
   matchRunsRouter,
   notificationsRouter,
-  organizationsRouter,
   oauthRouter,
+  organizationsRouter,
   permissionsRouter,
+  portalRouter,
   projectsRouter,
   purchaseOrdersRouter,
   receiptsRouter,
   rfqsRouter,
   siteSnapsRouter,
   smartMailRouter,
+  storageRouter,
   subconnectRouter,
   subcontractorsRouter,
-  portalRouter,
-  activityFeedRouter,
-  storageRouter,
 } from "./routes";
 import { healthRouter } from "./routes/health";
-import { errorHandler } from "./middleware/error-handler";
-import { requestId } from "./middleware/request-id";
-import { standardLimiter, authLimiter, aiLimiter, billingLimiter } from "./middleware/rate-limit";
-import { env } from "./config/env";
-import { logger } from "./lib/logger";
-import { buildOpenApiDocument, renderOpenApiHtml, type ApiRouterMount } from "./lib/openapi";
 
 export const app: Express = express();
+
+const configuredCorsOrigins = env.CORS_ORIGIN.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const localNetworkOriginPattern =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
+
+const corsOrigin: CorsOptions["origin"] = (origin, callback) => {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  if (configuredCorsOrigins.includes(origin)) {
+    callback(null, true);
+    return;
+  }
+
+  if (env.NODE_ENV !== "production" && localNetworkOriginPattern.test(origin)) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error(`CORS origin not allowed: ${origin}`));
+};
 
 const openApiRouterMounts: ApiRouterMount[] = [
   {
@@ -182,13 +217,14 @@ const openApiRouterMounts: ApiRouterMount[] = [
 const openApiDocument = buildOpenApiDocument({
   title: "Foreman API",
   version: "1.0.0",
-  description: "Live API contract generated from mounted routes and Zod validators.",
+  description:
+    "Live API contract generated from mounted routes and Zod validators.",
   mounts: openApiRouterMounts,
 });
 
 app.use(requestId);
 app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(
   pinoHttp({
     logger,
@@ -217,7 +253,9 @@ app.use(
         const requestIdHeader = request.headers["x-request-id"];
 
         return {
-          id: Array.isArray(requestIdHeader) ? requestIdHeader[0] : requestIdHeader,
+          id: Array.isArray(requestIdHeader)
+            ? requestIdHeader[0]
+            : requestIdHeader,
           method: request.method,
           url: request.originalUrl ?? request.url,
           remoteAddress: request.remoteAddress,
@@ -248,7 +286,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(standardLimiter);
 
 app.use("/health", healthRouter);
-app.use("/portal", authLimiter, portalRouter);
+app.use("/portal", portalRouter);
 app.use("/activity-feed", activityFeedRouter);
 app.use("/ai", aiLimiter, aiRouter);
 app.use("/organizations", organizationsRouter);

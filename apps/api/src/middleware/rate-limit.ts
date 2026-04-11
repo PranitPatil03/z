@@ -1,5 +1,7 @@
 import rateLimit from "express-rate-limit";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 /**
  * Standard rate limit for authenticated API endpoints.
  * 100 requests per minute per IP.
@@ -9,7 +11,12 @@ export const standardLimiter = rateLimit({
   limit: 100,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests, please try again later" } },
+  message: {
+    error: {
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "Too many requests, please try again later",
+    },
+  },
 });
 
 /**
@@ -18,10 +25,16 @@ export const standardLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: isProduction ? 10 : 200,
+  skipSuccessfulRequests: true,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many authentication attempts, please try again later" } },
+  message: {
+    error: {
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "Too many authentication attempts, please try again later",
+    },
+  },
 });
 
 /**
@@ -33,7 +46,12 @@ export const aiLimiter = rateLimit({
   limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { error: { code: "RATE_LIMIT_EXCEEDED", message: "AI request limit exceeded, please try again later" } },
+  message: {
+    error: {
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "AI request limit exceeded, please try again later",
+    },
+  },
 });
 
 /**
@@ -45,5 +63,10 @@ export const billingLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many billing requests, please try again later" } },
+  message: {
+    error: {
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "Too many billing requests, please try again later",
+    },
+  },
 });

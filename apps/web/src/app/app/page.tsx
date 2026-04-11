@@ -1,5 +1,5 @@
-import { DashboardPage } from "@/features/app/pages/dashboard-page";
+import { CommandCenterPage } from "@/features/ops-intelligence/pages/command-center-page";
 
 export default function ConsoleDashboardPage() {
-  return <DashboardPage />;
+  return <CommandCenterPage />;
 }

@@ -1,11 +1,15 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { rfqs } from "@foreman/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { createRfqSchema, rfqIdParamsSchema, updateRfqSchema } from "../schemas/rfq.schema";
+import {
+  createRfqSchema,
+  rfqIdParamsSchema,
+  updateRfqSchema,
+} from "../schemas/rfq.schema";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -20,13 +24,19 @@ function requireOrg(request: Request) {
   if (!session.activeOrganizationId) {
     throw badRequest("An active organization is required");
   }
-  return { orgId: session.activeOrganizationId, userId: getAuthContext(request).user.id };
+  return {
+    orgId: session.activeOrganizationId,
+    userId: getAuthContext(request).user.id,
+  };
 }
 
 export const rfqService = {
   async list(request: Request) {
     const { orgId } = requireOrg(request);
-    return await db.select().from(rfqs).where(and(eq(rfqs.organizationId, orgId), isNull(rfqs.deletedAt)));
+    return await db
+      .select()
+      .from(rfqs)
+      .where(and(eq(rfqs.organizationId, orgId), isNull(rfqs.deletedAt)));
   },
 
   async create(request: Request) {
@@ -57,7 +67,13 @@ export const rfqService = {
     const [record] = await db
       .select()
       .from(rfqs)
-      .where(and(eq(rfqs.id, params.rfqId), eq(rfqs.organizationId, orgId), isNull(rfqs.deletedAt)));
+      .where(
+        and(
+          eq(rfqs.id, params.rfqId),
+          eq(rfqs.organizationId, orgId),
+          isNull(rfqs.deletedAt),
+        ),
+      );
 
     if (!record) {
       throw notFound("RFQ not found");
@@ -75,10 +91,21 @@ export const rfqService = {
       .update(rfqs)
       .set({
         ...body,
-        dueDate: body.dueDate === undefined ? undefined : body.dueDate ? new Date(body.dueDate) : null,
+        dueDate:
+          body.dueDate === undefined
+            ? undefined
+            : body.dueDate
+              ? new Date(body.dueDate)
+              : null,
         updatedAt: new Date(),
       })
-      .where(and(eq(rfqs.id, params.rfqId), eq(rfqs.organizationId, orgId), isNull(rfqs.deletedAt)))
+      .where(
+        and(
+          eq(rfqs.id, params.rfqId),
+          eq(rfqs.organizationId, orgId),
+          isNull(rfqs.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -95,7 +122,13 @@ export const rfqService = {
     const [record] = await db
       .update(rfqs)
       .set({ status: "canceled", deletedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(rfqs.id, params.rfqId), eq(rfqs.organizationId, orgId), isNull(rfqs.deletedAt)))
+      .where(
+        and(
+          eq(rfqs.id, params.rfqId),
+          eq(rfqs.organizationId, orgId),
+          isNull(rfqs.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {

@@ -1,11 +1,15 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { purchaseOrders } from "@foreman/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../database";
 import { badRequest, notFound } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { createPurchaseOrderSchema, purchaseOrderIdParamsSchema, updatePurchaseOrderSchema } from "../schemas/purchase-order.schema";
+import {
+  createPurchaseOrderSchema,
+  purchaseOrderIdParamsSchema,
+  updatePurchaseOrderSchema,
+} from "../schemas/purchase-order.schema";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -26,7 +30,15 @@ function requireOrg(request: Request) {
 export const purchaseOrderService = {
   async list(request: Request) {
     const { orgId } = requireOrg(request);
-    return await db.select().from(purchaseOrders).where(and(eq(purchaseOrders.organizationId, orgId), isNull(purchaseOrders.deletedAt)));
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .where(
+        and(
+          eq(purchaseOrders.organizationId, orgId),
+          isNull(purchaseOrders.deletedAt),
+        ),
+      );
   },
 
   async create(request: Request) {
@@ -54,12 +66,20 @@ export const purchaseOrderService = {
 
   async get(request: Request) {
     const { orgId } = requireOrg(request);
-    const params = purchaseOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = purchaseOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .select()
       .from(purchaseOrders)
-      .where(and(eq(purchaseOrders.id, params.purchaseOrderId), eq(purchaseOrders.organizationId, orgId), isNull(purchaseOrders.deletedAt)));
+      .where(
+        and(
+          eq(purchaseOrders.id, params.purchaseOrderId),
+          eq(purchaseOrders.organizationId, orgId),
+          isNull(purchaseOrders.deletedAt),
+        ),
+      );
 
     if (!record) {
       throw notFound("Purchase order not found");
@@ -70,17 +90,30 @@ export const purchaseOrderService = {
 
   async update(request: Request) {
     const { orgId } = requireOrg(request);
-    const params = purchaseOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = purchaseOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updatePurchaseOrderSchema.parse(readValidatedBody(request));
 
     const [record] = await db
       .update(purchaseOrders)
       .set({
         ...body,
-        issueDate: body.issueDate === undefined ? undefined : body.issueDate ? new Date(body.issueDate) : null,
+        issueDate:
+          body.issueDate === undefined
+            ? undefined
+            : body.issueDate
+              ? new Date(body.issueDate)
+              : null,
         updatedAt: new Date(),
       })
-      .where(and(eq(purchaseOrders.id, params.purchaseOrderId), eq(purchaseOrders.organizationId, orgId), isNull(purchaseOrders.deletedAt)))
+      .where(
+        and(
+          eq(purchaseOrders.id, params.purchaseOrderId),
+          eq(purchaseOrders.organizationId, orgId),
+          isNull(purchaseOrders.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {
@@ -92,12 +125,20 @@ export const purchaseOrderService = {
 
   async archive(request: Request) {
     const { orgId } = requireOrg(request);
-    const params = purchaseOrderIdParamsSchema.parse(readValidatedParams(request));
+    const params = purchaseOrderIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(purchaseOrders)
       .set({ status: "canceled", deletedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(purchaseOrders.id, params.purchaseOrderId), eq(purchaseOrders.organizationId, orgId), isNull(purchaseOrders.deletedAt)))
+      .where(
+        and(
+          eq(purchaseOrders.id, params.purchaseOrderId),
+          eq(purchaseOrders.organizationId, orgId),
+          isNull(purchaseOrders.deletedAt),
+        ),
+      )
       .returning();
 
     if (!record) {

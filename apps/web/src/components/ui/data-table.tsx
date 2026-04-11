@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { Skeleton } from "./skeleton";
 
 const SKELETON_ROW_KEYS = [

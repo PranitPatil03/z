@@ -1,5 +1,5 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { complianceItems } from "@foreman/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 import { env } from "../config/env";
 import { db } from "../database";
@@ -45,7 +45,13 @@ function normalizeEvidence(value: unknown) {
 function appendReviewTrace(input: {
   evidence: unknown;
   reviewerUserId: string;
-  status: "pending" | "verified" | "expiring" | "expired" | "non_compliant" | "compliant";
+  status:
+    | "pending"
+    | "verified"
+    | "expiring"
+    | "expired"
+    | "non_compliant"
+    | "compliant";
   notes: string | null;
 }) {
   const current = normalizeEvidence(input.evidence);
@@ -70,9 +76,14 @@ function appendReviewTrace(input: {
 export const complianceService = {
   async list(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listComplianceItemsQuerySchema.parse(readValidatedQuery(request));
+    const query = listComplianceItemsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    const filters = [eq(complianceItems.organizationId, orgId), isNull(complianceItems.deletedAt)];
+    const filters = [
+      eq(complianceItems.organizationId, orgId),
+      isNull(complianceItems.deletedAt),
+    ];
 
     if (query.projectId) {
       filters.push(eq(complianceItems.projectId, query.projectId));
@@ -124,7 +135,9 @@ export const complianceService = {
 
   async get(request: Request) {
     const { orgId } = requireContext(request);
-    const params = complianceItemIdParamsSchema.parse(readValidatedParams(request));
+    const params = complianceItemIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .select()
@@ -146,7 +159,9 @@ export const complianceService = {
 
   async update(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = complianceItemIdParamsSchema.parse(readValidatedParams(request));
+    const params = complianceItemIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateComplianceItemSchema.parse(readValidatedBody(request));
 
     const [existing] = await db
@@ -166,17 +181,29 @@ export const complianceService = {
     }
 
     const nextStatus = body.status ?? existing.status;
-    const nextNotes = body.notes === undefined ? existing.notes : body.notes ?? null;
-    const baseEvidence = body.evidence === undefined ? existing.evidence : body.evidence;
+    const nextNotes =
+      body.notes === undefined ? existing.notes : (body.notes ?? null);
+    const baseEvidence =
+      body.evidence === undefined ? existing.evidence : body.evidence;
 
-    const requiresReviewerConfirmation = existing.highRisk || body.highRisk === true;
-    const statusMovesToVerified = nextStatus === "verified" || nextStatus === "compliant";
-    if (requiresReviewerConfirmation && statusMovesToVerified && body.reviewerConfirmed !== true) {
-      throw badRequest("High-risk compliance items require explicit reviewer confirmation before verification");
+    const requiresReviewerConfirmation =
+      existing.highRisk || body.highRisk === true;
+    const statusMovesToVerified =
+      nextStatus === "verified" || nextStatus === "compliant";
+    if (
+      requiresReviewerConfirmation &&
+      statusMovesToVerified &&
+      body.reviewerConfirmed !== true
+    ) {
+      throw badRequest(
+        "High-risk compliance items require explicit reviewer confirmation before verification",
+      );
     }
 
     const shouldTraceReview =
-      body.status !== undefined || body.notes !== undefined || body.evidence !== undefined;
+      body.status !== undefined ||
+      body.notes !== undefined ||
+      body.evidence !== undefined;
     const nextEvidence = shouldTraceReview
       ? appendReviewTrace({
           evidence: baseEvidence,
@@ -186,8 +213,10 @@ export const complianceService = {
         })
       : baseEvidence;
 
-    const shouldConfirm = body.reviewerConfirmed === true && statusMovesToVerified;
-    const shouldResetConfirmation = nextStatus === "pending" || nextStatus === "non_compliant";
+    const shouldConfirm =
+      body.reviewerConfirmed === true && statusMovesToVerified;
+    const shouldResetConfirmation =
+      nextStatus === "pending" || nextStatus === "non_compliant";
 
     const [record] = await db
       .update(complianceItems)
@@ -195,9 +224,22 @@ export const complianceService = {
         ...body,
         highRisk: body.highRisk,
         evidence: nextEvidence,
-        reviewerConfirmedAt: shouldConfirm ? new Date() : shouldResetConfirmation ? null : undefined,
-        reviewerConfirmedByUserId: shouldConfirm ? userId : shouldResetConfirmation ? null : undefined,
-        dueDate: body.dueDate === undefined ? undefined : body.dueDate ? new Date(body.dueDate) : null,
+        reviewerConfirmedAt: shouldConfirm
+          ? new Date()
+          : shouldResetConfirmation
+            ? null
+            : undefined,
+        reviewerConfirmedByUserId: shouldConfirm
+          ? userId
+          : shouldResetConfirmation
+            ? null
+            : undefined,
+        dueDate:
+          body.dueDate === undefined
+            ? undefined
+            : body.dueDate
+              ? new Date(body.dueDate)
+              : null,
         reminderSentAt: body.dueDate !== undefined ? null : undefined,
         escalationSentAt: body.dueDate !== undefined ? null : undefined,
         updatedAt: new Date(),
@@ -220,8 +262,12 @@ export const complianceService = {
 
   async queueInsuranceExtraction(request: Request) {
     const { orgId } = requireContext(request);
-    const params = complianceItemIdParamsSchema.parse(readValidatedParams(request));
-    const body = queueInsuranceExtractionSchema.parse(readValidatedBody(request));
+    const params = complianceItemIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const body = queueInsuranceExtractionSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [item] = await db
       .select()
@@ -239,19 +285,7 @@ export const complianceService = {
       throw notFound("Compliance item not found");
     }
 
-    const prompt = `Extract insurance compliance details from the following content and return strict JSON only.\n\n` +
-      `Required JSON shape:\n` +
-      `{\n` +
-      `  "carrier": "string|null",\n` +
-      `  "policyNumber": "string|null",\n` +
-      `  "limits": "string|null",\n` +
-      `  "effectiveDate": "ISO-8601|null",\n` +
-      `  "expiryDate": "ISO-8601|null",\n` +
-      `  "additionalInsured": "yes|no|unknown",\n` +
-      `  "confidenceBps": number,\n` +
-      `  "notes": "string"\n` +
-      `}\n\n` +
-      `Content to extract from:\n${body.prompt}`;
+    const prompt = `Extract insurance compliance details from the following content and return strict JSON only.\n\nRequired JSON shape:\n{\n  "carrier": "string|null",\n  "policyNumber": "string|null",\n  "limits": "string|null",\n  "effectiveDate": "ISO-8601|null",\n  "expiryDate": "ISO-8601|null",\n  "additionalInsured": "yes|no|unknown",\n  "confidenceBps": number,\n  "notes": "string"\n}\n\nContent to extract from:\n${body.prompt}`;
 
     const jobId = await enqueueAiTask({
       provider: body.provider,
@@ -278,7 +312,9 @@ export const complianceService = {
 
   async archive(request: Request) {
     const { orgId } = requireContext(request);
-    const params = complianceItemIdParamsSchema.parse(readValidatedParams(request));
+    const params = complianceItemIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(complianceItems)

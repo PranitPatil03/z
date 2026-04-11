@@ -1,5 +1,10 @@
+import {
+  complianceItems,
+  projects,
+  subcontractorInvitations,
+  subcontractors,
+} from "@foreman/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { complianceItems, projects, subcontractorInvitations, subcontractors } from "@foreman/db";
 import type { Request } from "express";
 import { env } from "../config/env";
 import { db } from "../database";
@@ -7,7 +12,6 @@ import { badRequest, notFound } from "../lib/errors";
 import { enqueueNotificationDelivery } from "../lib/queues";
 import type { ValidatedRequest } from "../lib/validate";
 import { getAuthContext } from "../middleware/require-auth";
-import { applyComplianceTemplatesForSubcontractor, hashToken, issueOneTimeToken } from "./subconnect-utils";
 import {
   createSubcontractorSchema,
   inviteSubcontractorPortalSchema,
@@ -15,6 +19,11 @@ import {
   subcontractorIdParamsSchema,
   updateSubcontractorSchema,
 } from "../schemas/subcontractor.schema";
+import {
+  applyComplianceTemplatesForSubcontractor,
+  hashToken,
+  issueOneTimeToken,
+} from "./subconnect-utils";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -39,9 +48,14 @@ function requireContext(request: Request) {
 export const subcontractorService = {
   async list(request: Request) {
     const { orgId } = requireContext(request);
-    const query = listSubcontractorsQuerySchema.parse(readValidatedQuery(request));
+    const query = listSubcontractorsQuerySchema.parse(
+      readValidatedQuery(request),
+    );
 
-    const filters = [eq(subcontractors.organizationId, orgId), isNull(subcontractors.deletedAt)];
+    const filters = [
+      eq(subcontractors.organizationId, orgId),
+      isNull(subcontractors.deletedAt),
+    ];
 
     if (query.projectId) {
       filters.push(eq(subcontractors.projectId, query.projectId));
@@ -144,10 +158,19 @@ export const subcontractorService = {
 
       const dueAt = row.dueDate?.getTime();
       if (typeof dueAt === "number") {
-        if (dueAt < now && row.status !== "verified" && row.status !== "compliant") {
+        if (
+          dueAt < now &&
+          row.status !== "verified" &&
+          row.status !== "compliant"
+        ) {
           bucket.overdue += 1;
         }
-        if (dueAt >= now && dueAt <= dueSoonCutoff && row.status !== "verified" && row.status !== "compliant") {
+        if (
+          dueAt >= now &&
+          dueAt <= dueSoonCutoff &&
+          row.status !== "verified" &&
+          row.status !== "compliant"
+        ) {
           bucket.dueSoon += 1;
         }
       }
@@ -202,7 +225,9 @@ export const subcontractorService = {
 
   async get(request: Request) {
     const { orgId } = requireContext(request);
-    const params = subcontractorIdParamsSchema.parse(readValidatedParams(request));
+    const params = subcontractorIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .select()
@@ -224,7 +249,9 @@ export const subcontractorService = {
 
   async update(request: Request) {
     const { orgId } = requireContext(request);
-    const params = subcontractorIdParamsSchema.parse(readValidatedParams(request));
+    const params = subcontractorIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
     const body = updateSubcontractorSchema.parse(readValidatedBody(request));
 
     const [record] = await db
@@ -248,7 +275,9 @@ export const subcontractorService = {
 
   async archive(request: Request) {
     const { orgId } = requireContext(request);
-    const params = subcontractorIdParamsSchema.parse(readValidatedParams(request));
+    const params = subcontractorIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
 
     const [record] = await db
       .update(subcontractors)
@@ -271,8 +300,12 @@ export const subcontractorService = {
 
   async invitePortalAccess(request: Request) {
     const { orgId, userId } = requireContext(request);
-    const params = subcontractorIdParamsSchema.parse(readValidatedParams(request));
-    const body = inviteSubcontractorPortalSchema.parse(readValidatedBody(request));
+    const params = subcontractorIdParamsSchema.parse(
+      readValidatedParams(request),
+    );
+    const body = inviteSubcontractorPortalSchema.parse(
+      readValidatedBody(request),
+    );
 
     const [existing] = await db
       .select()
@@ -291,22 +324,30 @@ export const subcontractorService = {
     }
 
     if (existing.status !== "active") {
-      throw badRequest("Portal access can only be enabled for active subcontractors");
+      throw badRequest(
+        "Portal access can only be enabled for active subcontractors",
+      );
     }
 
     const inviteEmail = body.email ?? existing.email;
     if (!inviteEmail) {
-      throw badRequest("Subcontractor email is required to enable portal access");
+      throw badRequest(
+        "Subcontractor email is required to enable portal access",
+      );
     }
 
     const projectId = body.projectId ?? existing.projectId ?? null;
     if (!projectId) {
-      throw badRequest("Subcontractor must be assigned to a project before enabling portal access");
+      throw badRequest(
+        "Subcontractor must be assigned to a project before enabling portal access",
+      );
     }
 
     const metadata = (existing.metadata ?? {}) as Record<string, unknown>;
     const assignment =
-      metadata.portalAssignment && typeof metadata.portalAssignment === "object" && !Array.isArray(metadata.portalAssignment)
+      metadata.portalAssignment &&
+      typeof metadata.portalAssignment === "object" &&
+      !Array.isArray(metadata.portalAssignment)
         ? (metadata.portalAssignment as Record<string, unknown>)
         : {};
 
@@ -315,8 +356,13 @@ export const subcontractorService = {
       portalAssignment: {
         ...assignment,
         assignedScope:
-          body.assignedScope === undefined ? (assignment.assignedScope as string | null | undefined) ?? null : body.assignedScope,
-        milestones: body.milestones ?? ((assignment.milestones as string[] | undefined) ?? []),
+          body.assignedScope === undefined
+            ? ((assignment.assignedScope as string | null | undefined) ?? null)
+            : body.assignedScope,
+        milestones:
+          body.milestones ??
+          (assignment.milestones as string[] | undefined) ??
+          [],
         invitedAt: new Date().toISOString(),
         invitedByUserId: userId,
       },
@@ -325,7 +371,13 @@ export const subcontractorService = {
     const [project] = await db
       .select({ id: projects.id, name: projects.name, code: projects.code })
       .from(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt)))
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.organizationId, orgId),
+          isNull(projects.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!project) {

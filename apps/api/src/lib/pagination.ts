@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { gt, lt, desc, asc, type SQL } from "drizzle-orm";
+import { type SQL, asc, desc, gt, lt } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
+import { z } from "zod";
 
 /**
  * Reusable pagination query schema.
@@ -33,9 +33,8 @@ export function buildCursorPagination(
 
   let cursorCondition: SQL | undefined;
   if (cursor) {
-    cursorCondition = direction === "forward"
-      ? lt(column, cursor)
-      : gt(column, cursor);
+    cursorCondition =
+      direction === "forward" ? lt(column, cursor) : gt(column, cursor);
   }
 
   const orderBy = direction === "forward" ? desc(column) : asc(column);
@@ -51,7 +50,8 @@ export function paginatedResponse<T extends { id: string }>(
   limit: number,
 ) {
   const hasMore = items.length === limit;
-  const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].id : null;
+  const nextCursor =
+    hasMore && items.length > 0 ? items[items.length - 1].id : null;
 
   return {
     data: items,

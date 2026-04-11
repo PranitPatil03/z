@@ -199,7 +199,7 @@ export const moduleRegistry: ModuleDefinition[] = [
     icon: Mail,
     routePath: "/app/smartmail",
     priority: "P3",
-    progress: 55,
+    progress: 100,
     group: "field",
   },
   {
@@ -209,7 +209,7 @@ export const moduleRegistry: ModuleDefinition[] = [
     icon: CreditCard,
     routePath: "/app/billing",
     priority: "P2",
-    progress: 75,
+    progress: 100,
     group: "admin",
   },
 ];

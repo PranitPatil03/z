@@ -1,21 +1,21 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import {
+  accounts,
+  invitations,
+  members,
+  organizations,
+  sessions,
+  teamMembers,
+  teams,
+  users,
+  verifications,
+} from "@foreman/db";
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
-import {
-  users,
-  sessions,
-  accounts,
-  verifications,
-  organizations,
-  members,
-  invitations,
-  teams,
-  teamMembers,
-} from "@foreman/db";
-import { db } from "../database";
 import { env } from "../config/env";
-import { logger } from "../lib/logger";
+import { db } from "../database";
 import { sendMail } from "../lib/email";
+import { logger } from "../lib/logger";
 
 export const auth = betterAuth({
   appName: "Foreman",

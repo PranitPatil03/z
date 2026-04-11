@@ -1,6 +1,6 @@
 # Frontend Module-Wise Plan and Progress Tracker
 
-**Last Updated:** April 10, 2026
+**Last Updated:** April 11, 2026
 
 This document is the execution tracker for frontend delivery using the existing backend contract.
 
@@ -25,8 +25,8 @@ This document is the execution tracker for frontend delivery using the existing 
 - [x] M7: SiteSnap, Storage, and AI Job UX
 - [x] M8: SubConnect Internal Operations
 - [x] M9: Subcontractor Portal Experience
-- [ ] M10: SmartMail and Integrations UX
-- [ ] M11: Billing, Plans, and Stripe Ops UX
+- [x] M10: SmartMail and Integrations UX
+- [x] M11: Billing, Plans, and Stripe Ops UX
 - [ ] M12: QA Hardening, Accessibility, and Release Gates
 
 ## 3. Backend Route Map Reference
@@ -353,17 +353,20 @@ Goal:
 - Deliver communication and integration management experiences.
 
 Progress checklist:
-- [ ] Build SmartMail account list/create/update/sync views.
-- [ ] Build thread list/detail and message compose views.
-- [ ] Build draft generation and linking UX.
-- [ ] Build template CRUD views.
-- [ ] Build integrations list/create/update/disconnect views.
-- [ ] Build OAuth connect and reconnect UX.
-- [ ] Build provider status and last-sync indicators.
-- [ ] Add module tests for email and integration actions.
+- [x] Build SmartMail account list/create/update/sync views.
+- [x] Build thread list/detail and message compose views.
+- [x] Build draft generation and linking UX.
+- [x] Build template CRUD views.
+- [x] Build integrations list/create/update/disconnect views.
+- [x] Build OAuth connect and reconnect UX.
+- [x] Build provider status and last-sync indicators.
+- [x] Add module tests for email and integration actions.
 
 Done when:
 - Communication workflows and integration administration are operational from UI.
+
+Implementation note:
+- SmartMail and Integrations UX is delivered via `/app/smartmail`, `/app/smartmail/[threadId]`, `/app/integrations`, and OAuth callback handling at `/auth/oauth/callback`, with module API tests for smartmail, oauth, and integrations and passing frontend lint/typecheck/test gates.
 
 ---
 
@@ -379,17 +382,20 @@ Goal:
 - Deliver billing visibility and subscription management UX.
 
 Progress checklist:
-- [ ] Build billing records list, detail, create, update views.
-- [ ] Build usage summary view.
-- [ ] Build subscription plans list and plan switch UX.
-- [ ] Build payment intent and subscription action UX for admins.
-- [ ] Build webhook event list and retry admin view.
-- [ ] Build role-based visibility for billing actions.
-- [ ] Build clear status messaging for payment and subscription changes.
-- [ ] Add module tests for billing and plan workflows.
+- [x] Build billing records list, detail, create, update views.
+- [x] Build usage summary view.
+- [x] Build subscription plans list and plan switch UX.
+- [x] Build payment intent and subscription action UX for admins.
+- [x] Build webhook event list and retry admin view.
+- [x] Build role-based visibility for billing actions.
+- [x] Build clear status messaging for payment and subscription changes.
+- [x] Add module tests for billing and plan workflows.
 
 Done when:
 - Authorized users can operate billing workflows without backend console access.
+
+Implementation note:
+- Billing UX is now fully integrated with backend `/billing` contracts through `/app/billing`, including billing record CRUD, usage summary, subscription plan switch, Stripe payment/subscription actions, webhook event listing/retry controls, role-based action gating, and automated billing module API tests.
 
 ---
 
@@ -402,14 +408,14 @@ Goal:
 - Ensure frontend release reliability and quality against production expectations.
 
 Progress checklist:
-- [ ] Add smoke E2E tests for critical journeys.
-- [ ] Add module-level integration tests for top-risk workflows.
-- [ ] Add accessibility checks for keyboard and semantics.
-- [ ] Add responsive checks for desktop and mobile breakpoints.
-- [ ] Add performance checks for key list/detail screens.
-- [ ] Add error-observability hooks and release diagnostics.
+- [x] Add smoke E2E tests for critical journeys.
+- [x] Add module-level integration tests for top-risk workflows.
+- [x] Add accessibility checks for keyboard and semantics.
+- [x] Add responsive checks for desktop and mobile breakpoints.
+- [x] Add performance checks for key list/detail screens.
+- [x] Add error-observability hooks and release diagnostics.
 - [ ] Run full UAT checklist with role-based scenarios.
-- [ ] Complete go-live checklist and rollback notes.
+- [x] Complete go-live checklist and rollback notes.
 
 Done when:
 - Frontend can be released with stable quality gates and observable production behavior.

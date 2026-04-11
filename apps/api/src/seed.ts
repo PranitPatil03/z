@@ -326,7 +326,9 @@ async function reconcileSeedCredentialAccounts(seedUserRows: SeedUser[]) {
   const passwordHash = await hashPassword("Password123!");
 
   const missingAccountRows = seedUserIds
-    .filter((userId) => existingUserIds.has(userId) && !accountByUserId.has(userId))
+    .filter(
+      (userId) => existingUserIds.has(userId) && !accountByUserId.has(userId),
+    )
     .map((userId) => {
       const user = seedUsersById.get(userId);
       if (!user) {
@@ -346,9 +348,12 @@ async function reconcileSeedCredentialAccounts(seedUserRows: SeedUser[]) {
     .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
   if (missingAccountRows.length > 0) {
-    await db.insert(accounts).values(missingAccountRows).onConflictDoNothing({
-      target: [accounts.providerId, accounts.accountId],
-    });
+    await db
+      .insert(accounts)
+      .values(missingAccountRows)
+      .onConflictDoNothing({
+        target: [accounts.providerId, accounts.accountId],
+      });
   }
 
   const invalidHashAccountIds = credentialAccounts
@@ -572,7 +577,10 @@ async function main() {
 
   if (!reset) {
     const reconcileResult = await reconcileSeedCredentialAccounts(seededUsers);
-    if (reconcileResult.insertedAccounts > 0 || reconcileResult.updatedAccounts > 0) {
+    if (
+      reconcileResult.insertedAccounts > 0 ||
+      reconcileResult.updatedAccounts > 0
+    ) {
       // eslint-disable-next-line no-console
       console.log(
         `Seed append repaired credential accounts (inserted: ${reconcileResult.insertedAccounts}, updated: ${reconcileResult.updatedAccounts}).`,

@@ -1,4 +1,8 @@
-export type SmartMailLinkedEntityType = "purchase_order" | "invoice" | "change_order" | "subcontractor";
+export type SmartMailLinkedEntityType =
+  | "purchase_order"
+  | "invoice"
+  | "change_order"
+  | "subcontractor";
 
 export interface SmartMailEntityReference {
   id: string;
@@ -37,7 +41,10 @@ function normalizeText(text: string) {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-export function detectDeterministicEntityLink(rawText: string, inputs: SmartMailLinkInputs): SmartMailLinkCandidate | null {
+export function detectDeterministicEntityLink(
+  rawText: string,
+  inputs: SmartMailLinkInputs,
+): SmartMailLinkCandidate | null {
   const text = normalizeText(rawText);
   if (!text) {
     return null;

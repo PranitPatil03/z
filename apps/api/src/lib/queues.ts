@@ -3,8 +3,12 @@ import { env } from "../config/env";
 
 const connection = env.REDIS_URL ? { url: env.REDIS_URL } : null;
 
-export const aiTaskQueue = connection ? new Queue("ai-task", { connection }) : null;
-export const notificationDeliveryQueue = connection ? new Queue("notification-delivery", { connection }) : null;
+export const aiTaskQueue = connection
+  ? new Queue("ai-task", { connection })
+  : null;
+export const notificationDeliveryQueue = connection
+  ? new Queue("notification-delivery", { connection })
+  : null;
 
 export async function enqueueAiTask(payload: {
   provider?: "openai" | "anthropic" | "gemini" | "azure-openai";

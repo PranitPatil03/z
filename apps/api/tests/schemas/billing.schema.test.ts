@@ -39,6 +39,17 @@ describe("billing schemas", () => {
     ).toThrow();
   });
 
+  it("accepts stripe subscription payload with add-on prices", () => {
+    const parsed = createStripeSubscriptionSchema.parse({
+      stripeCustomerId: "cus_123",
+      priceId: "price_base",
+      billingRecordId: "bill-1",
+      addOnPriceIds: ["price_addon_1", "price_addon_2"],
+    });
+
+    expect(parsed.addOnPriceIds).toEqual(["price_addon_1", "price_addon_2"]);
+  });
+
   it("applies webhook event query defaults", () => {
     const parsed = listStripeWebhookEventsQuerySchema.parse({});
 

@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { stripeService } from "../services/stripe";
 import { badRequest } from "../lib/errors";
 import type { ValidatedRequest } from "../lib/validate";
 import {
@@ -8,6 +7,7 @@ import {
   listStripeWebhookEventsQuerySchema,
   stripeWebhookEventParamsSchema,
 } from "../schemas/billing.schema";
+import { stripeService } from "../services/stripe";
 
 function readValidatedBody<T>(request: Request) {
   return (request as ValidatedRequest).validated?.body as T;
@@ -21,7 +21,10 @@ function readValidatedParams<T>(request: Request) {
   return (request as ValidatedRequest).validated?.params as T;
 }
 
-export async function stripeWebhookController(request: Request, response: Response) {
+export async function stripeWebhookController(
+  request: Request,
+  response: Response,
+) {
   const signature = request.headers["stripe-signature"];
 
   if (!signature || typeof signature !== "string") {
@@ -30,7 +33,10 @@ export async function stripeWebhookController(request: Request, response: Respon
 
   try {
     // Get raw body as string (Express middleware should have raw access)
-    const body = request.body instanceof Buffer ? request.body : JSON.stringify(request.body);
+    const body =
+      request.body instanceof Buffer
+        ? request.body
+        : JSON.stringify(request.body);
 
     const event = stripeService.constructWebhookEvent(body, signature);
 
@@ -45,12 +51,17 @@ export async function stripeWebhookController(request: Request, response: Respon
   }
 }
 
-export async function stripeCreatePaymentIntentController(request: Request, response: Response) {
-  const { billingRecordId, stripeCustomerId } = createStripePaymentIntentSchema.parse(
-    readValidatedBody(request),
-  );
+export async function stripeCreatePaymentIntentController(
+  request: Request,
+  response: Response,
+) {
+  const { billingRecordId, stripeCustomerId } =
+    createStripePaymentIntentSchema.parse(readValidatedBody(request));
 
-  const paymentIntent = await stripeService.createPaymentIntent(billingRecordId, stripeCustomerId);
+  const paymentIntent = await stripeService.createPaymentIntent(
+    billingRecordId,
+    stripeCustomerId,
+  );
 
   response.json({
     clientSecret: paymentIntent.client_secret,
@@ -58,12 +69,19 @@ export async function stripeCreatePaymentIntentController(request: Request, resp
   });
 }
 
-export async function stripeCreateSubscriptionController(request: Request, response: Response) {
-  const { stripeCustomerId, priceId, billingRecordId } = createStripeSubscriptionSchema.parse(
-    readValidatedBody(request),
-  );
+export async function stripeCreateSubscriptionController(
+  request: Request,
+  response: Response,
+) {
+  const { stripeCustomerId, priceId, billingRecordId, addOnPriceIds } =
+    createStripeSubscriptionSchema.parse(readValidatedBody(request));
 
-  const subscription = await stripeService.createSubscription(stripeCustomerId, priceId, billingRecordId);
+  const subscription = await stripeService.createSubscription(
+    stripeCustomerId,
+    priceId,
+    billingRecordId,
+    addOnPriceIds,
+  );
 
   response.json({
     subscriptionId: subscription.id,
@@ -71,15 +89,25 @@ export async function stripeCreateSubscriptionController(request: Request, respo
   });
 }
 
-export async function stripeListWebhookEventsController(request: Request, response: Response) {
-  const query = listStripeWebhookEventsQuerySchema.parse(readValidatedQuery(request));
+export async function stripeListWebhookEventsController(
+  request: Request,
+  response: Response,
+) {
+  const query = listStripeWebhookEventsQuerySchema.parse(
+    readValidatedQuery(request),
+  );
   const data = await stripeService.listWebhookEvents(query);
 
   response.json({ data });
 }
 
-export async function stripeRetryWebhookEventController(request: Request, response: Response) {
-  const { eventId } = stripeWebhookEventParamsSchema.parse(readValidatedParams(request));
+export async function stripeRetryWebhookEventController(
+  request: Request,
+  response: Response,
+) {
+  const { eventId } = stripeWebhookEventParamsSchema.parse(
+    readValidatedParams(request),
+  );
   const data = await stripeService.retryWebhookEvent(eventId);
 
   response.json({ data });
