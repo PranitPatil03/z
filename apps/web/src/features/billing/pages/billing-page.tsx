@@ -210,8 +210,8 @@ export function BillingPage() {
     mutationFn: () =>
       billingApi.createCheckoutSession({
         plan: selectedPlan,
-        successPath: "/app/billing?checkout=success",
-        cancelPath: "/app/billing?checkout=cancel",
+        successPath: "/billing?checkout=success",
+        cancelPath: "/billing?checkout=cancel",
       }),
     onSuccess: ({ url }) => {
       window.location.assign(url);
@@ -323,7 +323,7 @@ export function BillingPage() {
           description="Billing data becomes available after an organization is active."
           action={
             <Button asChild size="sm" variant="outline">
-              <Link href="/app/organization-setup">Set up organization</Link>
+              <Link href="/organization-setup">Set up organization</Link>
             </Button>
           }
         />
@@ -334,7 +334,7 @@ export function BillingPage() {
           action={{
             label: "Open organization setup",
             onClick: () => {
-              window.location.assign("/app/organization-setup");
+              window.location.assign("/organization-setup");
             },
           }}
         />

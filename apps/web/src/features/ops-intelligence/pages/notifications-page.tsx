@@ -134,7 +134,7 @@ export function NotificationsPage() {
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/notifications/preferences">Preferences</Link>
+              <Link href="/notifications/preferences">Preferences</Link>
             </Button>
             {unreadCount > 0 && (
               <Button

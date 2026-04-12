@@ -424,7 +424,7 @@ export function SmartMailThreadPage({ threadId }: SmartMailThreadPageProps) {
         description={`Thread ${threadId}`}
         action={
           <Button variant="outline" size="sm" asChild>
-            <Link href="/app/smartmail">
+            <Link href="/smartmail">
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back to SmartMail
             </Link>

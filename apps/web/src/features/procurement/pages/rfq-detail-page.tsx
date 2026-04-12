@@ -155,7 +155,7 @@ export function RfqDetailPage({ rfqId }: RfqDetailPageProps) {
           description="The RFQ was not found or no longer available."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/rfqs">
+              <Link href="/rfqs">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to RFQs
               </Link>
@@ -178,7 +178,7 @@ export function RfqDetailPage({ rfqId }: RfqDetailPageProps) {
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/rfqs">
+              <Link href="/rfqs">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
               </Link>

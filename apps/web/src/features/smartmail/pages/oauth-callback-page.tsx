@@ -23,11 +23,11 @@ function getStoredProvider() {
 
 function getReturnPath() {
   if (typeof window === "undefined") {
-    return "/app/smartmail";
+    return "/smartmail";
   }
 
   const stored = window.sessionStorage.getItem("smartmail.oauth.returnPath");
-  return stored?.startsWith("/") ? stored : "/app/smartmail";
+  return stored?.startsWith("/") ? stored : "/smartmail";
 }
 
 function clearOAuthStorage() {
@@ -116,7 +116,7 @@ export function OAuthCallbackPage() {
             <p className="text-sm text-destructive">{errorMessage}</p>
             <div className="flex gap-2">
               <Button asChild>
-                <Link href="/app/smartmail">Return to SmartMail</Link>
+                <Link href="/smartmail">Return to SmartMail</Link>
               </Button>
               <Button
                 variant="outline"
@@ -135,7 +135,7 @@ export function OAuthCallbackPage() {
               SmartMail account connected. Redirecting...
             </p>
             <Button asChild>
-              <Link href="/app/smartmail">Continue</Link>
+              <Link href="/smartmail">Continue</Link>
             </Button>
           </div>
         )}

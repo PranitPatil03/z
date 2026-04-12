@@ -329,7 +329,7 @@ export function SmartMailPage() {
         window.sessionStorage.setItem("smartmail.oauth.provider", provider);
         window.sessionStorage.setItem(
           "smartmail.oauth.returnPath",
-          "/app/smartmail",
+          "/smartmail",
         );
         window.location.assign(result.authUrl);
       }
@@ -687,7 +687,7 @@ export function SmartMailPage() {
               </Button>
             ) : null}
             <Button size="sm" variant="secondary" asChild>
-              <Link href="/app/integrations">
+              <Link href="/integrations">
                 Manage Integrations
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
@@ -1207,7 +1207,7 @@ export function SmartMailPage() {
                 const params = new URLSearchParams();
                 params.set("projectId", normalizedProjectId);
                 params.set("accountId", row.accountId);
-                router.push(`/app/smartmail/${row.id}?${params.toString()}`);
+                router.push(`/smartmail/${row.id}?${params.toString()}`);
               }}
               emptyState={
                 <EmptyState

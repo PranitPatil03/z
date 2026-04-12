@@ -60,7 +60,7 @@ export function MatchRunDetailPage({ matchRunId }: MatchRunDetailPageProps) {
           description="The match run was not found."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/match-runs">
+              <Link href="/match-runs">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to match runs
               </Link>
@@ -82,7 +82,7 @@ export function MatchRunDetailPage({ matchRunId }: MatchRunDetailPageProps) {
         description="Detailed 3-way matching output and variance signals."
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/app/match-runs">
+            <Link href="/match-runs">
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back
             </Link>

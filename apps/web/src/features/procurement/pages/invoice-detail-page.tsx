@@ -203,7 +203,7 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
           description="The invoice was not found."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/invoices">
+              <Link href="/invoices">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to invoices
               </Link>
@@ -226,7 +226,7 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/invoices">
+              <Link href="/invoices">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
               </Link>

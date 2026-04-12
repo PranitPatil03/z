@@ -65,7 +65,7 @@ export default function AccountSettingsPage() {
         </p>
         <div className="mt-4">
           <Button asChild>
-            <Link href="/app/organization-setup">Manage organizations</Link>
+            <Link href="/organization-setup">Manage organizations</Link>
           </Button>
         </div>
       </section>

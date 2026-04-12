@@ -253,7 +253,7 @@ export function IntegrationsPage() {
               Refresh
             </Button>
             <Button size="sm" variant="secondary" asChild>
-              <Link href="/app/smartmail">
+              <Link href="/smartmail">
                 <Link2 className="mr-1.5 h-4 w-4" />
                 Back to SmartMail
               </Link>

@@ -208,7 +208,7 @@ export function CommandCenterPage() {
           description="Real-time operational overview across all active projects."
           action={
             <Button asChild size="sm" variant="outline">
-              <Link href="/app/organization-setup">Set up organization</Link>
+              <Link href="/organization-setup">Set up organization</Link>
             </Button>
           }
         />
@@ -220,7 +220,7 @@ export function CommandCenterPage() {
           action={{
             label: "Open organization setup",
             onClick: () => {
-              window.location.assign("/app/organization-setup");
+              window.location.assign("/organization-setup");
             },
           }}
         />
@@ -259,10 +259,10 @@ export function CommandCenterPage() {
               </Button>
             )}
             <Button asChild size="sm" variant="outline">
-              <Link href="/app/activity-feed">Activity feed</Link>
+              <Link href="/activity-feed">Activity feed</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/app/audit-log">Audit log</Link>
+              <Link href="/audit-log">Audit log</Link>
             </Button>
           </div>
         }

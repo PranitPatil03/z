@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const DEFAULT_NEXT_PATH = "/app/dashboard";
+const DEFAULT_NEXT_PATH = "/dashboard";
 
 function resolveNextPath(nextPath: string | null) {
   if (!nextPath) {
@@ -69,11 +69,11 @@ export default function LoginPage() {
       if (fallbackOrganizationId) {
         await organizationsApi.setActive(fallbackOrganizationId);
       } else {
-        destinationPath = "/app/organization-setup";
+        destinationPath = "/organization-setup";
       }
     } catch {
       // Session bootstrap will retry activation when app shell mounts.
-      destinationPath = "/app/organization-setup";
+      destinationPath = "/organization-setup";
     }
 
     router.push(destinationPath);

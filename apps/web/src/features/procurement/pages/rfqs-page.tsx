@@ -154,7 +154,7 @@ export function RfqsPage() {
         data={rows}
         isLoading={query.isLoading}
         rowKey={(row) => row.id}
-        onRowClick={(row) => router.push(`/app/rfqs/${row.id}`)}
+        onRowClick={(row) => router.push(`/rfqs/${row.id}`)}
         emptyState={
           <EmptyState
             icon={FileSearch}

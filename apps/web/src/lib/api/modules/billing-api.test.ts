@@ -178,8 +178,8 @@ describe("billing api", () => {
     await billingApi.getCheckoutPricing();
     await billingApi.createCheckoutSession({
       plan: "growth",
-      successPath: "/app/billing?checkout=success",
-      cancelPath: "/app/billing?checkout=cancel",
+      successPath: "/billing?checkout=success",
+      cancelPath: "/billing?checkout=cancel",
     });
 
     const [pricingUrl, pricingInit] = fetchMock.mock.calls[0] ?? [];
@@ -197,8 +197,8 @@ describe("billing api", () => {
     };
 
     expect(body.plan).toBe("growth");
-    expect(body.successPath).toBe("/app/billing?checkout=success");
-    expect(body.cancelPath).toBe("/app/billing?checkout=cancel");
+    expect(body.successPath).toBe("/billing?checkout=success");
+    expect(body.cancelPath).toBe("/billing?checkout=cancel");
   });
 
   it("lists and retries webhook events", async () => {

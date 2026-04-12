@@ -360,7 +360,7 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
           description="The site snap was not found."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/site-snaps">
+              <Link href="/site-snaps">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to SiteSnap
               </Link>
@@ -383,7 +383,7 @@ export function SiteSnapDetailPage({ siteSnapId }: SiteSnapDetailPageProps) {
         action={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/site-snaps">
+              <Link href="/site-snaps">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back
               </Link>

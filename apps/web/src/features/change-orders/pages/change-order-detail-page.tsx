@@ -256,7 +256,7 @@ export function ChangeOrderDetailPage({
           description="The requested change order was not found."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/app/change-orders">
+              <Link href="/change-orders">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to list
               </Link>
@@ -279,7 +279,7 @@ export function ChangeOrderDetailPage({
         description={`Change order ${order.id}`}
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/app/change-orders">
+            <Link href="/change-orders">
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back
             </Link>
