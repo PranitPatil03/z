@@ -11,7 +11,7 @@ export const listSubconnectInvitationsQuerySchema = z.object({
   projectId: z.string().min(1).optional(),
   subcontractorId: z.string().min(1).optional(),
   status: subconnectInvitationStatusSchema.optional(),
-  limit: z.number().int().min(1).max(200).default(50),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
 export const upsertPrequalificationScoreSchema = z.object({
@@ -45,7 +45,7 @@ export const listInternalPayApplicationsQuerySchema = z.object({
       "paid",
     ])
     .optional(),
-  limit: z.number().int().min(1).max(200).default(100),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
 });
 
 export const payApplicationIdParamsSchema = z.object({
@@ -63,7 +63,7 @@ export const listInternalDailyLogsQuerySchema = z.object({
   projectId: z.string().min(1).optional(),
   subcontractorId: z.string().min(1).optional(),
   reviewStatus: z.enum(["pending", "reviewed", "rejected"]).optional(),
-  limit: z.number().int().min(1).max(200).default(100),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
 });
 
 export const dailyLogIdParamsSchema = z.object({

@@ -8,6 +8,7 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { usePermissionCheck } from "@/features/auth/hooks/use-permission-check";
 import {
@@ -15,9 +16,10 @@ import {
   createProjectFormSchema,
 } from "@/features/workspace/lib/workspace-forms";
 import { type Project, projectsApi } from "@/lib/api/modules/projects-api";
+import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
+import { FolderOpen, LayoutGrid, List, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +37,7 @@ export function ProjectsPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [projectView, setProjectView] = useState<"cards" | "list">("cards");
   const [form, setForm] = useState<CreateProjectFormValues>({
     name: "",
     code: "",
@@ -113,6 +116,18 @@ export function ProjectsPage() {
   });
 
   const rows = projectsQuery.data ?? [];
+
+  const projectsEmptyState = (
+    <EmptyState
+      icon={FolderOpen}
+      title="No projects yet"
+      description="Create your first project to start tracking work."
+      action={{
+        label: "New project",
+        onClick: () => setDrawerOpen(true),
+      }}
+    />
+  );
 
   const columns: DataTableColumn<Project>[] = [
     {
@@ -223,41 +238,141 @@ export function ProjectsPage() {
         title="Projects"
         description="Manage active construction projects in your organization."
         action={
-          <PermissionGuard
-            permissionKey="project.create"
-            fallback={
-              <Button size="sm" disabled>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center rounded-md border border-border bg-muted/30 p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={projectView === "cards" ? "secondary" : "ghost"}
+                className={cn(
+                  "h-8 px-2",
+                  projectView === "cards"
+                    ? "bg-card shadow-sm"
+                    : "text-muted-foreground",
+                )}
+                onClick={() => setProjectView("cards")}
+                aria-label="Card view"
+                title="Card view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={projectView === "list" ? "secondary" : "ghost"}
+                className={cn(
+                  "h-8 px-2",
+                  projectView === "list"
+                    ? "bg-card shadow-sm"
+                    : "text-muted-foreground",
+                )}
+                onClick={() => setProjectView("list")}
+                aria-label="List view"
+                title="List view"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <PermissionGuard
+              permissionKey="project.create"
+              fallback={
+                <Button size="sm" disabled>
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  New project
+                </Button>
+              }
+            >
+              <Button size="sm" onClick={() => setDrawerOpen(true)}>
                 <Plus className="mr-1.5 h-4 w-4" />
                 New project
               </Button>
-            }
-          >
-            <Button size="sm" onClick={() => setDrawerOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              New project
-            </Button>
-          </PermissionGuard>
+            </PermissionGuard>
+          </div>
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        isLoading={projectsQuery.isLoading}
-        rowKey={(r) => r.id}
-        onRowClick={(row) => router.push(`/projects/${row.id}`)}
-        emptyState={
-          <EmptyState
-            icon={FolderOpen}
-            title="No projects yet"
-            description="Create your first project to start tracking work."
-            action={{
-              label: "New project",
-              onClick: () => setDrawerOpen(true),
-            }}
-          />
-        }
-      />
+      {projectView === "cards" ? (
+        projectsQuery.isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <Skeleton className="h-36 w-full" />
+            <Skeleton className="h-36 w-full" />
+            <Skeleton className="h-36 w-full" />
+          </div>
+        ) : rows.length === 0 ? (
+          projectsEmptyState
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {rows.map((project) => (
+              <article
+                key={project.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/projects/${project.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    router.push(`/projects/${project.id}`);
+                  }
+                }}
+                className="group rounded-xl border border-border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-foreground">
+                      {project.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {project.code}
+                    </p>
+                  </div>
+                  <PermissionGuard
+                    permissionKey="project.archive"
+                    projectId={project.id}
+                  >
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        archiveMutation.mutate(project.id);
+                      }}
+                      disabled={
+                        archiveMutation.isPending || project.status === "archived"
+                      }
+                      title="Archive project"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </PermissionGuard>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <StatusBadge status={project.status} />
+                  <p className="text-xs text-muted-foreground">
+                    Updated {formatDate(project.updatedAt)}
+                  </p>
+                </div>
+
+                <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                  {project.description || "No description provided."}
+                </p>
+              </article>
+            ))}
+          </div>
+        )
+      ) : (
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={projectsQuery.isLoading}
+          rowKey={(r) => r.id}
+          onRowClick={(row) => router.push(`/projects/${row.id}`)}
+          emptyState={projectsEmptyState}
+        />
+      )}
 
       <FormDrawer
         open={drawerOpen}

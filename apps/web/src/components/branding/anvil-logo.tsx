@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "@/app/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -17,23 +16,33 @@ export function AnvilLogo({
   wordmarkClassName,
   showWordmark = true,
 }: AnvilLogoProps) {
-  const { resolvedTheme } = useTheme();
-  const logoSrc =
-    resolvedTheme === "dark"
-      ? "/images/logo-dark.svg?v=2"
-      : "/images/logo.svg?v=2";
-
   if (showWordmark) {
     return (
       <span className={cn("inline-flex items-center", className)}>
         <Image
           alt="anvil"
-          className={cn("h-8 w-auto", iconClassName, wordmarkClassName)}
+          className={cn(
+            "h-8 w-auto dark:hidden",
+            iconClassName,
+            wordmarkClassName,
+          )}
           height={42}
-          key={logoSrc}
           priority
           unoptimized
-          src={logoSrc}
+          src="/images/logo.svg?v=2"
+          width={134}
+        />
+        <Image
+          alt="anvil"
+          className={cn(
+            "hidden h-8 w-auto dark:block",
+            iconClassName,
+            wordmarkClassName,
+          )}
+          height={42}
+          priority
+          unoptimized
+          src="/images/logo-dark.svg?v=2"
           width={134}
         />
       </span>
@@ -50,11 +59,18 @@ export function AnvilLogo({
       >
         <Image
           alt="anvil"
-          className="h-full w-auto max-w-none object-left"
+          className="h-full w-auto max-w-none object-left dark:hidden"
           height={42}
-          key={`${logoSrc}-compact`}
           unoptimized
-          src={logoSrc}
+          src="/images/logo.svg?v=2"
+          width={134}
+        />
+        <Image
+          alt="anvil"
+          className="hidden h-full w-auto max-w-none object-left dark:block"
+          height={42}
+          unoptimized
+          src="/images/logo-dark.svg?v=2"
           width={134}
         />
       </span>

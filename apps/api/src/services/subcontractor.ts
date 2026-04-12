@@ -452,7 +452,11 @@ export const subcontractorService = {
       subcontractorId: updated.id,
     });
 
-    const inviteAcceptUrl = `${env.BETTER_AUTH_URL}/portal/accept-invitation?token=${inviteToken}`;
+    const inviteAcceptUrl = new URL(
+      "/portal/invitations/accept",
+      env.WEB_APP_URL,
+    );
+    inviteAcceptUrl.searchParams.set("token", inviteToken);
 
     let inviteEmailJobId: string | number | null = null;
     if (body.sendInviteEmail !== false) {
@@ -461,7 +465,7 @@ export const subcontractorService = {
         subject: "anvil SubConnect Portal Access",
         body:
           `You have been invited to anvil SubConnect for project ${project.name} (${project.code}). ` +
-          `Use this secure invitation link to activate your portal account: ${inviteAcceptUrl}. ` +
+          `Use this secure invitation link to activate your portal account: ${inviteAcceptUrl.toString()}. ` +
           `If prompted for token, use: ${inviteToken}. This invite expires on ${expiresAt.toISOString()}.`,
       });
     }
@@ -474,7 +478,7 @@ export const subcontractorService = {
       project,
       invitation,
       inviteToken,
-      inviteAcceptUrl,
+      inviteAcceptUrl: inviteAcceptUrl.toString(),
       inviteEmailQueued: inviteEmailJobId !== null,
       inviteEmailJobId,
     };

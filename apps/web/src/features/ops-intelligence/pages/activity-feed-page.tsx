@@ -153,54 +153,66 @@ export function ActivityFeedPage() {
         description="Track system actions with filters and pagination."
       />
 
-      <div className="grid gap-3 md:grid-cols-6">
-        <Input
-          placeholder="Entity type"
-          value={entityType}
-          onChange={(event) => {
-            setPage(1);
-            setEntityType(event.target.value);
-          }}
-        />
-        <Input
-          placeholder="Project ID"
-          value={projectId}
-          onChange={(event) => {
-            setPage(1);
-            setProjectId(event.target.value);
-          }}
-        />
-        <Select
-          value={action}
-          onChange={(event) => {
-            setPage(1);
-            setAction(event.target.value);
-          }}
-          placeholder="All actions"
-        >
-          {ACTION_OPTIONS.map((option) => (
-            <option key={option} value={option} className="capitalize">
-              {option}
-            </option>
-          ))}
-        </Select>
-        <Input
-          type="date"
-          value={from}
-          onChange={(event) => {
-            setPage(1);
-            setFrom(event.target.value);
-          }}
-        />
-        <Input
-          type="date"
-          value={to}
-          onChange={(event) => {
-            setPage(1);
-            setTo(event.target.value);
-          }}
-        />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-full sm:w-52">
+          <Input
+            placeholder="Entity type"
+            value={entityType}
+            onChange={(event) => {
+              setPage(1);
+              setEntityType(event.target.value);
+            }}
+          />
+        </div>
+        <div className="w-full sm:w-52">
+          <Input
+            placeholder="Project ID"
+            value={projectId}
+            onChange={(event) => {
+              setPage(1);
+              setProjectId(event.target.value);
+            }}
+          />
+        </div>
+        <div className="w-full sm:w-44">
+          <Select
+            value={action}
+            onChange={(event) => {
+              setPage(1);
+              setAction(event.target.value);
+            }}
+            placeholder="All actions"
+          >
+            {ACTION_OPTIONS.map((option) => (
+              <option key={option} value={option} className="capitalize">
+                {option}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-full sm:w-40">
+          <Input
+            type="date"
+            value={from}
+            onChange={(event) => {
+              setPage(1);
+              setFrom(event.target.value);
+            }}
+          />
+        </div>
+        <div className="w-full sm:w-40">
+          <Input
+            type="date"
+            value={to}
+            onChange={(event) => {
+              setPage(1);
+              setTo(event.target.value);
+            }}
+          />
+        </div>
         <Button
+          size="sm"
+          className="h-8 px-2 text-xs"
           variant="outline"
           onClick={() => {
             setPage(1);
