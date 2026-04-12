@@ -1,14 +1,15 @@
 "use client";
 
+import { useTheme } from "@/app/providers/theme-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { authClient } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
-import { Building2, UserCircle2 } from "lucide-react";
+import { Building2, CreditCard, Monitor, Moon, Sun, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export default function AccountSettingsPage() {
+  const { theme, setTheme } = useTheme();
   const { data: session } = authClient.useSession();
   const activeOrganizationId = useSessionStore(
     (state) => state.activeOrganizationId,
@@ -28,11 +29,6 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Account Settings"
-        description="Review account profile and workspace organization access."
-      />
-
       <section className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">Profile</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -52,6 +48,57 @@ export default function AccountSettingsPage() {
               {user.email}
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground">Appearance</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose how the app should look on this device.
+        </p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <Button
+            type="button"
+            variant={theme === "system" ? "default" : "outline"}
+            className="justify-start"
+            onClick={() => setTheme("system")}
+          >
+            <Monitor className="mr-2 h-4 w-4" />
+            System
+          </Button>
+          <Button
+            type="button"
+            variant={theme === "light" ? "default" : "outline"}
+            className="justify-start"
+            onClick={() => setTheme("light")}
+          >
+            <Sun className="mr-2 h-4 w-4" />
+            Light
+          </Button>
+          <Button
+            type="button"
+            variant={theme === "dark" ? "default" : "outline"}
+            className="justify-start"
+            onClick={() => setTheme("dark")}
+          >
+            <Moon className="mr-2 h-4 w-4" />
+            Dark
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <CreditCard className="h-4 w-4" />
+          Billing
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Manage your subscription plans, invoices, and payment methods.
+        </p>
+        <div className="mt-4">
+          <Button asChild>
+            <Link href="/billing">Open billing</Link>
+          </Button>
         </div>
       </section>
 

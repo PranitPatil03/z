@@ -1,22 +1,17 @@
 "use client";
 
 import { OrganizationSwitcher } from "@/components/navigation/organization-switcher";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useHealthStatus } from "@/features/app/hooks/use-system-health";
+import { moduleRegistry } from "@/config/module-registry";
 import { authClient } from "@/lib/auth-client";
-import { useUiStore } from "@/store/ui-store";
-import { LogOut, Menu } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Activity, Bell, LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo } from "react";
 
 export function TopHeader() {
   const router = useRouter();
-  const toggleSidebarCollapsed = useUiStore(
-    (state) => state.toggleSidebarCollapsed,
-  );
-  const health = useHealthStatus();
+  const pathname = usePathname();
   const { data: session } = authClient.useSession();
 
   const user = session?.user;
@@ -35,28 +30,102 @@ export function TopHeader() {
     router.refresh();
   }
 
+  const headerMeta = useMemo(() => {
+    const exactModuleMatch = moduleRegistry.find(
+      (module) => module.routePath === pathname,
+    );
+    if (exactModuleMatch) {
+      return {
+        title: exactModuleMatch.title,
+        subtitle: exactModuleMatch.subtitle,
+      };
+    }
+
+    const nestedModuleMatch = moduleRegistry
+      .filter((module) => pathname.startsWith(`${module.routePath}/`))
+      .sort((a, b) => b.routePath.length - a.routePath.length)[0];
+
+    if (nestedModuleMatch) {
+      return {
+        title: nestedModuleMatch.title,
+        subtitle: nestedModuleMatch.subtitle,
+      };
+    }
+
+    if (pathname.startsWith("/organization-setup")) {
+      return {
+        title: "Organization Setup",
+        subtitle: "Create or switch the active organization for this workspace.",
+      };
+    }
+
+    if (pathname.startsWith("/account-settings")) {
+      return {
+        title: "Account Settings",
+        subtitle: "Manage your profile, appearance preferences, and billing access.",
+      };
+    }
+
+    if (pathname.startsWith("/integrations")) {
+      return {
+        title: "Integrations",
+        subtitle: "Connect external systems and manage integration health.",
+      };
+    }
+
+    if (pathname.startsWith("/command-center")) {
+      return {
+        title: "Command Center",
+        subtitle: "Monitor portfolio metrics, risk, and activity in real time.",
+      };
+    }
+
+    return {
+      title: "Workspace",
+      subtitle: "Operational overview across active modules.",
+    };
+  }, [pathname]);
+
   return (
-    <header className="sticky top-0 z-20 border-b border-border/60 bg-card/90 backdrop-blur-xl">
-      <div className="flex h-14 items-center gap-3 px-4 lg:px-6">
-        <Button variant="ghost" size="icon" onClick={toggleSidebarCollapsed}>
-          <Menu className="h-4 w-4" />
-        </Button>
+    <header className="shell-main-surface-soft sticky top-0 z-20 backdrop-blur-xl">
+      <div className="flex min-h-[64px] items-center gap-3 px-4 py-2 lg:px-6">
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-semibold text-foreground lg:text-2xl">
+            {headerMeta.title}
+          </h1>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground lg:text-sm">
+            {headerMeta.subtitle}
+          </p>
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Badge
-            variant={health.isError ? "warning" : "success"}
-            className="hidden sm:flex"
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 border-border/80 bg-background/70 text-muted-foreground hover:bg-background hover:text-foreground"
+            title="Activity feed"
+            aria-label="Activity feed"
+            onClick={() => router.push("/activity-feed")}
           >
-            {health.isError ? "API Offline" : "Live"}
-          </Badge>
+            <Activity className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 border-border/80 bg-background/70 text-muted-foreground hover:bg-background hover:text-foreground"
+            title="Notifications"
+            aria-label="Notifications"
+            onClick={() => router.push("/notifications")}
+          >
+            <Bell className="h-4 w-4" />
+          </Button>
 
           <OrganizationSwitcher
             alwaysShow
             className="min-w-[150px] lg:hidden"
             selectClassName="h-8 bg-background text-xs"
           />
-
-          <ThemeToggle />
 
           {user && (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 lg:hidden">

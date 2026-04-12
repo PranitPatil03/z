@@ -35,7 +35,7 @@ function getSystemTheme() {
 export function ThemeProvider({ children }: PropsWithChildren) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window === "undefined") {
-      return "light";
+      return "system";
     }
 
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -43,7 +43,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
       return stored;
     }
 
-    return "light";
+    return "system";
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
@@ -56,6 +56,7 @@ export function ThemeProvider({ children }: PropsWithChildren) {
       selectedTheme === "system" ? getSystemTheme() : selectedTheme;
 
     root.classList.toggle("dark", effectiveTheme === "dark");
+    root.style.colorScheme = effectiveTheme;
     setResolvedTheme(effectiveTheme);
   }, []);
 

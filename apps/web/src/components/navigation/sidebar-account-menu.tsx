@@ -85,14 +85,7 @@ export function SidebarAccountMenu({
     return organizations[0];
   }, [activeOrganizationId, organizations]);
 
-  const initials = user?.name
-    ? user.name
-        .split(" ")
-        .map((namePart) => namePart[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
-    : "??";
+  const initials = "AC";
 
   function toSlug(value: string) {
     return value
@@ -218,15 +211,6 @@ export function SidebarAccountMenu({
             isSidebarCollapsed ? "left-0 w-[290px]" : "left-1 right-1",
           )}
         >
-          <div className="border-b border-border px-4 py-3">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {user?.name ?? "User"}
-            </p>
-            <p className="truncate text-sm text-muted-foreground">
-              {user?.email ?? "No active session"}
-            </p>
-          </div>
-
           <div className="px-4 py-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Organizations
@@ -298,7 +282,7 @@ export function SidebarAccountMenu({
             </Link>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-4 py-3 text-sm text-red-500 transition hover:bg-red-50"
+              className="flex w-full items-center gap-2 px-4 py-3 text-sm text-destructive transition hover:bg-destructive/10"
               onClick={() => {
                 void handleSignOut();
               }}
@@ -393,23 +377,21 @@ export function SidebarAccountMenu({
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "h-auto w-full justify-between rounded-xl bg-blue-600 px-3 py-2 text-left text-white hover:bg-blue-700",
+          "h-auto w-full justify-between rounded-xl bg-primary px-3 py-2 text-left text-primary-foreground hover:bg-primary/90",
           isSidebarCollapsed ? "px-2" : "px-3",
         )}
       >
         <div className="flex min-w-0 items-center gap-2">
           <Avatar className="h-7 w-7 shrink-0">
-            <AvatarFallback className="bg-blue-500 text-xs text-white">
+            <AvatarFallback className="bg-primary/20 text-xs text-primary-foreground">
               {initials}
             </AvatarFallback>
           </Avatar>
           {!isSidebarCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {user?.name ?? "User"}
-              </p>
-              <p className="truncate text-xs text-blue-100">
-                {currentOrganization?.name ?? "No organization"}
+              <p className="truncate text-sm font-semibold">Account</p>
+              <p className="truncate text-xs text-primary-foreground/80">
+                Profile and preferences
               </p>
             </div>
           )}

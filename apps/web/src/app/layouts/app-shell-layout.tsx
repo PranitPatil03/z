@@ -7,17 +7,9 @@ export function AppShellLayout({ children }: PropsWithChildren) {
     <div className="h-screen overflow-hidden">
       <div className="flex h-full">
         <SidebarNav />
-        <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background/80">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_25%_8%,hsl(var(--primary)/0.16),transparent_42%),radial-gradient(circle_at_92%_0%,hsl(var(--secondary)/0.14),transparent_34%),linear-gradient(180deg,hsl(var(--background)/0.92)_0%,hsl(var(--background)/0.98)_100%)]"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(hsl(var(--border)/0.22)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border)/0.22)_1px,transparent_1px)] [background-size:36px_36px]"
-          />
+        <div className="shell-main-surface flex h-full min-w-0 flex-1 flex-col overflow-hidden">
           <TopHeader />
-          <main className="relative z-10 flex-1 overflow-y-auto px-4 py-6 lg:px-6">
+          <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">
             {children}
           </main>
         </div>

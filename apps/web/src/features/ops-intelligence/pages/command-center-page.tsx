@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
@@ -203,16 +202,6 @@ export function CommandCenterPage() {
   if (!hasActiveOrganization) {
     return (
       <div className="space-y-6">
-        <PageHeader
-          title="Dashboard"
-          description="Real-time operational overview across all active projects."
-          action={
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization-setup">Set up organization</Link>
-            </Button>
-          }
-        />
-
         <EmptyState
           icon={FolderOpen}
           title="Organization required"
@@ -232,41 +221,35 @@ export function CommandCenterPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        description="Real-time operational overview across all active projects."
-        action={
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                void refetchAll();
-              }}
-            >
-              <RefreshCw className="mr-1.5 h-4 w-4" />
-              Refresh
-            </Button>
-            {anyError && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void refetchAll();
-                }}
-              >
-                Retry failed
-              </Button>
-            )}
-            <Button asChild size="sm" variant="outline">
-              <Link href="/activity-feed">Activity feed</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/audit-log">Audit log</Link>
-            </Button>
-          </div>
-        }
-      />
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void refetchAll();
+          }}
+        >
+          <RefreshCw className="mr-1.5 h-4 w-4" />
+          Refresh
+        </Button>
+        {anyError && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              void refetchAll();
+            }}
+          >
+            Retry failed
+          </Button>
+        )}
+        <Button asChild size="sm" variant="outline">
+          <Link href="/activity-feed">Activity feed</Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/audit-log">Audit log</Link>
+        </Button>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
         <div className="w-56">
