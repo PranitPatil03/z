@@ -376,6 +376,7 @@ export function SidebarAccountMenu({
       <Button
         type="button"
         onClick={() => setOpen((current) => !current)}
+        suppressHydrationWarning
         className={cn(
           "h-auto w-full justify-between rounded-xl bg-primary px-3 py-2 text-left text-primary-foreground hover:bg-primary/90",
           isSidebarCollapsed ? "px-2" : "px-3",

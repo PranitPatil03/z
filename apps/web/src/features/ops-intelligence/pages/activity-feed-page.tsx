@@ -1,19 +1,33 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { Select } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { buildActivityFilters } from "@/features/ops-intelligence/lib/ops-intelligence-utils";
 import {
   type ActivityFeedItem,
   activityFeedApi,
 } from "@/lib/api/modules/notifications-api";
+import { projectsApi } from "@/lib/api/modules/projects-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Clock3, FolderTree, X } from "lucide-react";
+import { Activity, CalendarDays, FolderTree, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 const ACTION_OPTIONS = [
@@ -27,6 +41,8 @@ const ACTION_OPTIONS = [
   "login",
 ] as const;
 
+const ALL_PROJECTS_VALUE = "__all_projects__";
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("en-US", {
     month: "short",
@@ -34,6 +50,49 @@ function formatDateTime(value: string) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
+function toValidDate(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function normalizeDateForFilter(date: Date, boundary: "start" | "end") {
+  const hours = boundary === "start" ? 0 : 23;
+  const minutes = boundary === "start" ? 0 : 59;
+  const seconds = boundary === "start" ? 0 : 59;
+  const milliseconds = boundary === "start" ? 0 : 999;
+
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    hours,
+    minutes,
+    seconds,
+    milliseconds,
+  ).toISOString();
+}
+
+function formatDateLabel(value: string, placeholder: string) {
+  const parsed = toValidDate(value);
+  if (!parsed) {
+    return placeholder;
+  }
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -41,8 +100,10 @@ export function ActivityFeedPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [entityType, setEntityType] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [action, setAction] = useState("");
+  const [projectId, setProjectId] = useState(ALL_PROJECTS_VALUE);
+  const [action, setAction] = useState<"all" | (typeof ACTION_OPTIONS)[number]>(
+    "all",
+  );
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [selectedEntityType, setSelectedEntityType] = useState("");
@@ -50,18 +111,27 @@ export function ActivityFeedPage() {
   const [timelinePage, setTimelinePage] = useState(1);
   const [timelinePageSize] = useState(10);
 
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(),
+    queryFn: () => projectsApi.list(),
+  });
+
+  const projectOptions = projectsQuery.data ?? [];
+  const selectedProjectId =
+    projectId === ALL_PROJECTS_VALUE ? "" : projectId;
+
   const filters = useMemo(
     () =>
       buildActivityFilters({
         page,
         pageSize,
         entityType,
-        projectId,
-        action,
+        projectId: selectedProjectId,
+        action: action === "all" ? "" : action,
         from,
         to,
       }),
-    [action, entityType, from, page, pageSize, projectId, to],
+    [action, entityType, from, page, pageSize, selectedProjectId, to],
   );
 
   const query = useQuery({
@@ -74,7 +144,7 @@ export function ActivityFeedPage() {
       buildActivityFilters({
         page: timelinePage,
         pageSize: timelinePageSize,
-        action,
+        action: action === "all" ? "" : action,
         from,
         to,
       }),
@@ -100,12 +170,14 @@ export function ActivityFeedPage() {
   const pagination = query.data?.pagination;
   const timelineRows = timelineQuery.data?.items ?? [];
   const timelinePagination = timelineQuery.data?.pagination;
+  const selectedFromDate = toValidDate(from);
+  const selectedToDate = toValidDate(to);
 
   const columns: DataTableColumn<ActivityFeedItem>[] = [
     {
       key: "timestamp",
       header: "Timestamp",
-      width: "200px",
+      width: "210px",
       render: (row) => (
         <span className="text-muted-foreground">
           {formatDateTime(row.timestamp)}
@@ -115,11 +187,11 @@ export function ActivityFeedPage() {
     {
       key: "entity",
       header: "Entity",
-      width: "180px",
+      width: "230px",
       render: (row) => (
         <div>
           <p className="font-medium text-foreground capitalize">{row.entity}</p>
-          <p className="text-xs text-muted-foreground">{row.entityId}</p>
+          <p className="text-xs text-muted-foreground truncate">{row.entityId}</p>
         </div>
       ),
     },
@@ -127,14 +199,18 @@ export function ActivityFeedPage() {
       key: "action",
       header: "Action",
       width: "120px",
-      render: (row) => <span className="capitalize">{row.type}</span>,
+      render: (row) => (
+        <Badge variant="outline" className="capitalize">
+          {row.type}
+        </Badge>
+      ),
     },
     {
       key: "actor",
       header: "Actor",
-      width: "170px",
+      width: "230px",
       render: (row) => (
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="block truncate font-mono text-xs text-muted-foreground">
           {row.actor}
         </span>
       ),
@@ -142,7 +218,49 @@ export function ActivityFeedPage() {
     {
       key: "description",
       header: "Description",
-      render: (row) => <span>{row.description}</span>,
+      render: (row) => (
+        <span className="block min-w-0 max-w-full whitespace-normal break-words text-foreground line-clamp-2">
+          {row.description}
+        </span>
+      ),
+    },
+  ];
+
+  const timelineColumns: DataTableColumn<ActivityFeedItem>[] = [
+    {
+      key: "timestamp",
+      header: "Timestamp",
+      width: "190px",
+      render: (row) => (
+        <span className="text-muted-foreground">{formatDateTime(row.timestamp)}</span>
+      ),
+    },
+    {
+      key: "action",
+      header: "Action",
+      width: "120px",
+      render: (row) => (
+        <Badge variant="outline" className="capitalize">
+          {row.type}
+        </Badge>
+      ),
+    },
+    {
+      key: "actor",
+      header: "Actor",
+      width: "230px",
+      render: (row) => (
+        <span className="block truncate font-mono text-xs text-muted-foreground">{row.actor}</span>
+      ),
+    },
+    {
+      key: "description",
+      header: "Description",
+      render: (row) => (
+        <span className="block min-w-0 max-w-full whitespace-normal break-words text-foreground line-clamp-2">
+          {row.description}
+        </span>
+      ),
     },
   ];
 
@@ -153,81 +271,146 @@ export function ActivityFeedPage() {
         description="Track system actions with filters and pagination."
       />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="w-full sm:w-52">
-          <Input
-            placeholder="Entity type"
-            value={entityType}
-            onChange={(event) => {
-              setPage(1);
-              setEntityType(event.target.value);
-            }}
-          />
-        </div>
-        <div className="w-full sm:w-52">
-          <Input
-            placeholder="Project ID"
-            value={projectId}
-            onChange={(event) => {
-              setPage(1);
-              setProjectId(event.target.value);
-            }}
-          />
-        </div>
-        <div className="w-full sm:w-44">
-          <Select
-            value={action}
-            onChange={(event) => {
-              setPage(1);
-              setAction(event.target.value);
-            }}
-            placeholder="All actions"
-          >
-            {ACTION_OPTIONS.map((option) => (
-              <option key={option} value={option} className="capitalize">
-                {option}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="w-full sm:w-40">
-          <Input
-            type="date"
-            value={from}
-            onChange={(event) => {
-              setPage(1);
-              setFrom(event.target.value);
-            }}
-          />
-        </div>
-        <div className="w-full sm:w-40">
-          <Input
-            type="date"
-            value={to}
-            onChange={(event) => {
-              setPage(1);
-              setTo(event.target.value);
-            }}
-          />
-        </div>
-        <Button
-          size="sm"
-          className="h-8 px-2 text-xs"
-          variant="outline"
-          onClick={() => {
-            setPage(1);
-            setEntityType("");
-            setProjectId("");
-            setAction("");
-            setFrom("");
-            setTo("");
-          }}
-        >
-          Reset
-        </Button>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_minmax(220px,1.2fr)_minmax(170px,0.9fr)_minmax(170px,0.9fr)_minmax(170px,0.9fr)_auto]">
+          <div>
+            <Input
+              placeholder="Entity type"
+              value={entityType}
+              onChange={(event) => {
+                setPage(1);
+                setEntityType(event.target.value);
+              }}
+            />
+          </div>
+          <div>
+            <Select
+              value={projectId}
+              onValueChange={(value) => {
+                setTimelinePage(1);
+                setPage(1);
+                setProjectId(value);
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="All projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_PROJECTS_VALUE}>All projects</SelectItem>
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Select
+              value={action}
+              onValueChange={(value) => {
+                setTimelinePage(1);
+                setPage(1);
+                setAction(value as "all" | (typeof ACTION_OPTIONS)[number]);
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="All actions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All actions</SelectItem>
+                {ACTION_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option} className="capitalize">
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={`h-10 w-full justify-start text-left font-normal ${
+                    selectedFromDate ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  {formatDateLabel(from, "From date")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedFromDate}
+                  onSelect={(date) => {
+                    setTimelinePage(1);
+                    setPage(1);
+                    if (!date) {
+                      setFrom("");
+                      return;
+                    }
+                    setFrom(normalizeDateForFilter(date, "start"));
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={`h-10 w-full justify-start text-left font-normal ${
+                    selectedToDate ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  {formatDateLabel(to, "To date")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedToDate}
+                  onSelect={(date) => {
+                    setTimelinePage(1);
+                    setPage(1);
+                    if (!date) {
+                      setTo("");
+                      return;
+                    }
+                    setTo(normalizeDateForFilter(date, "end"));
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="flex items-end xl:justify-end">
+            <Button
+              className="h-10 w-full xl:w-auto"
+              variant="outline"
+              onClick={() => {
+                setTimelinePage(1);
+                setPage(1);
+                setEntityType("");
+                setProjectId(ALL_PROJECTS_VALUE);
+                setAction("all");
+                setFrom("");
+                setTo("");
+              }}
+            >
+              Reset filters
+            </Button>
+          </div>
       </div>
 
       <DataTable
+        className="w-full [&_table]:w-full [&_table]:table-fixed"
         columns={columns}
         data={data}
         isLoading={query.isLoading}
@@ -314,30 +497,21 @@ export function ActivityFeedPage() {
               className="rounded-none border-0"
             />
           ) : (
-            <div className="space-y-2">
-              {timelineRows.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-border px-3 py-2"
-                >
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-foreground capitalize">
-                      {item.type}
-                    </span>
-                    <span className="text-muted-foreground">
-                      by {item.actor}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock3 className="h-3 w-3" />
-                    {formatDateTime(item.timestamp)}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <DataTable
+              className="w-full [&_table]:w-full [&_table]:table-fixed"
+              columns={timelineColumns}
+              data={timelineRows}
+              isLoading={timelineQuery.isLoading}
+              rowKey={(row) => row.id}
+              emptyState={
+                <EmptyState
+                  icon={FolderTree}
+                  title="No timeline events"
+                  description="No timeline entries match current filters."
+                  className="rounded-none border-0"
+                />
+              }
+            />
           )}
 
           <div className="flex items-center justify-between">

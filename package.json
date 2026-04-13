@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "pnpm run dev:free-api-port && turbo run dev --parallel",
+    "dev:free-api-port": "sh -c 'for port in 3001 5173; do for pid in $(lsof -ti tcp:$port -sTCP:LISTEN 2>/dev/null); do echo \"[dev] clearing port :$port (pid $pid)\"; kill -9 \"$pid\" 2>/dev/null || true; done; done'",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

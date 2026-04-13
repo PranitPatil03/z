@@ -71,12 +71,10 @@ export function SidebarNav() {
         )}
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto pr-1">
+      <nav className="sidebar-scroll-region flex-1 space-y-4 overflow-y-auto pr-1">
         {NAV_GROUPS.map((group) => {
           const items = moduleRegistry.filter(
-            (m) =>
-              m.group === group.key &&
-              !["billing", "activity-feed", "notifications"].includes(m.key),
+            (m) => m.group === group.key && !["billing"].includes(m.key),
           );
           if (items.length === 0) return null;
 
