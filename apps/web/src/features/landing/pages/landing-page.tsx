@@ -149,8 +149,11 @@ export function LandingPage() {
 
       <header className="sticky top-0 z-30 bg-transparent">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/">
-            <AnvilLogo className="items-center" />
+          <Link href="/" className="inline-flex items-center gap-2">
+            <AnvilLogo showWordmark={false} iconClassName="h-9 w-9 rounded-xl" />
+            <span className="text-lg font-semibold tracking-tight text-gray-900">
+              anvil
+            </span>
           </Link>
 
           <nav className="flex items-center gap-2 text-sm sm:gap-3">

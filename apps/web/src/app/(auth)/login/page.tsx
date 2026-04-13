@@ -45,40 +45,55 @@ export default function LoginPage() {
 
     let destinationPath = nextPath;
 
-    const { error } = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: nextPath,
-    });
-
-    if (error) {
-      toast.error(error.message ?? "Invalid credentials");
-      setLoading(false);
-      return;
-    }
-
     try {
-      const organizations = await organizationsApi.list();
-      const fallbackOrganizationId = organizations[0]?.id;
+      const { error } = await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: nextPath,
+      });
 
-      if (fallbackOrganizationId) {
-        await organizationsApi.setActive(fallbackOrganizationId);
-      } else {
+      if (error) {
+        toast.error(error.message ?? "Invalid credentials");
+        return;
+      }
+
+      try {
+        const organizations = await organizationsApi.list();
+        const fallbackOrganizationId = organizations[0]?.id;
+
+        if (fallbackOrganizationId) {
+          await organizationsApi.setActive(fallbackOrganizationId);
+        } else {
+          destinationPath = "/organization-setup";
+        }
+      } catch {
+        // Session bootstrap will retry activation when app shell mounts.
         destinationPath = "/organization-setup";
       }
-    } catch {
-      // Session bootstrap will retry activation when app shell mounts.
-      destinationPath = "/organization-setup";
-    }
 
-    router.push(destinationPath);
-    router.refresh();
+      router.push(destinationPath);
+      router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to sign in";
+
+      toast.error(
+        message.includes("Failed to fetch")
+          ? "Unable to reach the API. Verify local services and try again."
+          : message,
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="rounded-xl">
-      <Link href="/" className="mb-6 inline-flex">
-        <AnvilLogo wordmarkClassName="text-gray-900" />
+      <Link href="/" className="mb-6 inline-flex items-center gap-2">
+        <AnvilLogo showWordmark={false} iconClassName="h-9 w-9 rounded-xl" />
+        <span className="text-lg font-semibold tracking-tight text-gray-900">
+          anvil
+        </span>
       </Link>
 
       <div className="mb-6">
@@ -88,6 +103,7 @@ export default function LoginPage() {
         </p>
       </div>
 
+      {/*
       <Button
         type="button"
         variant="outline"
@@ -114,12 +130,13 @@ export default function LoginPage() {
         </svg>
         Google sign-in temporarily disabled
       </Button>
+      */}
 
-      <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
+      {/* <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
         <span className="h-px flex-1 bg-gray-200" />
-        <span>or continue with email</span>
+        <span>continue with email</span>
         <span className="h-px flex-1 bg-gray-200" />
-      </div>
+      </div> */}
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="space-y-1.5">
@@ -129,6 +146,7 @@ export default function LoginPage() {
           <Input
             id="email"
             type="email"
+            suppressHydrationWarning
             className="h-12 rounded-xl border-gray-200 bg-white px-4 text-sm placeholder:text-gray-400 focus-visible:ring-blue-400/30"
             placeholder="you@example.com"
             value={email}
@@ -153,6 +171,7 @@ export default function LoginPage() {
           <Input
             id="password"
             type="password"
+            suppressHydrationWarning
             className="h-12 rounded-xl border-gray-200 bg-white px-4 text-sm placeholder:text-gray-400 focus-visible:ring-blue-400/30"
             placeholder="••••••••"
             value={password}
@@ -164,6 +183,7 @@ export default function LoginPage() {
 
         <Button
           type="submit"
+          suppressHydrationWarning
           className="h-12 w-full rounded-sm bg-gray-900 text-white transition-colors hover:bg-gray-800"
           disabled={loading}
         >

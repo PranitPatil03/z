@@ -23,28 +23,43 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await authClient.signUp.email({
-      name,
-      email,
-      password,
-      callbackURL: "/organization-setup",
-    });
+    try {
+      const { error } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+        callbackURL: "/organization-setup",
+      });
 
-    if (error) {
-      toast.error(error.message ?? "Could not create account");
+      if (error) {
+        toast.error(error.message ?? "Could not create account");
+        return;
+      }
+
+      toast.success("Account created. Set up your organization to continue.");
+      router.push("/organization-setup");
+      router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not create account";
+
+      toast.error(
+        message.includes("Failed to fetch")
+          ? "Unable to reach the API. Verify local services and try again."
+          : message,
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    toast.success("Account created. Set up your organization to continue.");
-    router.push("/organization-setup");
-    router.refresh();
   }
 
   return (
     <div className="rounded-xl">
-      <Link href="/" className="mb-6 inline-flex">
-        <AnvilLogo wordmarkClassName="text-gray-900" />
+      <Link href="/" className="mb-6 inline-flex items-center gap-2">
+        <AnvilLogo showWordmark={false} iconClassName="h-9 w-9 rounded-xl" />
+        <span className="text-lg font-semibold tracking-tight text-gray-900">
+          anvil
+        </span>
       </Link>
 
       <div className="mb-6">
@@ -54,6 +69,7 @@ export default function SignupPage() {
         </p>
       </div>
 
+      {/*
       <Button
         type="button"
         variant="outline"
@@ -80,12 +96,13 @@ export default function SignupPage() {
         </svg>
         Google sign-up temporarily disabled
       </Button>
+      */}
 
-      <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
+      {/* <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
         <span className="h-px flex-1 bg-gray-200" />
-        <span>or continue with email</span>
+        <span>continue with email</span>
         <span className="h-px flex-1 bg-gray-200" />
-      </div>
+      </div> */}
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="space-y-1.5">
@@ -95,6 +112,7 @@ export default function SignupPage() {
           <Input
             id="name"
             type="text"
+            suppressHydrationWarning
             className="h-12 rounded-xl border-gray-200 bg-white px-4 text-sm placeholder:text-gray-400 focus-visible:ring-blue-400/30"
             placeholder="Jane Smith"
             value={name}
@@ -111,6 +129,7 @@ export default function SignupPage() {
           <Input
             id="email"
             type="email"
+            suppressHydrationWarning
             className="h-12 rounded-xl border-gray-200 bg-white px-4 text-sm placeholder:text-gray-400 focus-visible:ring-blue-400/30"
             placeholder="you@company.com"
             value={email}
@@ -127,6 +146,7 @@ export default function SignupPage() {
           <Input
             id="password"
             type="password"
+            suppressHydrationWarning
             className="h-12 rounded-xl border-gray-200 bg-white px-4 text-sm placeholder:text-gray-400 focus-visible:ring-blue-400/30"
             placeholder="At least 8 characters"
             value={password}
@@ -139,6 +159,7 @@ export default function SignupPage() {
 
         <Button
           type="submit"
+          suppressHydrationWarning
           className="h-12 w-full rounded-sm bg-gray-900 text-white transition-colors hover:bg-gray-800"
           disabled={loading}
         >

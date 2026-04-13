@@ -19,24 +19,39 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await authClient.requestPasswordReset({
-      email,
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    try {
+      const { error } = await authClient.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
 
-    if (error) {
-      toast.error(error.message ?? "Something went wrong");
+      if (error) {
+        toast.error(error.message ?? "Something went wrong");
+        return;
+      }
+
+      setSent(true);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Something went wrong";
+
+      toast.error(
+        message.includes("Failed to fetch")
+          ? "Unable to reach the API. Verify local services and try again."
+          : message,
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSent(true);
   }
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-      <Link href="/" className="mb-6 inline-flex">
-        <AnvilLogo wordmarkClassName="text-gray-900" />
+      <Link href="/" className="mb-6 inline-flex items-center gap-2">
+        <AnvilLogo showWordmark={false} iconClassName="h-9 w-9 rounded-xl" />
+        <span className="text-lg font-semibold tracking-tight text-gray-900">
+          anvil
+        </span>
       </Link>
 
       {sent ? (
@@ -77,6 +92,7 @@ export default function ForgotPasswordPage() {
               <Input
                 id="email"
                 type="email"
+                suppressHydrationWarning
                 className="h-12 rounded-xl border-gray-200 bg-white px-4 text-sm placeholder:text-gray-400 focus-visible:ring-blue-400/30"
                 placeholder="you@company.com"
                 value={email}
@@ -88,6 +104,7 @@ export default function ForgotPasswordPage() {
 
             <Button
               type="submit"
+              suppressHydrationWarning
               className="h-12 w-full rounded-sm bg-gray-900 text-white transition-colors hover:bg-gray-800"
               disabled={loading}
             >

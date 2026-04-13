@@ -54,6 +54,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
         />
       </head>
       <body
+        suppressHydrationWarning
         className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}
       >
         <AppProviders>{children}</AppProviders>
