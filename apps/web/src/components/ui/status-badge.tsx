@@ -183,6 +183,48 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
     className:
       "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800",
   },
+  // SiteSnap
+  captured: {
+    label: "Captured",
+    className:
+      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800",
+  },
+  analyzing: {
+    label: "Analyzing",
+    className:
+      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800",
+  },
+  reviewed: {
+    label: "Reviewed",
+    className:
+      "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800",
+  },
+  // SiteSnap observation categories
+  work_progress: {
+    label: "Work Progress",
+    className:
+      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800",
+  },
+  safety_issue: {
+    label: "Safety Issue",
+    className:
+      "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800",
+  },
+  material_present: {
+    label: "Material Present",
+    className:
+      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800",
+  },
+  site_condition: {
+    label: "Site Condition",
+    className:
+      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800",
+  },
+  equipment: {
+    label: "Equipment",
+    className:
+      "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800",
+  },
 };
 
 interface StatusBadgeProps {

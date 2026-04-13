@@ -36,6 +36,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+function formatCompactDateTime(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function SiteSnapPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -80,12 +93,6 @@ export function SiteSnapPage() {
   const listQuery = useQuery({
     queryKey: queryKeys.siteSnaps.list({ projectId: normalizedProjectId }),
     queryFn: () => siteSnapsApi.list(normalizedProjectId),
-    enabled: normalizedProjectId.length > 0,
-  });
-
-  const dailyProgressQuery = useQuery({
-    queryKey: queryKeys.siteSnaps.dailyProgress(normalizedProjectId),
-    queryFn: () => siteSnapsApi.dailyProgress(normalizedProjectId),
     enabled: normalizedProjectId.length > 0,
   });
 
@@ -250,12 +257,21 @@ export function SiteSnapPage() {
         const jobUiState = resolveSiteSnapJobUiState({
           analysisState: row.analysisState,
         });
+        const isReviewed = row.status === "reviewed";
+        const secondaryLabel = isReviewed
+          ? row.reviewedAt
+            ? `At ${formatCompactDateTime(row.reviewedAt)}`
+            : null
+          : jobUiState.label;
+
         return (
           <div>
             <StatusBadge status={row.status} />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {jobUiState.label}
-            </p>
+            {secondaryLabel ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {secondaryLabel}
+              </p>
+            ) : null}
           </div>
         );
       },
@@ -265,8 +281,8 @@ export function SiteSnapPage() {
       header: "Captured",
       width: "130px",
       render: (row) => (
-        <span className="text-muted-foreground">
-          {new Date(row.createdAt).toLocaleDateString()}
+        <span className="text-xs text-muted-foreground">
+          {formatCompactDateTime(row.createdAt)}
         </span>
       ),
     },
@@ -274,41 +290,49 @@ export function SiteSnapPage() {
       key: "actions",
       header: "",
       width: "240px",
-      render: (row) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8"
-            onClick={(event) => {
-              event.stopPropagation();
-              analyzeMutation.mutate({
-                siteSnapId: row.id,
-                reanalyze: row.status === "analyzing",
-              });
-            }}
-            disabled={analyzeMutation.isPending}
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            {row.status === "analyzing" ? "Reanalyze" : "Analyze"}
-          </Button>
-          {row.status !== "reviewed" && (
+      render: (row) => {
+        const canReanalyze =
+          row.status === "reviewed" ||
+          row.analysisState === "completed" ||
+          row.analysisState === "queued" ||
+          row.analysisState === "running";
+
+        return (
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               size="sm"
               variant="outline"
               className="h-8"
               onClick={(event) => {
                 event.stopPropagation();
-                reviewMutation.mutate(row.id);
+                analyzeMutation.mutate({
+                  siteSnapId: row.id,
+                  reanalyze: canReanalyze,
+                });
               }}
-              disabled={reviewMutation.isPending}
+              disabled={analyzeMutation.isPending}
             >
-              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-              Review
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              {canReanalyze ? "Reanalyze" : "Analyze"}
             </Button>
-          )}
-        </div>
-      ),
+            {row.status !== "reviewed" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  reviewMutation.mutate(row.id);
+                }}
+                disabled={reviewMutation.isPending}
+              >
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                Review
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -317,16 +341,10 @@ export function SiteSnapPage() {
       <PageHeader
         title="SiteSnap AI"
         description="Capture field photos and get AI-powered site observations."
-        action={
-          <Button size="sm" onClick={openCreateDrawer}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            New snap
-          </Button>
-        }
       />
 
-      <div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_auto]">
-        <div className="min-w-0">
+      <div className="flex items-center gap-3 overflow-x-auto pb-1">
+        <div className="min-w-[220px] max-w-sm flex-1">
           <Select
             value={projectId || undefined}
             onValueChange={(value) => setProjectId(value)}
@@ -334,7 +352,9 @@ export function SiteSnapPage() {
             <SelectTrigger className="h-10">
               <SelectValue
                 placeholder={
-                  projectsQuery.isLoading ? "Loading projects..." : "Select project"
+                  projectsQuery.isLoading
+                    ? "Loading projects..."
+                    : "Select project"
                 }
               />
             </SelectTrigger>
@@ -351,28 +371,26 @@ export function SiteSnapPage() {
             </SelectContent>
           </Select>
         </div>
+
+        <Button
+          size="sm"
+          className="h-10 shrink-0 whitespace-nowrap"
+          onClick={openCreateDrawer}
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          New snap
+        </Button>
+
         <Button
           variant="outline"
-          className="h-10 w-full md:w-auto"
+          className="h-10 shrink-0 whitespace-nowrap"
           onClick={() => {
             void listQuery.refetch();
-            void dailyProgressQuery.refetch();
           }}
           disabled={normalizedProjectId.length === 0}
         >
           Refresh
         </Button>
-        {dailyProgressQuery.data ? (
-          <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground md:col-span-2">
-            {dailyProgressQuery.data.snapCount} snaps, {" "}
-            {dailyProgressQuery.data.reviewedCount} reviewed, {" "}
-            {dailyProgressQuery.data.observationCount} observations today
-          </div>
-        ) : (
-          <div className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground md:col-span-2">
-            Daily progress appears after selecting a project.
-          </div>
-        )}
       </div>
 
       {normalizedProjectId.length === 0 ? (
@@ -383,7 +401,7 @@ export function SiteSnapPage() {
         />
       ) : (
         <DataTable
-          className="w-full [&_table]:w-full [&_table]:table-fixed"
+          className="w-full [&_table]:w-full"
           columns={columns}
           data={listQuery.data ?? []}
           isLoading={listQuery.isLoading}

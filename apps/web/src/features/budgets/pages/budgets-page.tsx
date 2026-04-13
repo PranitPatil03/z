@@ -26,6 +26,7 @@ import {
 import {
   type BudgetCostCode,
   type BudgetCostEntry,
+  type BudgetReconciliationItem,
   type BudgetEntrySourceType,
   type BudgetEntryType,
   budgetsApi,
@@ -491,6 +492,102 @@ export function BudgetsPage() {
     },
   ];
 
+  const reconciliationItems = reconciliationQuery.data?.items ?? [];
+  const reconciliationAtRiskCount = reconciliationItems.reduce(
+    (count, item) =>
+      isVarianceAtRisk(item.metrics, item.effectiveAlertThresholdBps)
+        ? count + 1
+        : count,
+    0,
+  );
+
+  const reconciliationColumns: DataTableColumn<BudgetReconciliationItem>[] = [
+    {
+      key: "costCode",
+      header: "Cost code",
+      width: "260px",
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="font-mono text-xs text-muted-foreground">{row.code}</p>
+          <p className="truncate text-sm font-medium text-foreground">{row.name}</p>
+        </div>
+      ),
+    },
+    {
+      key: "budgetActual",
+      header: "Budget / Actual",
+      width: "190px",
+      render: (row) => (
+        <div className="text-sm">
+          <p className="text-foreground">{formatCents(row.budgetCents)}</p>
+          <p className="text-xs text-muted-foreground">
+            Actual {formatCents(row.actualCents)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "variance",
+      header: "Variance",
+      width: "170px",
+      render: (row) => {
+        const variancePercent = bpsToPercent(row.metrics.varianceBps);
+        const atRisk = isVarianceAtRisk(
+          row.metrics,
+          row.effectiveAlertThresholdBps,
+        );
+
+        return (
+          <div className="text-sm">
+            <p
+              className={cn(
+                "font-medium",
+                atRisk
+                  ? "text-red-700 dark:text-red-400"
+                  : "text-green-700 dark:text-green-400",
+              )}
+            >
+              {variancePercent.toFixed(2)}%
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Threshold {(row.effectiveAlertThresholdBps / 100).toFixed(2)}%
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: "entries",
+      header: "Entries",
+      width: "180px",
+      render: (row) => (
+        <div className="text-xs text-muted-foreground">
+          <p className="text-sm text-foreground">{row.entryStats.count}</p>
+          <p>
+            C {row.entryStats.committed} • A {row.entryStats.actual} • B{" "}
+            {row.entryStats.billed}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "latestAlert",
+      header: "Latest alert",
+      width: "170px",
+      render: (row) =>
+        row.latestAlert ? (
+          <div className="space-y-1">
+            <StatusBadge status={row.latestAlert.severity} />
+            <p className="text-xs text-muted-foreground">
+              {formatDateTime(row.latestAlert.createdAt)}
+            </p>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">No alert</span>
+        ),
+    },
+  ];
+
   return (
     <div className="min-w-0 space-y-6">
       <PageHeader
@@ -499,17 +596,18 @@ export function BudgetsPage() {
         action={
           <Button
             size="sm"
+            className="whitespace-nowrap"
             onClick={() => setCreateDrawerOpen(true)}
             disabled={normalizedProjectId.length === 0}
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            New cost code
+            Create new budget
           </Button>
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.2fr)_auto_auto_auto]">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0 w-full xl:max-w-sm">
           <RadixSelect
             value={projectId || undefined}
             onValueChange={(value) => setProjectId(value)}
@@ -534,49 +632,51 @@ export function BudgetsPage() {
             </SelectContent>
           </RadixSelect>
         </div>
-        <Button
-          variant="outline"
-          className="h-10 w-full md:w-auto"
-          onClick={() => refreshAll()}
-          disabled={normalizedProjectId.length === 0}
-        >
-          Refresh project data
-        </Button>
-        <Button
-          variant="outline"
-          className="h-10 w-full md:w-auto"
-          onClick={() => queueNarrativesMutation.mutate()}
-          disabled={
-            queueNarrativesMutation.isPending ||
-            normalizedProjectId.length === 0
-          }
-        >
-          {queueNarrativesMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <WandSparkles className="mr-2 h-4 w-4" />
-          )}
-          Queue narratives
-        </Button>
-        <Button
-          variant="outline"
-          className="h-10 w-full md:w-auto"
-          onClick={() => {
-            if (window.confirm("Deduplicate alerts for this project?")) {
-              deduplicateMutation.mutate();
+        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          <Button
+            variant="outline"
+            className="h-10 shrink-0"
+            onClick={() => refreshAll()}
+            disabled={normalizedProjectId.length === 0}
+          >
+            Refresh project data
+          </Button>
+          <Button
+            variant="outline"
+            className="h-10 shrink-0"
+            onClick={() => queueNarrativesMutation.mutate()}
+            disabled={
+              queueNarrativesMutation.isPending ||
+              normalizedProjectId.length === 0
             }
-          }}
-          disabled={
-            deduplicateMutation.isPending || normalizedProjectId.length === 0
-          }
-        >
-          {deduplicateMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <GitMerge className="mr-2 h-4 w-4" />
-          )}
-          Deduplicate alerts
-        </Button>
+          >
+            {queueNarrativesMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <WandSparkles className="mr-2 h-4 w-4" />
+            )}
+            Queue narratives
+          </Button>
+          <Button
+            variant="outline"
+            className="h-10 shrink-0"
+            onClick={() => {
+              if (window.confirm("Deduplicate alerts for this project?")) {
+                deduplicateMutation.mutate();
+              }
+            }}
+            disabled={
+              deduplicateMutation.isPending || normalizedProjectId.length === 0
+            }
+          >
+            {deduplicateMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <GitMerge className="mr-2 h-4 w-4" />
+            )}
+            Deduplicate alerts
+          </Button>
+        </div>
       </div>
 
       {normalizedProjectId.length === 0 ? (
@@ -632,7 +732,7 @@ export function BudgetsPage() {
                 Save settings
               </Button>
             </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(280px,420px)_minmax(260px,1fr)] lg:items-end">
               <div className="space-y-1.5">
                 <Label>Alert threshold (bps)</Label>
                 <Input
@@ -653,27 +753,30 @@ export function BudgetsPage() {
           </section>
 
           <section className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-base font-semibold text-foreground">
                 Cost codes
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-start sm:self-auto">
                 <Button
                   variant="outline"
-                  className="h-9"
+                  className="h-9 whitespace-nowrap"
                   onClick={() => setEditDrawerOpen(true)}
                   disabled={!selectedCostCode}
                 >
                   Edit selected
                 </Button>
-                <Button className="h-9" onClick={() => setCreateDrawerOpen(true)}>
+                <Button
+                  className="h-9 whitespace-nowrap"
+                  onClick={() => setCreateDrawerOpen(true)}
+                >
                   <Plus className="mr-1.5 h-4 w-4" />
-                  Add cost code
+                  New cost code
                 </Button>
               </div>
             </div>
             <DataTable
-              className="w-full [&_table]:w-full [&_table]:table-fixed"
+              className="[&_table]:w-full"
               columns={costCodeColumns}
               data={costCodesQuery.data ?? []}
               isLoading={costCodesQuery.isLoading}
@@ -695,7 +798,7 @@ export function BudgetsPage() {
                 Cost entries{" "}
                 {selectedCostCode ? `• ${selectedCostCode.code}` : ""}
               </h2>
-              <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
+              <div className="flex flex-wrap items-center gap-2">
                 <NativeSelect
                   value={entryTypeFilter}
                   onChange={(event) =>
@@ -749,7 +852,7 @@ export function BudgetsPage() {
               </div>
             </div>
             <DataTable
-              className="w-full [&_table]:w-full [&_table]:table-fixed"
+              className="[&_table]:w-full"
               columns={entryColumns}
               data={entriesQuery.data ?? []}
               isLoading={entriesQuery.isLoading}
@@ -824,12 +927,20 @@ export function BudgetsPage() {
 
           {reconciliationQuery.data && (
             <section className="rounded-xl border border-border bg-card p-4">
-              <h2 className="mb-3 text-base font-semibold text-foreground">
-                Reconciliation
-              </h2>
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-base font-semibold text-foreground">
+                  Reconciliation
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Select a row to open that cost code in the entries and drilldown sections.
+                </p>
+              </div>
               <div className="mb-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span className="rounded-md bg-muted px-2 py-1">
                   {reconciliationSummary.total} cost codes
+                </span>
+                <span className="rounded-md bg-muted px-2 py-1">
+                  {reconciliationAtRiskCount} at-risk variances
                 </span>
                 <span className="rounded-md bg-muted px-2 py-1">
                   {reconciliationSummary.unresolvedAlerts} unresolved alerts
@@ -838,32 +949,26 @@ export function BudgetsPage() {
                   {reconciliationQuery.data.entryCount} entries
                 </span>
               </div>
-              <div className="space-y-2">
-                {reconciliationQuery.data.items.slice(0, 10).map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <p className="text-sm font-medium text-foreground">
-                        {item.code} • {item.name}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        Variance{" "}
-                        {bpsToPercent(item.metrics.varianceBps).toFixed(2)}% •
-                        Entries {item.entryStats.count}
-                      </p>
-                    </div>
-                    {item.latestAlert ? (
-                      <StatusBadge status={item.latestAlert.severity} />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        No alert
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <DataTable
+                  className="[&_table]:w-full"
+                columns={reconciliationColumns}
+                data={reconciliationItems.slice(0, 12)}
+                isLoading={reconciliationQuery.isLoading}
+                rowKey={(row) => row.id}
+                onRowClick={(row) => setSelectedCostCodeId(row.id)}
+                emptyState={
+                  <EmptyState
+                    title="No reconciliation data"
+                    description="Add cost codes and entries to build reconciliation context."
+                    icon={GitMerge}
+                  />
+                }
+              />
+              {reconciliationItems.length > 12 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Showing first 12 cost codes. Use Cost codes above to browse the full list.
+                </p>
+              ) : null}
             </section>
           )}
         </>
