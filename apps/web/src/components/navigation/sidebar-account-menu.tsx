@@ -20,7 +20,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -37,6 +37,21 @@ interface SidebarAccountMenuProps {
   isSidebarCollapsed: boolean;
 }
 
+const PRAVATAR_IMAGE_IDS = [
+  1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 18, 19, 20, 21, 22, 23,
+  24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 39, 40, 41, 42, 44, 45,
+  46, 47, 48, 49, 50, 51, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65,
+  66, 67, 68, 69,
+] as const;
+
+function hashSeed(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
 export function SidebarAccountMenu({
   isSidebarCollapsed,
 }: SidebarAccountMenuProps) {
@@ -47,6 +62,7 @@ export function SidebarAccountMenu({
   const [open, setOpen] = useState(false);
   const [createOrganizationDialogOpen, setCreateOrganizationDialogOpen] =
     useState(false);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
   const [createOrganizationName, setCreateOrganizationName] = useState("");
   const [createOrganizationSlug, setCreateOrganizationSlug] = useState("");
   const [createOrganizationSlugTouched, setCreateOrganizationSlugTouched] =
@@ -85,7 +101,20 @@ export function SidebarAccountMenu({
     return organizations[0];
   }, [activeOrganizationId, organizations]);
 
-  const initials = "AC";
+  const avatarSeed = `${user?.id ?? "anonymous"}:${user?.email ?? "anonymous@example.com"}`;
+  const avatarImageId =
+    PRAVATAR_IMAGE_IDS[hashSeed(avatarSeed) % PRAVATAR_IMAGE_IDS.length];
+  const dummyAvatarUrl = `https://i.pravatar.cc/120?img=${avatarImageId}`;
+
+  const initials =
+    user?.name
+      ?.split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() ||
+    user?.email?.slice(0, 2).toUpperCase() ||
+    "AC";
 
   function toSlug(value: string) {
     return value
@@ -137,6 +166,10 @@ export function SidebarAccountMenu({
       document.removeEventListener("keydown", onEscape);
     };
   }, [open, createOrganizationDialogOpen]);
+
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [dummyAvatarUrl]);
 
   const switchOrganizationMutation = useMutation({
     mutationFn: (organizationId: string) => organizationsApi.setActive(organizationId),
@@ -384,15 +417,23 @@ export function SidebarAccountMenu({
       >
         <div className="flex min-w-0 items-center gap-2">
           <Avatar className="h-7 w-7 shrink-0">
+            {!avatarLoadError && (
+              <AvatarImage
+                src={dummyAvatarUrl}
+                onError={() => setAvatarLoadError(true)}
+              />
+            )}
             <AvatarFallback className="bg-primary/20 text-xs text-primary-foreground">
               {initials}
             </AvatarFallback>
           </Avatar>
           {!isSidebarCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">Account</p>
+              <p className="truncate text-sm font-semibold">
+                {user?.name?.trim() || "Account"}
+              </p>
               <p className="truncate text-xs text-primary-foreground/80">
-                Profile and preferences
+                {currentOrganization?.name || "No active organization"}
               </p>
             </div>
           )}

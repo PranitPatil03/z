@@ -786,6 +786,7 @@ export function SmartMailThreadPage({ threadId }: SmartMailThreadPageProps) {
           <Skeleton className="h-32 w-full rounded-xl" />
         ) : (
           <DataTable
+            className="w-full border-none"
             columns={messageColumns}
             data={messagesQuery.data ?? []}
             rowKey={(row) => row.id}

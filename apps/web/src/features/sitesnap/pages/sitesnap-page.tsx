@@ -343,43 +343,45 @@ export function SiteSnapPage() {
         description="Capture field photos and get AI-powered site observations."
       />
 
-      <div className="flex items-center gap-3 overflow-x-auto pb-1">
-        <div className="min-w-[220px] max-w-sm flex-1">
-          <Select
-            value={projectId || undefined}
-            onValueChange={(value) => setProjectId(value)}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue
-                placeholder={
-                  projectsQuery.isLoading
-                    ? "Loading projects..."
-                    : "Select project"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {projectId &&
-                !projectOptions.some((project) => project.id === projectId) && (
-                  <SelectItem value={projectId}>Current: {projectId}</SelectItem>
-                )}
-              {projectOptions.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.code} - {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1">
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+          <div className="min-w-[220px] max-w-sm flex-1">
+            <Select
+              value={projectId || undefined}
+              onValueChange={(value) => setProjectId(value)}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    projectsQuery.isLoading
+                      ? "Loading projects..."
+                      : "Select project"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {projectId &&
+                  !projectOptions.some((project) => project.id === projectId) && (
+                    <SelectItem value={projectId}>Current: {projectId}</SelectItem>
+                  )}
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Button
-          size="sm"
-          className="h-10 shrink-0 whitespace-nowrap"
-          onClick={openCreateDrawer}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          New snap
-        </Button>
+          <Button
+            size="sm"
+            className="h-10 shrink-0 whitespace-nowrap"
+            onClick={openCreateDrawer}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            New snap
+          </Button>
+        </div>
 
         <Button
           variant="outline"
