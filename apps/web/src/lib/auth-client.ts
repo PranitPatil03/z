@@ -14,6 +14,9 @@ const client = createAuthClient({
   baseURL: env.API_BASE_URL,
   basePath: "/auth",
   plugins: [organizationClient()],
+  fetchOptions: {
+    credentials: "include",
+  },
 });
 
 export const authClient: ReturnType<typeof createAuthClient> = client;
