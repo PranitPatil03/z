@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select-radix";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { projectsApi } from "@/lib/api/modules/projects-api";
+import { purchaseOrdersApi } from "@/lib/api/modules/purchase-orders-api";
 import { type Receipt, receiptsApi } from "@/lib/api/modules/receipts-api";
 import { queryKeys } from "@/lib/api/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,10 +41,31 @@ function formatDate(value: string | null | undefined) {
   });
 }
 
+function formatProjectCodeToken(projectCode?: string) {
+  const sanitized = (projectCode ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 4);
+
+  return sanitized || "GEN";
+}
+
+function createReceiptNumber(projectCode?: string) {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const serial = String(Math.floor(Math.random() * 9000) + 1000);
+
+  return `RCPT-${formatProjectCodeToken(projectCode)}-${yy}${mm}${dd}-${serial}`;
+}
+
 export function ReceiptsPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [receiptNumberManuallyEdited, setReceiptNumberManuallyEdited] =
+    useState(false);
   const [form, setForm] = useState({
     projectId: "",
     purchaseOrderId: "",
@@ -60,6 +82,27 @@ export function ReceiptsPage() {
 
   const projectOptions = projectsQuery.data ?? [];
 
+  function findProjectCode(projectId: string) {
+    return projectOptions.find((project) => project.id === projectId)?.code;
+  }
+
+  function openCreateReceiptDrawer() {
+    const defaultProjectId = form.projectId || projectOptions[0]?.id || "";
+    const projectCode = findProjectCode(defaultProjectId);
+
+    setReceiptNumberManuallyEdited(false);
+    setDrawerOpen(true);
+    setForm((current) => ({
+      ...current,
+      projectId: defaultProjectId,
+      purchaseOrderId: "",
+      receiptNumber: createReceiptNumber(projectCode),
+      receivedAmount: "",
+      receivedAt: "",
+      notes: "",
+    }));
+  }
+
   useEffect(() => {
     if (form.projectId || projectOptions.length === 0) {
       return;
@@ -73,8 +116,21 @@ export function ReceiptsPage() {
     setForm((current) => ({
       ...current,
       projectId: defaultProjectId,
+      receiptNumber:
+        current.receiptNumber || createReceiptNumber(findProjectCode(defaultProjectId)),
     }));
   }, [form.projectId, projectOptions]);
+
+  const purchaseOrdersQuery = useQuery({
+    queryKey: queryKeys.purchaseOrders.list({
+      projectId: form.projectId || undefined,
+    }),
+    queryFn: () =>
+      purchaseOrdersApi.list({ projectId: form.projectId || undefined }),
+    enabled: form.projectId.length > 0,
+  });
+
+  const purchaseOrderOptions = purchaseOrdersQuery.data ?? [];
 
   const query = useQuery({
     queryKey: queryKeys.receipts.list(),
@@ -85,7 +141,7 @@ export function ReceiptsPage() {
     mutationFn: () =>
       receiptsApi.create({
         projectId: form.projectId,
-        purchaseOrderId: form.purchaseOrderId || undefined,
+        purchaseOrderId: form.purchaseOrderId,
         receiptNumber: form.receiptNumber,
         receivedAmountCents: Math.round(
           Number.parseFloat(form.receivedAmount) * 100,
@@ -98,10 +154,11 @@ export function ReceiptsPage() {
     onSuccess: () => {
       toast.success("Receipt created");
       setDrawerOpen(false);
+      setReceiptNumberManuallyEdited(false);
       setForm({
         projectId: form.projectId,
         purchaseOrderId: "",
-        receiptNumber: "",
+        receiptNumber: createReceiptNumber(findProjectCode(form.projectId)),
         receivedAmount: "",
         receivedAt: "",
         notes: "",
@@ -154,16 +211,7 @@ export function ReceiptsPage() {
         title="Receipts"
         description="Track goods/service receipt confirmations against purchase orders."
         action={
-          <Button
-            size="sm"
-            onClick={() => {
-              setDrawerOpen(true);
-              setForm((current) => ({
-                ...current,
-                projectId: current.projectId || projectOptions[0]?.id || "",
-              }));
-            }}
-          >
+          <Button size="sm" onClick={openCreateReceiptDrawer}>
             <Plus className="mr-1.5 h-4 w-4" />
             New receipt
           </Button>
@@ -183,7 +231,7 @@ export function ReceiptsPage() {
             description="Create a receipt to reconcile delivered work or materials."
             action={{
               label: "New receipt",
-              onClick: () => setDrawerOpen(true),
+              onClick: openCreateReceiptDrawer,
             }}
           />
         }
@@ -204,6 +252,7 @@ export function ReceiptsPage() {
               disabled={
                 createMutation.isPending ||
                 !form.projectId ||
+                !form.purchaseOrderId ||
                 !form.receiptNumber ||
                 !form.receivedAmount
               }
@@ -221,12 +270,17 @@ export function ReceiptsPage() {
             <Label>Project ID *</Label>
             <Select
               value={form.projectId || undefined}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
+                const projectCode = findProjectCode(value);
                 setForm((current) => ({
                   ...current,
                   projectId: value,
-                }))
-              }
+                  purchaseOrderId: "",
+                  receiptNumber: receiptNumberManuallyEdited
+                    ? current.receiptNumber
+                    : createReceiptNumber(projectCode),
+                }));
+              }}
             >
               <SelectTrigger className="h-10">
                 <SelectValue
@@ -253,28 +307,60 @@ export function ReceiptsPage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>PO ID</Label>
-            <Input
-              value={form.purchaseOrderId}
-              onChange={(event) =>
+            <Label>PO ID *</Label>
+            <Select
+              value={form.purchaseOrderId || undefined}
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  purchaseOrderId: event.target.value,
+                  purchaseOrderId: value,
                 }))
               }
-              placeholder="purchase-order-id"
-            />
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue
+                  placeholder={
+                    purchaseOrdersQuery.isLoading
+                      ? "Loading purchase orders..."
+                      : "Select PO"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {form.purchaseOrderId &&
+                  !purchaseOrderOptions.some(
+                    (purchaseOrder) => purchaseOrder.id === form.purchaseOrderId,
+                  ) && (
+                    <SelectItem value={form.purchaseOrderId}>
+                      Current: {form.purchaseOrderId}
+                    </SelectItem>
+                  )}
+                {purchaseOrderOptions.map((purchaseOrder) => (
+                  <SelectItem key={purchaseOrder.id} value={purchaseOrder.id}>
+                    {purchaseOrder.poNumber} - {purchaseOrder.vendorName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!purchaseOrdersQuery.isLoading &&
+              form.projectId &&
+              purchaseOrderOptions.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No purchase orders found for the selected project.
+                </p>
+              )}
           </div>
           <div className="space-y-1.5">
             <Label>Receipt number *</Label>
             <Input
               value={form.receiptNumber}
-              onChange={(event) =>
+              onChange={(event) => {
+                setReceiptNumberManuallyEdited(true);
                 setForm((current) => ({
                   ...current,
                   receiptNumber: event.target.value,
-                }))
-              }
+                }));
+              }}
               placeholder="RCPT-2026-001"
             />
           </div>
